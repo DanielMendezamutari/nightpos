@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:api:local": "node test-api.js http://nightpos.test/api",
+    "test:api:prod": "node test-api.js https://nightpos.ribersoft.com/api",
+    "test:api": "node test-api.js"
   },
   "dependencies": {
     "vue": "^3.5.32",
