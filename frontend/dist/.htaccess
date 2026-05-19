@@ -1,0 +1,10 @@
+# Entrega del build SPA (Vite): todas las rutas deben servir index.html.
+# Copia este archivo con `dist/` al publicar bajo Apache (p. ej. XAMPP).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
