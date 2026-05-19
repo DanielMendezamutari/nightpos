@@ -1,0 +1,13 @@
+---
+description: NightPOS frontend — SPA y formularios sin salir de la vista
+globs: frontend/**/*.vue
+alwaysApply: false
+---
+
+# NightPOS Vue frontend
+
+- **Navegación**: usar siempre Vue Router (`router.push` / `router.replace` / `<RouterLink>`). No usar `window.location` para rutas internas salvo fallback en `api.js` si no hay router.
+- **401 / logout**: la sesión se limpia y se redirige al login vía router (registrado en `main.js`), sin recarga completa.
+- **Flujos modales** (compras, productos, etc.): mantener al usuario en la misma ruta; overlays con `position: fixed` y `z-index` mayor si hay modales anidados (ej. compra ~60, categoría ~180, proveedor ~200).
+- **Referencias faltantes** (categoría, proveedor, etc.): añadir botón **+ Nuevo …** que abre un modal pequeño, llama al mismo endpoint que la pantalla de administración (`POST` correspondiente), actualiza la lista local y selecciona el registro creado — sin navegar a otra pestaña.
+- **Despliegue**: el build incluye `public/.htaccess` para Apache; rutas profundas deben servir `index.html`.
