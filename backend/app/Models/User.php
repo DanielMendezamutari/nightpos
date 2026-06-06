@@ -7,26 +7,11 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
-use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable;
-
-    public function getJWTIdentifier(): mixed
-    {
-        return $this->getKey();
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function getJWTCustomClaims(): array
-    {
-        return [];
-    }
+    use HasFactory, Notifiable;
 
     /**
      * The attributes that are mass assignable.
@@ -36,13 +21,6 @@ class User extends Authenticatable implements JWTSubject
     protected $fillable = [
         'name',
         'email',
-        'pin_code',
-        'role',
-        'site_id',
-        'active_site_id',
-        'max_active_tables',
-        'waiter_compensation_type',
-        'waiter_commission_rate_pct',
         'password',
     ];
 
@@ -65,8 +43,6 @@ class User extends Authenticatable implements JWTSubject
     {
         return [
             'email_verified_at' => 'datetime',
-            'active_site_id' => 'integer',
-            'max_active_tables' => 'integer',
             'password' => 'hashed',
         ];
     }

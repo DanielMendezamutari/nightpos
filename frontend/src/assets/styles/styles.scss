@@ -1,0 +1,8 @@
+// Write your overrides
+
+// Ocultar insignias de desarrollo (Vue DevTools / plantilla)
+vue-devtools-anchor,
+.vue-devtools__anchor,
+.buy-now-button {
+  display: none !important;
+}

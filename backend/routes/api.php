@@ -1,280 +1,455 @@
 <?php
 
-use App\Http\Controllers\Api\AddOrderItemController;
-use App\Http\Controllers\Api\AddPosOrderItemController;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\AssignBranchTableController;
-use App\Http\Controllers\Api\AckRoomServiceAlertController;
-use App\Http\Controllers\Api\ApplyRefillRecipeController;
-use App\Http\Controllers\Api\CloseShiftController;
-use App\Http\Controllers\Api\ClosePosSessionController;
-use App\Http\Controllers\Api\CloseRoomTimeServiceController;
-use App\Http\Controllers\Api\GetCurrentOpenShiftController;
-use App\Http\Controllers\Api\GetPosOrderController;
-use App\Http\Controllers\Api\GetShiftCashierReportController;
-use App\Http\Controllers\Api\GetShiftCashSummaryController;
-use App\Http\Controllers\Api\ListCompanionWorkSessionsController;
-use App\Http\Controllers\Api\ListRecentShiftsForSiteController;
-use App\Http\Controllers\Api\SettleCompanionWorkSessionController;
-use App\Http\Controllers\Api\StartCompanionWorkSessionController;
-use App\Http\Controllers\Api\ListCashDrawerMovementsController;
-use App\Http\Controllers\Api\RegisterCashDrawerMovementController;
-use App\Http\Controllers\Api\CompanionRankingReportController;
-use App\Http\Controllers\Api\CreateBranchController;
-use App\Http\Controllers\Api\CreateBranchContactController;
-use App\Http\Controllers\Api\CreateCompanionQuickController;
-use App\Http\Controllers\Api\CreatePosOrderController;
-use App\Http\Controllers\Api\CreatePosSessionController;
-use App\Http\Controllers\Api\CreatePurchaseOrderController;
-use App\Http\Controllers\Api\CreateRoomTimeServiceController;
-use App\Http\Controllers\Api\CreateSiteStockTransferController;
-use App\Http\Controllers\Api\GetSiteStockTransferController;
-use App\Http\Controllers\Api\ListSiteStockTransfersController;
-use App\Http\Controllers\Api\CreateRefillRecipeController;
-use App\Http\Controllers\Api\CreateProductCategoryController;
-use App\Http\Controllers\Api\CreateProductController;
-use App\Http\Controllers\Api\CreateUserController;
-use App\Http\Controllers\Api\DeleteProductCategoryController;
-use App\Http\Controllers\Api\ListProductCategoriesController;
-use App\Http\Controllers\Api\ListMaintenanceProductsController;
-use App\Http\Controllers\Api\ListCompanionsController;
-use App\Http\Controllers\Api\ListPosOrdersController;
-use App\Http\Controllers\Api\ListPosSessionsController;
-use App\Http\Controllers\Api\ListWaiterTablesController;
-use App\Http\Controllers\Api\ListProductKardexController;
-use App\Http\Controllers\Api\ListProductsController;
-use App\Http\Controllers\Api\CancelPurchaseOrderController;
-use App\Http\Controllers\Api\DownloadPurchaseOrderDocumentController;
-use App\Http\Controllers\Api\ExportPurchaseOrderPdfController;
-use App\Http\Controllers\Api\UploadPurchaseOrderDocumentController;
-use App\Http\Controllers\Api\ListPurchaseOrdersController;
-use App\Http\Controllers\Api\ShowPurchaseOrderController;
-use App\Http\Controllers\Api\ListRefillRecipesController;
-use App\Http\Controllers\Api\ListRoomServiceAlertsController;
-use App\Http\Controllers\Api\ListRoomTimeServicesController;
-use App\Http\Controllers\Api\ListBranchWaitersController;
-use App\Http\Controllers\Api\ListUsersController;
-use App\Http\Controllers\Api\UpdateBranchWaiterCompensationController;
-use App\Http\Controllers\Api\ListWaiterCommissionsController;
-use App\Http\Controllers\Api\ListValuedKardexController;
-use App\Http\Controllers\Api\ExportStockTransferPdfController;
-use App\Http\Controllers\Api\ExportProductKardexPdfController;
-use App\Http\Controllers\Api\ExportValuedKardexPdfController;
-use App\Http\Controllers\Api\ExportShiftCashPdfController;
-use App\Http\Controllers\Api\ExportPosOrderPdfController;
-use App\Http\Controllers\Api\ExportRoomTimeServicePdfController;
-use App\Http\Controllers\Api\ExportCompanionRankingPdfController;
-use App\Http\Controllers\Api\ExportProductSalesPdfController;
-use App\Http\Controllers\Api\ExportSalesSummaryPdfController;
-use App\Http\Controllers\Api\ExportStaffSalesPdfController;
-use App\Http\Controllers\Api\ExportWaiterCommissionsPdfController;
-use App\Http\Controllers\Api\ListProductSalesReportController;
-use App\Http\Controllers\Api\ListReportShiftTurnsController;
-use App\Http\Controllers\Api\ListSalesSummaryReportController;
-use App\Http\Controllers\Api\ListStaffSalesReportController;
-use App\Http\Controllers\Api\ExportSaasSubscriptionPaymentsPdfController;
-use App\Http\Controllers\Api\ExportProductsCatalogPdfController;
-use App\Http\Controllers\Api\ExportBranchProfilePdfController;
-use App\Http\Controllers\Api\ExportRefillRecipesPdfController;
-use App\Http\Controllers\Api\OpenShiftController;
-use App\Http\Controllers\Api\RegisterPaymentController;
-use App\Http\Controllers\Api\RegisterManualInventoryMovementController;
-use App\Http\Controllers\Api\PayRoomTimeServiceController;
-use App\Http\Controllers\Api\SaasAlertsController;
-use App\Http\Controllers\Api\SaasOverviewController;
-use App\Http\Controllers\Api\SaasSubscriptionController;
-use App\Http\Controllers\Api\UnassignBranchTableController;
-use App\Http\Controllers\Api\UpdateSystemLockController;
-use App\Http\Controllers\Api\UpdateProductCategoryController;
-use App\Http\Controllers\Api\UpdateProductController;
-use App\Http\Controllers\Api\UpdateWaiterTableLimitController;
-use App\Http\Controllers\Api\ListSitesController;
-use App\Http\Controllers\Api\BranchProfileController;
-use App\Http\Controllers\Api\BranchOperatingHoursController;
-use App\Http\Controllers\Api\CreateBranchRoomController;
-use App\Http\Controllers\Api\CreateBranchTableController;
-use App\Http\Controllers\Api\DeleteBranchRoomController;
-use App\Http\Controllers\Api\DeleteBranchTableController;
-use App\Http\Controllers\Api\DeleteBranchContactController;
-use App\Http\Controllers\Api\DeleteUserController;
-use App\Http\Controllers\Api\ListBranchRoomsController;
-use App\Http\Controllers\Api\ListBranchTablesController;
-use App\Http\Controllers\Api\ListBranchContactsController;
-use App\Http\Controllers\Api\UpdateBranchRoomController;
-use App\Http\Controllers\Api\UpdateBranchContactController;
-use App\Http\Controllers\Api\UpdateUserController;
-use App\Http\Controllers\Api\ExtendRoomTimeServiceController;
+use App\Http\Controllers\Api\V1\Admin\AdminCashSessionController;
+use App\Http\Controllers\Api\V1\Admin\AdminBranchController;
+use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
+use App\Http\Controllers\Api\V1\Admin\AdminUserController;
+use App\Http\Controllers\Api\V1\Admin\PlatformSetupController;
+use App\Http\Controllers\Api\V1\CashController;
+use App\Http\Controllers\Api\V1\SaleController;
+use App\Http\Controllers\Api\V1\SettlementController;
+use App\Http\Controllers\Api\V1\BraceletController;
+use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\StaffController;
+use App\Http\Controllers\Api\V1\RoomController;
+use App\Http\Controllers\Api\V1\RoomServiceController;
+use App\Http\Controllers\Api\V1\ShowController;
+use App\Http\Controllers\Api\V1\CashMovementReasonController;
+use App\Http\Controllers\Api\V1\FirstNightChecklistController;
+use App\Http\Controllers\Api\V1\PaymentMethodController;
+use App\Http\Controllers\Api\V1\RoomTypeController;
+use App\Http\Controllers\Api\V1\ServiceAreaController;
+use App\Http\Controllers\Api\V1\ShowTypeController;
+use App\Http\Controllers\Api\V1\WaiterController;
+use App\Http\Controllers\Api\V1\CleaningController;
+use App\Http\Controllers\Api\V1\GirlController;
+use App\Http\Controllers\Api\V1\AuditLogController;
+use App\Http\Controllers\Api\V1\SettingsBootstrapController;
+use App\Http\Controllers\Api\V1\ShiftController;
+use App\Http\Controllers\Api\V1\ShiftConsoleController;
+use App\Http\Controllers\Api\V1\ShiftExportController;
+use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\BranchController;
+use App\Http\Controllers\Api\V1\ProductCategoryController;
+use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\TenantController;
+use App\Http\Controllers\Api\V1\DirectSaleController;
+use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\EventsTokenController;
+use App\Http\Controllers\Api\V1\EventsStreamController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/health', function () {
-    return response()->json([
-        'status' => 'ok',
-        'service' => 'nightpos-api',
-    ]);
+Route::prefix('v1')->group(function () {
+    Route::prefix('auth')->group(function () {
+        Route::post('login-pin', [AuthController::class, 'loginPin']);
+        Route::post('login-password', [AuthController::class, 'loginPassword']);
+
+        Route::middleware('auth:api')->group(function () {
+            Route::get('me', [AuthController::class, 'me']);
+            Route::post('logout', [AuthController::class, 'logout']);
+        });
+    });
+
+    Route::middleware(['auth:api', 'nightpos.tenant', 'nightpos.branch:optional'])->group(function () {
+        Route::get('tenant/current', [TenantController::class, 'current']);
+
+        Route::get('branches/available', [BranchController::class, 'available']);
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access'])->group(function () {
+            Route::get('branches/current', [BranchController::class, 'current']);
+        });
+
+        Route::prefix('admin')->group(function () {
+            Route::middleware('nightpos.permission:admin.tenants.list')->group(function () {
+                Route::get('tenants', [AdminTenantController::class, 'index']);
+                Route::get('tenants/{id}', [AdminTenantController::class, 'show'])->whereNumber('id');
+                Route::put('tenants/{id}', [AdminTenantController::class, 'update'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:admin.tenants.create')->group(function () {
+                Route::post('tenants', [AdminTenantController::class, 'store']);
+            });
+
+            Route::middleware('nightpos.permission:platform.setup')->group(function () {
+                Route::post('platform/setup', [PlatformSetupController::class, 'store']);
+            });
+
+            Route::middleware('nightpos.permission:admin.branches.list')->group(function () {
+                Route::get('branches', [AdminBranchController::class, 'index']);
+                Route::get('branches/{id}', [AdminBranchController::class, 'show'])->whereNumber('id');
+                Route::put('branches/{id}', [AdminBranchController::class, 'update'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:admin.branches.create')->group(function () {
+                Route::post('branches', [AdminBranchController::class, 'store']);
+            });
+
+            Route::middleware('nightpos.permission:admin.users.list')->group(function () {
+                Route::get('users', [AdminUserController::class, 'index']);
+                Route::get('users/{id}', [AdminUserController::class, 'show'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:admin.users.create')->group(function () {
+                Route::post('users', [AdminUserController::class, 'store']);
+                Route::post('users/{id}/reset-pin', [AdminUserController::class, 'resetPin'])->whereNumber('id');
+                Route::post('users/{id}/reset-password', [AdminUserController::class, 'resetPassword'])->whereNumber('id');
+                Route::post('users/{id}/branches', [AdminUserController::class, 'grantBranch'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:admin.users.update')->group(function () {
+                Route::put('users/{id}', [AdminUserController::class, 'update'])->whereNumber('id');
+                Route::delete('users/{id}/branches/{branchId}', [AdminUserController::class, 'revokeBranch'])
+                    ->whereNumber(['id', 'branchId']);
+            });
+
+            Route::middleware(['nightpos.branch:required', 'nightpos.branch.access'])->group(function () {
+                Route::middleware('nightpos.permission:admin.cash_sessions.summary')->group(function () {
+                    Route::get('cash-sessions/summary', [AdminCashSessionController::class, 'summary']);
+                });
+
+                Route::middleware('nightpos.permission:admin.cash_sessions.list')->group(function () {
+                    Route::get('cash-sessions', [AdminCashSessionController::class, 'index']);
+                });
+
+                Route::middleware('nightpos.permission:admin.cash_sessions.view')->group(function () {
+                    Route::get('cash-sessions/{id}', [AdminCashSessionController::class, 'show'])->whereNumber('id');
+                });
+            });
+        });
+
+        Route::middleware('nightpos.permission:products.list')->group(function () {
+            Route::get('products/pos-catalog', [ProductController::class, 'posCatalog']);
+            Route::get('products', [ProductController::class, 'index']);
+            Route::get('products/{id}', [ProductController::class, 'show'])->whereNumber('id');
+            Route::get('products/{id}/prices', [ProductController::class, 'prices'])->whereNumber('id');
+            Route::get('product-categories', [ProductCategoryController::class, 'index']);
+            Route::get('product-categories/{id}', [ProductCategoryController::class, 'show'])->whereNumber('id');
+        });
+
+        Route::middleware('nightpos.permission:products.create')->group(function () {
+            Route::post('products', [ProductController::class, 'store']);
+            Route::post('products/{id}/prices', [ProductController::class, 'storePrice'])->whereNumber('id');
+            Route::post('product-categories', [ProductCategoryController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:products.quick_create'])->group(function () {
+            Route::post('products/quick', [ProductController::class, 'quickStore']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:product_prices.quick_create'])->group(function () {
+            Route::post('products/{id}/quick-prices', [ProductController::class, 'storePrice'])->whereNumber('id');
+        });
+
+        Route::middleware('nightpos.permission:products.update')->group(function () {
+            Route::put('products/{id}', [ProductController::class, 'update'])->whereNumber('id');
+            Route::put('products/{id}/prices/active', [ProductController::class, 'replaceActivePrice'])->whereNumber('id');
+            Route::put('product-categories/{id}', [ProductCategoryController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shift_console.access'])->group(function () {
+            Route::get('shift-console/current', [ShiftConsoleController::class, 'current']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:reports.access'])->group(function () {
+            Route::prefix('reports')->group(function () {
+                Route::get('daily', [ReportController::class, 'daily']);
+                Route::get('sales', [ReportController::class, 'sales']);
+                Route::get('cash', [ReportController::class, 'cash']);
+                Route::get('services', [ReportController::class, 'services']);
+                Route::get('settlements', [ReportController::class, 'settlements']);
+                Route::get('rooms', [ReportController::class, 'rooms']);
+                Route::get('shift-closure', [ReportController::class, 'shiftClosure']);
+                Route::get('product-reconciliation', [ReportController::class, 'productReconciliation']);
+            });
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shifts.access'])->group(function () {
+            Route::get('shifts/current', [ShiftController::class, 'current']);
+            Route::get('shifts', [ShiftController::class, 'index'])->middleware('nightpos.permission:shifts.list');
+            Route::get('shifts/{id}', [ShiftController::class, 'show'])->whereNumber('id')->middleware('nightpos.permission:shifts.list');
+            Route::get('shifts/{id}/summary', [ShiftController::class, 'summary'])->whereNumber('id')->middleware('nightpos.permission:shifts.list');
+            Route::get('shifts/{id}/export.csv', [ShiftExportController::class, 'csv'])->whereNumber('id')->middleware('nightpos.permission:shifts.list');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shifts.open'])->group(function () {
+            Route::post('shifts/open', [ShiftController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shifts.close'])->group(function () {
+            Route::post('shifts/{id}/close', [ShiftController::class, 'close'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:waiter.dashboard'])->group(function () {
+            Route::get('waiter/dashboard', [WaiterController::class, 'dashboard']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:waiter.orders'])->group(function () {
+            Route::get('waiter/orders', [WaiterController::class, 'orders']);
+            Route::get('waiter/orders/active', [WaiterController::class, 'activeOrders']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:cleaning.dashboard'])->group(function () {
+            Route::get('cleaning/dashboard', [CleaningController::class, 'dashboard']);
+            Route::get('cleaning/shift-earnings', [CleaningController::class, 'shiftEarnings']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:cleaning.room_services'])->group(function () {
+            Route::get('cleaning/rooms', [CleaningController::class, 'rooms']);
+            Route::get('cleaning/room-services/active', [CleaningController::class, 'activeServices']);
+            Route::get('cleaning/room-services/due', [CleaningController::class, 'dueServices']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:cleaning.check'])->group(function () {
+            Route::post('cleaning/room-services/{id}/check', [CleaningController::class, 'check'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:cleaning.finish'])->group(function () {
+            Route::post('cleaning/room-services/{id}/finish', [CleaningController::class, 'finish'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:cleaning.mark_clean'])->group(function () {
+            Route::post('cleaning/rooms/{id}/mark-clean', [CleaningController::class, 'markClean'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:girl.earnings.view'])->group(function () {
+            Route::get('girl/shift-earnings', [GirlController::class, 'shiftEarnings']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.access'])->group(function () {
+            Route::get('orders', [OrderController::class, 'index']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.create'])->group(function () {
+            Route::post('orders', [OrderController::class, 'store']);
+            Route::get('waiter/service-areas', [WaiterController::class, 'serviceAreas']);
+            Route::get('waiter/girls', [WaiterController::class, 'girls']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.access'])->group(function () {
+            Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.add_items'])->group(function () {
+            Route::post('orders/{id}/items', [OrderController::class, 'addItem'])->whereNumber('id');
+            Route::patch('orders/{id}/items/{itemId}', [OrderController::class, 'assignItemGirl'])->whereNumber(['id', 'itemId']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.update_items'])->group(function () {
+            Route::put('orders/{id}/items/{itemId}', [OrderController::class, 'updateItem'])->whereNumber(['id', 'itemId']);
+            Route::delete('orders/{id}/items/{itemId}', [OrderController::class, 'removeItem'])->whereNumber(['id', 'itemId']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.cancel_item'])->group(function () {
+            Route::post('orders/{id}/items/{itemId}/cancel', [OrderController::class, 'cancelItem'])->whereNumber(['id', 'itemId']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.update_header'])->group(function () {
+            Route::patch('orders/{id}', [OrderController::class, 'updateHeader'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.send_to_bar'])->group(function () {
+            Route::post('orders/{id}/send-to-bar', [OrderController::class, 'sendToBar'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.cancel'])->group(function () {
+            Route::post('orders/{id}/cancel', [OrderController::class, 'cancel'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:sales.charge'])->group(function () {
+            Route::post('orders/{id}/charge', [OrderController::class, 'charge'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:sales.list'])->group(function () {
+            Route::get('sales', [SaleController::class, 'index']);
+            Route::get('sales/{id}', [SaleController::class, 'show'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:sales.direct_create'])->group(function () {
+            Route::post('direct-sales', [DirectSaleController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:cash.access'])->group(function () {
+            Route::get('cash/session/current', [CashController::class, 'current']);
+            Route::post('cash/session/open', [CashController::class, 'open']);
+            Route::post('cash/movements', [CashController::class, 'registerMovement']);
+            Route::post('cash/session/close', [CashController::class, 'close']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.access'])->group(function () {
+            Route::get('settlements/current-shift', [SettlementController::class, 'currentShift']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.pending_sources'])->group(function () {
+            Route::get('settlements/current-shift/pending-sources', [SettlementController::class, 'pendingSources']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.history'])->group(function () {
+            Route::get('settlements/history', [SettlementController::class, 'history']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.generate'])->group(function () {
+            Route::post('settlements/generate-current-shift', [SettlementController::class, 'generateCurrentShift']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.access'])->group(function () {
+            Route::get('settlements/{id}', [SettlementController::class, 'show'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.pay'])->group(function () {
+            Route::post('settlements/{id}/mark-paid', [SettlementController::class, 'markPaid'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:staff.quick_create_girl'])->group(function () {
+            Route::get('staff/girls', [StaffController::class, 'girls']);
+            Route::post('staff/quick-girls', [StaffController::class, 'quickCreateGirl']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:staff.quick_create_waiter'])->group(function () {
+            Route::get('staff/waiters', [StaffController::class, 'waiters']);
+            Route::post('staff/quick-waiters', [StaffController::class, 'quickCreateWaiter']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:show_types.access'])->group(function () {
+            Route::get('show-types', [ShowTypeController::class, 'index']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:show_types.create'])->group(function () {
+            Route::post('show-types', [ShowTypeController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:show_types.update'])->group(function () {
+            Route::put('show-types/{id}', [ShowTypeController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:bracelets.access'])->group(function () {
+            Route::get('bracelets', [BraceletController::class, 'index']);
+            Route::get('bracelets/{id}', [BraceletController::class, 'show'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:bracelets.create'])->group(function () {
+            Route::post('bracelets', [BraceletController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:room_services.cleaning_view'])->group(function () {
+            Route::get('room-services/active', [RoomServiceController::class, 'active']);
+            Route::get('room-services/due', [RoomServiceController::class, 'due']);
+            Route::get('room-services/control', [RoomServiceController::class, 'control']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:room_services.access'])->group(function () {
+            Route::get('room-services', [RoomServiceController::class, 'index']);
+            Route::get('room-services/{id}', [RoomServiceController::class, 'show'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:room_services.create'])->group(function () {
+            Route::post('room-services', [RoomServiceController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:room_services.finish'])->group(function () {
+            Route::post('room-services/{id}/finish', [RoomServiceController::class, 'finish'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:room_services.check'])->group(function () {
+            Route::post('room-services/{id}/check', [RoomServiceController::class, 'check'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:rooms.access'])->group(function () {
+            Route::get('rooms', [RoomController::class, 'index']);
+            Route::get('rooms/available', [RoomController::class, 'available']);
+            Route::get('rooms/cleaning', [RoomController::class, 'cleaning']);
+            Route::get('rooms/{id}', [RoomController::class, 'show'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:rooms.create'])->group(function () {
+            Route::post('rooms', [RoomController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:rooms.update'])->group(function () {
+            Route::put('rooms/{id}', [RoomController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:rooms.clean'])->group(function () {
+            Route::post('rooms/{id}/mark-clean', [RoomController::class, 'markClean'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:rooms.maintenance'])->group(function () {
+            Route::post('rooms/{id}/mark-maintenance', [RoomController::class, 'markMaintenance'])->whereNumber('id');
+            Route::post('rooms/{id}/mark-available', [RoomController::class, 'markAvailable'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:notifications.access'])->group(function () {
+            Route::get('notifications', [NotificationController::class, 'index']);
+            Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
+            Route::post('notifications/read-all', [NotificationController::class, 'markAllRead']);
+            Route::post('notifications/{id}/read', [NotificationController::class, 'markRead'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shows.access'])->group(function () {
+            Route::get('shows', [ShowController::class, 'index']);
+            Route::get('shows/{id}', [ShowController::class, 'show'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shows.create'])->group(function () {
+            Route::post('shows', [ShowController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.cash_reasons'])->group(function () {
+            Route::get('cash-movement-reasons', [CashMovementReasonController::class, 'index']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.cash_reasons.manage'])->group(function () {
+            Route::post('cash-movement-reasons', [CashMovementReasonController::class, 'store']);
+            Route::put('cash-movement-reasons/{id}', [CashMovementReasonController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.payment_methods'])->group(function () {
+            Route::get('payment-methods', [PaymentMethodController::class, 'index']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.payment_methods.manage'])->group(function () {
+            Route::post('payment-methods', [PaymentMethodController::class, 'store']);
+            Route::put('payment-methods/{id}', [PaymentMethodController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.service_areas'])->group(function () {
+            Route::get('service-areas', [ServiceAreaController::class, 'index']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.service_areas.manage'])->group(function () {
+            Route::post('service-areas', [ServiceAreaController::class, 'store']);
+            Route::put('service-areas/{id}', [ServiceAreaController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.room_types'])->group(function () {
+            Route::get('room-types', [RoomTypeController::class, 'index']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.room_types.manage'])->group(function () {
+            Route::post('room-types', [RoomTypeController::class, 'store']);
+            Route::put('room-types/{id}', [RoomTypeController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.checklist'])->group(function () {
+            Route::get('settings/first-night-checklist', [FirstNightChecklistController::class, 'show']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.bootstrap'])->group(function () {
+            Route::post('settings/bootstrap-operational', [SettingsBootstrapController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:audits.list'])->group(function () {
+            Route::get('audit-logs', [AuditLogController::class, 'index']);
+        });
+
+        // SSE — token endpoint (requires branch context)
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access'])->group(function () {
+            Route::post('events/token', EventsTokenController::class)->name('events.token');
+        });
+    });
 });
 
-Route::post('/auth/login', [AuthController::class, 'login']);
-Route::middleware('auth:api')->group(function () {
-    Route::get('/auth/me', [AuthController::class, 'me']);
-    Route::patch('/auth/me', [AuthController::class, 'updateMe']);
-    Route::get('/auth/site-options', [AuthController::class, 'siteOptions']);
-    Route::patch('/auth/active-site', [AuthController::class, 'setActiveSite']);
-    Route::post('/auth/logout', [AuthController::class, 'logout']);
-});
-
-Route::middleware(['auth:api', 'system.active'])->group(function () {
-    Route::middleware(['role:cashier|admin|super_admin', 'admin.site.scope'])->group(function () {
-        Route::get('/shifts/current', GetCurrentOpenShiftController::class);
-        Route::post('/shifts/open', OpenShiftController::class);
-    });
-
-    Route::middleware(['role:cashier|manager|admin|super_admin', 'admin.site.scope'])->group(function () {
-        Route::get('/shifts/history', ListRecentShiftsForSiteController::class);
-        Route::get('/shifts/{shiftTurnId}/cashier-report', GetShiftCashierReportController::class);
-        Route::get('/shifts/{shiftTurnId}/companion-work-sessions', ListCompanionWorkSessionsController::class);
-        Route::get('/branch/waiters', ListBranchWaitersController::class);
-        Route::patch('/branch/waiters/{userId}/compensation', UpdateBranchWaiterCompensationController::class);
-    });
-
-    Route::middleware(['role:cashier|admin|super_admin', 'admin.site.scope', 'cashier.open.shift'])->group(function () {
-        Route::get('/shifts/{shiftTurnId}/cash-summary', GetShiftCashSummaryController::class);
-        Route::get('/shifts/{shiftTurnId}/pdf', ExportShiftCashPdfController::class);
-        Route::get('/shifts/{shiftTurnId}/cash-movements', ListCashDrawerMovementsController::class);
-        Route::post('/shifts/{shiftTurnId}/cash-movements', RegisterCashDrawerMovementController::class);
-        Route::post('/shifts/{shiftTurnId}/close', CloseShiftController::class);
-        Route::post('/shifts/{shiftTurnId}/companion-work-sessions', StartCompanionWorkSessionController::class);
-        Route::post('/companion-work-sessions/{sessionId}/settle', SettleCompanionWorkSessionController::class);
-        Route::post('/payments', RegisterPaymentController::class);
-        Route::post('/room-services', CreateRoomTimeServiceController::class);
-        Route::get('/room-services', ListRoomTimeServicesController::class);
-        Route::get('/room-services/alerts', ListRoomServiceAlertsController::class);
-        Route::get('/room-services/{serviceId}/pdf', ExportRoomTimeServicePdfController::class);
-        Route::post('/room-services/{serviceId}/extend', ExtendRoomTimeServiceController::class);
-        Route::post('/room-services/{serviceId}/close', CloseRoomTimeServiceController::class);
-        Route::post('/room-services/{serviceId}/pay', PayRoomTimeServiceController::class);
-        Route::post('/room-services/{serviceId}/alerts/ack', AckRoomServiceAlertController::class);
-    });
-
-    /*
-     * Lectura de órdenes POS: mesero + cajero/admin. Registrar una sola vez: si se declara dos veces,
-     * Laravel deja la última ruta y el mesero recibe 403 en GET /pos/orders.
-     */
-    Route::middleware(['role:waiter|cashier|admin|super_admin', 'cashier.open.shift'])->group(function () {
-        Route::get('/pos/orders', ListPosOrdersController::class);
-        Route::get('/pos/orders/{orderId}', GetPosOrderController::class);
-        Route::get('/pos/orders/{orderId}/pdf', ExportPosOrderPdfController::class);
-    });
-
-    Route::middleware(['role:waiter'])->group(function () {
-        Route::get('/waiter/tables', ListWaiterTablesController::class);
-        Route::post('/orders/items', AddOrderItemController::class);
-        Route::get('/pos/sessions', ListPosSessionsController::class);
-        Route::post('/pos/sessions', CreatePosSessionController::class);
-        Route::post('/pos/sessions/{sessionId}/close', ClosePosSessionController::class);
-        Route::post('/pos/orders', CreatePosOrderController::class);
-        Route::post('/pos/orders/{orderId}/items', AddPosOrderItemController::class);
-    });
-
-    Route::middleware(['role:waiter|cashier|manager|admin|super_admin'])->group(function () {
-        Route::get('/products', ListProductsController::class);
-        Route::get('/companions', ListCompanionsController::class);
-    });
-
-    Route::middleware(['role:cashier|manager|admin|super_admin|owner'])->group(function () {
-        Route::get('/reports/shift-turns', ListReportShiftTurnsController::class);
-        Route::get('/reports/products/sold', ListProductSalesReportController::class);
-        Route::get('/reports/products/sold/pdf', ExportProductSalesPdfController::class);
-        Route::get('/reports/sales/summary', ListSalesSummaryReportController::class);
-        Route::get('/reports/sales/summary/pdf', ExportSalesSummaryPdfController::class);
-        Route::get('/reports/staff/sales', ListStaffSalesReportController::class);
-        Route::get('/reports/staff/sales/pdf', ExportStaffSalesPdfController::class);
-        Route::get('/reports/companions/ranking', CompanionRankingReportController::class);
-        Route::get('/reports/companions/ranking/pdf', ExportCompanionRankingPdfController::class);
-        Route::get('/reports/waiters/commissions', ListWaiterCommissionsController::class);
-        Route::get('/reports/waiters/commissions/pdf', ExportWaiterCommissionsPdfController::class);
-        Route::post('/companions/quick-create', CreateCompanionQuickController::class);
-    });
-
-    Route::middleware(['role:admin|super_admin|manager|owner'])->group(function () {
-        Route::get('/product-categories', ListProductCategoriesController::class);
-        Route::post('/product-categories', CreateProductCategoryController::class);
-        Route::patch('/product-categories/{categoryId}', UpdateProductCategoryController::class);
-        Route::delete('/product-categories/{categoryId}', DeleteProductCategoryController::class);
-    });
-
-    Route::middleware(['role:admin|super_admin|manager|owner'])->group(function () {
-        Route::post('/products', CreateProductController::class);
-        Route::patch('/products/{productId}', UpdateProductController::class);
-    });
-
-    Route::middleware(['role:owner|super_admin'])->group(function () {
-        Route::get('/sites', ListSitesController::class);
-    });
-
-    Route::middleware(['role:admin|super_admin|manager|owner'])->group(function () {
-        Route::get('/branch/profile/pdf', ExportBranchProfilePdfController::class);
-        Route::get('/branch/profile', [BranchProfileController::class, 'show']);
-        Route::patch('/branch/profile', [BranchProfileController::class, 'update']);
-        Route::post('/branch/logo', [BranchProfileController::class, 'uploadLogo']);
-        Route::get('/branch/operating-hours', [BranchOperatingHoursController::class, 'show']);
-        Route::put('/branch/operating-hours', [BranchOperatingHoursController::class, 'sync']);
-        Route::get('/branch/rooms', ListBranchRoomsController::class);
-        Route::post('/branch/rooms', CreateBranchRoomController::class);
-        Route::patch('/branch/rooms/{roomId}', UpdateBranchRoomController::class);
-        Route::delete('/branch/rooms/{roomId}', DeleteBranchRoomController::class);
-        Route::get('/branch/tables', ListBranchTablesController::class);
-        Route::post('/branch/tables', CreateBranchTableController::class);
-        Route::delete('/branch/tables/{tableId}', DeleteBranchTableController::class);
-        Route::post('/branch/tables/{tableId}/assign', AssignBranchTableController::class);
-        Route::delete('/branch/tables/{tableId}/assign', UnassignBranchTableController::class);
-        Route::patch('/branch/waiters/{userId}/table-limit', UpdateWaiterTableLimitController::class);
-        Route::get('/branch/contacts', ListBranchContactsController::class);
-        Route::post('/branch/contacts', CreateBranchContactController::class);
-        Route::patch('/branch/contacts/{contactId}', UpdateBranchContactController::class);
-        Route::delete('/branch/contacts/{contactId}', DeleteBranchContactController::class);
-        Route::get('/maintenance/products/pdf', ExportProductsCatalogPdfController::class);
-        Route::get('/maintenance/products', ListMaintenanceProductsController::class);
-        Route::post('/maintenance/movements', RegisterManualInventoryMovementController::class);
-        Route::get('/maintenance/products/{productId}/kardex/pdf', ExportProductKardexPdfController::class);
-        Route::get('/maintenance/products/{productId}/kardex', ListProductKardexController::class);
-        Route::get('/maintenance/kardex-valued/pdf', ExportValuedKardexPdfController::class);
-        Route::get('/maintenance/kardex-valued', ListValuedKardexController::class);
-        Route::get('/maintenance/refill-recipes/pdf', ExportRefillRecipesPdfController::class);
-        Route::get('/maintenance/refill-recipes', ListRefillRecipesController::class);
-        Route::post('/maintenance/refill-recipes', CreateRefillRecipeController::class);
-        Route::post('/maintenance/refill-recipes/{recipeId}/apply', ApplyRefillRecipeController::class);
-        Route::get('/maintenance/purchases', ListPurchaseOrdersController::class);
-        Route::post('/maintenance/purchases', CreatePurchaseOrderController::class);
-        Route::get('/maintenance/purchases/{purchaseOrderId}', ShowPurchaseOrderController::class);
-        Route::post('/maintenance/purchases/{purchaseOrderId}/document', UploadPurchaseOrderDocumentController::class);
-        Route::get('/maintenance/purchases/{purchaseOrderId}/document', DownloadPurchaseOrderDocumentController::class);
-        Route::get('/maintenance/purchases/{purchaseOrderId}/pdf', ExportPurchaseOrderPdfController::class);
-        Route::post('/maintenance/purchases/{purchaseOrderId}/cancel', CancelPurchaseOrderController::class);
-        Route::get('/maintenance/transfers', ListSiteStockTransfersController::class);
-        Route::post('/maintenance/transfers', CreateSiteStockTransferController::class);
-        Route::get('/maintenance/transfers/{transferId}/pdf', ExportStockTransferPdfController::class);
-        Route::get('/maintenance/transfers/{transferId}', GetSiteStockTransferController::class);
-    });
-
-    Route::middleware(['role:owner|super_admin|admin'])->group(function () {
-        Route::get('/users', ListUsersController::class);
-        Route::post('/users', CreateUserController::class);
-        Route::patch('/users/{userId}', UpdateUserController::class);
-        Route::delete('/users/{userId}', DeleteUserController::class);
-    });
-});
-
-Route::middleware(['auth:api', 'role:owner'])->group(function () {
-    Route::patch('/system/lock', UpdateSystemLockController::class);
-    Route::post('/branches', CreateBranchController::class);
-    Route::get('/saas/overview', SaasOverviewController::class);
-    Route::get('/saas/alerts', SaasAlertsController::class);
-    Route::get('/saas/quote', [SaasSubscriptionController::class, 'quote']);
-    Route::get('/saas/subscriptions', [SaasSubscriptionController::class, 'index']);
-    Route::get('/saas/subscriptions/{siteId}/payments', [SaasSubscriptionController::class, 'paymentHistory']);
-    Route::get('/saas/subscriptions/{siteId}/payments/pdf', ExportSaasSubscriptionPaymentsPdfController::class);
-    Route::get('/saas/subscriptions/{siteId}/payments/export', [SaasSubscriptionController::class, 'exportPaymentsCsv']);
-    Route::post('/saas/subscriptions/{siteId}/payments', [SaasSubscriptionController::class, 'registerPayment']);
-    Route::patch('/saas/subscriptions/{siteId}/status', [SaasSubscriptionController::class, 'updateStatus']);
-    Route::patch('/saas/subscriptions/{siteId}/monthly-fee', [SaasSubscriptionController::class, 'updateMonthlyFee']);
+// SSE stream — no JWT auth, uses short-lived token in query string
+Route::prefix('v1')->group(function () {
+    Route::get('events/stream', EventsStreamController::class)->name('events.stream');
 });

@@ -1,0 +1,1 @@
+const a={OPEN:{label:"Abierta",color:"primary"},SENT_TO_BAR:{label:"En barra",color:"info"},IN_PREPARATION:{label:"Preparando",color:"warning"},READY:{label:"Lista",color:"success"},BILLED:{label:"Cobrada",color:"secondary"},CANCELLED:{label:"Anulada",color:"error"}};function l(r){return a[r]??{label:r,color:"default"}}export{l as w};

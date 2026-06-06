@@ -1,0 +1,1 @@
+const e=[{title:"Estándar",value:"STANDARD"},{title:"VIP",value:"VIP"},{title:"Suite",value:"SUITE"}];function r(t){return{AVAILABLE:"success",OCCUPIED:"warning",CLEANING:"info",MAINTENANCE:"error"}[t]||"default"}export{e as R,r};

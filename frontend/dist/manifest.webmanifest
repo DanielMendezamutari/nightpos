@@ -1,0 +1,17 @@
+{
+  "name": "NightPOS Garzón",
+  "short_name": "NightPOS",
+  "description": "Operación nocturna — comandas y servicios",
+  "start_url": "/nightpos/waiter",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#666CFF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
+    }
+  ]
+}

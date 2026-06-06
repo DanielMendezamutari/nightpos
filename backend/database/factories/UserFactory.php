@@ -6,7 +6,6 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Role;
 
 /**
  * @extends Factory<User>
@@ -17,18 +16,6 @@ class UserFactory extends Factory
      * The current password being used by the factory.
      */
     protected static ?string $password;
-
-    public function configure(): static
-    {
-        return $this->afterCreating(function (User $user): void {
-            if (! $user->role) {
-                return;
-            }
-
-            Role::firstOrCreate(['name' => $user->role, 'guard_name' => 'api']);
-            $user->syncRoles([$user->role]);
-        });
-    }
 
     /**
      * Define the model's default state.

@@ -1,32 +1,104 @@
 <?php
 
-use App\Http\Middleware\EnsureAdminSiteScope;
-use App\Http\Middleware\EnsureCashierHasOpenShift;
-use App\Http\Middleware\EnsureSystemIsActive;
+use App\Domain\Auth\Exceptions\BranchAccessDeniedException;
+use App\Domain\Auth\Exceptions\InvalidCredentialsException;
+use App\Domain\Auth\Exceptions\PermissionDeniedException;
+use App\Domain\Auth\Exceptions\TenantAccessDeniedException;
+use App\Infrastructure\Laravel\Http\Middleware\EnsureRolePermissionMiddleware;
+use App\Infrastructure\Laravel\Http\Middleware\EnsureUserHasBranchAccessMiddleware;
+use App\Infrastructure\Laravel\Http\Middleware\ResolveBranchMiddleware;
+use App\Infrastructure\Laravel\Http\Middleware\ResolveTenantMiddleware;
+use App\Domain\Cash\Exceptions\CashDomainException;
+use App\Domain\Cash\Exceptions\CashSessionNotFoundException;
+use App\Domain\Sale\Exceptions\SaleDomainException;
+use App\Domain\Sale\Exceptions\SaleNotFoundException;
+use App\Domain\Order\Exceptions\OrderNotFoundException;
+use App\Domain\User\Exceptions\UserDomainException;
+use App\Domain\User\Exceptions\UserNotFoundException;
+use App\Domain\Branch\Exceptions\BranchDomainException;
+use App\Domain\Branch\Exceptions\BranchNotFoundException;
+use App\Domain\Product\Exceptions\ProductCategoryNotFoundException;
+use App\Domain\Product\Exceptions\ProductDomainException;
+use App\Domain\Product\Exceptions\ProductNotFoundException;
+use App\Domain\Shift\Exceptions\OfficialShiftNotFoundException;
+use App\Domain\GirlIncome\Exceptions\BraceletNotFoundException;
+use App\Domain\GirlIncome\Exceptions\GirlIncomeDomainException;
+use App\Domain\ShowType\Exceptions\ShowTypeDomainException;
+use App\Domain\Room\Exceptions\RoomDomainException;
+use App\Domain\Room\Exceptions\RoomNotFoundException;
+use App\Domain\GirlIncome\Exceptions\RoomServiceNotFoundException;
+use App\Domain\GirlIncome\Exceptions\ShowNotFoundException;
+use App\Domain\StaffSettlement\Exceptions\StaffSettlementNotFoundException;
+use App\Domain\Shift\Exceptions\ShiftDomainException;
+use App\Domain\StaffSettlement\Exceptions\StaffSettlementDomainException;
+use App\Domain\Tenant\Exceptions\TenantDomainException;
+use App\Domain\Tenant\Exceptions\TenantNotFoundException;
+use App\Shared\Domain\Exceptions\DomainException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Spatie\Permission\Middleware\PermissionMiddleware;
-use Spatie\Permission\Middleware\RoleMiddleware;
-use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
+        apiPrefix: 'api',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'role' => RoleMiddleware::class,
-            'permission' => PermissionMiddleware::class,
-            'role_or_permission' => RoleOrPermissionMiddleware::class,
-            'system.active' => EnsureSystemIsActive::class,
-            'admin.site.scope' => EnsureAdminSiteScope::class,
-            'cashier.open.shift' => EnsureCashierHasOpenShift::class,
+            'nightpos.tenant' => ResolveTenantMiddleware::class,
+            'nightpos.branch' => ResolveBranchMiddleware::class,
+            'nightpos.branch.access' => EnsureUserHasBranchAccessMiddleware::class,
+            'nightpos.permission' => EnsureRolePermissionMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (DomainException $exception, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+
+            $status = match (true) {
+                $exception instanceof InvalidCredentialsException => 401,
+                $exception instanceof TenantAccessDeniedException,
+                $exception instanceof BranchAccessDeniedException,
+                $exception instanceof PermissionDeniedException => 403,
+                $exception instanceof ProductNotFoundException,
+                $exception instanceof OrderNotFoundException,
+                $exception instanceof CashSessionNotFoundException,
+                $exception instanceof SaleNotFoundException,
+                $exception instanceof UserNotFoundException,
+                $exception instanceof TenantNotFoundException,
+                $exception instanceof BranchNotFoundException,
+                $exception instanceof ProductCategoryNotFoundException,
+                $exception instanceof OfficialShiftNotFoundException,
+                $exception instanceof StaffSettlementNotFoundException,
+                $exception instanceof BraceletNotFoundException,
+                $exception instanceof RoomServiceNotFoundException,
+                $exception instanceof ShowNotFoundException,
+                $exception instanceof RoomNotFoundException => 404,
+                $exception instanceof ProductDomainException,
+                $exception instanceof TenantDomainException,
+                $exception instanceof BranchDomainException,
+                $exception instanceof ShiftDomainException,
+                $exception instanceof UserDomainException,
+                $exception instanceof CashDomainException,
+                $exception instanceof SaleDomainException,
+                $exception instanceof GirlIncomeDomainException,
+                $exception instanceof RoomDomainException,
+                $exception instanceof ShowTypeDomainException,
+                $exception instanceof StaffSettlementDomainException => 422,
+                default => 422,
+            };
+
+            return response()->json([
+                'success' => false,
+                'message' => $exception->getMessage(),
+                'data' => (object) [],
+                'errors' => (object) [],
+            ], $status);
+        });
     })->create();

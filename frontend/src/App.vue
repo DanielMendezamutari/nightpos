@@ -1,16 +1,34 @@
 <script setup>
-import { RouterView } from 'vue-router'
+import { useTheme } from 'vuetify'
+import ScrollToTop from '@core/components/ScrollToTop.vue'
+import TheCustomizer from '@core/components/TheCustomizer.vue'
+import initCore from '@core/initCore'
+import {
+  initConfigStore,
+  useConfigStore,
+} from '@core/stores/config'
+import { useShowMaterializeCustomizer } from '@/composables/useShowMaterializeCustomizer'
+import NightPosGlobalSnackbar from '@/components/nightpos/layout/NightPosGlobalSnackbar.vue'
+import { hexToRgb } from '@layouts/utils'
+
+const { global } = useTheme()
+
+// ℹ️ Sync current theme with initial loader theme
+initCore()
+initConfigStore()
+
+const configStore = useConfigStore()
+const { showMaterializeCustomizer } = useShowMaterializeCustomizer()
 </script>
 
 <template>
-  <div class="app-root">
-    <div class="app-root__main">
+  <VLocaleProvider :rtl="configStore.isAppRTL">
+    <!-- ℹ️ This is required to set the background color of active nav link based on currently active global theme's primary -->
+    <VApp :style="`--v-global-theme-primary: ${hexToRgb(global.current.value.colors.primary)}`">
       <RouterView />
-    </div>
-    <footer class="app-global-footer" role="contentinfo">
-      <span class="app-global-footer__brand">Ribersoft</span>
-      <span class="app-global-footer__sep" aria-hidden="true">·</span>
-      <a class="app-global-footer__tel" href="tel:+50667369293">6736-9293</a>
-    </footer>
-  </div>
+      <NightPosGlobalSnackbar />
+      <ScrollToTop />
+      <TheCustomizer v-if="showMaterializeCustomizer" />
+    </VApp>
+  </VLocaleProvider>
 </template>

@@ -9,36 +9,39 @@ lerna-debug.log*
 
 node_modules
 .DS_Store
-# dist
 dist-ssr
-coverage
 *.local
 
-# Environment files - solo subir .env.example y .env.production
-.env
-.env.local
-.env.*.local
+# 👉 dist se versiona a propósito (deploy del compilado a nightpos.ribersoft.com)
+# NO ignorar la carpeta dist/
+!dist/
+
+/cypress/videos/
+/cypress/screenshots/
+
+# 👉 Custom Git ignores
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/*.code-snippets
+!.vscode/tours
 .idea
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+.yarn
 
-*.tsbuildinfo
+# iconify dist files
+src/plugins/iconify/icons.css
 
-.eslintcache
+# Ignore MSW script
+public/mockServiceWorker.js
 
-# Cypress
-/cypress/videos/
-/cypress/screenshots/
-
-# Vitest
-__screenshots__/
-
-# Vite
-*.timestamp-*-*.mjs
+# Env files
+.env*
+!.env.example
+!.env.production

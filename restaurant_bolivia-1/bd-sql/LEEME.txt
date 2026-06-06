@@ -1,0 +1,22 @@
+1. Para configurar los archivos de conexion para la base de datos, es necesario hacerlo en el archivo que se encuentra dentro
+de la carpeta class --> classconexion.php.
+
+2. Para configurar el respaldo y restauracion de la base de datos, es necesario hacerlo en los archivos backup.php y restore.php
+que se encuentran en la carpeta raiz del sistema.
+
+Actualmente para acceder al Sistema se puede ingresar al mismo con los siguientes datos de acceso:
+
+ADMINISTRADOR - USUARIO Y CLAVE = RUBENCHIRINOS
+
+CAJERO - USUARIO Y CLAVE = CAJERO123
+
+MESERO - USUARIO Y CLAVE = MESERO123
+
+COCINERO - USUARIO Y CLAVE = COCINERO123
+
+BARTENDER - USUARIO Y CLAVE = BARRA123
+
+REPOSTERIA - USUARIO Y CLAVE = PASTELERIA123
+
+REPARTIDOR - USUARIO Y CLAVE = REPARTIDOR123
+

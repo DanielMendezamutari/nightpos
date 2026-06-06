@@ -1,15 +1,22 @@
-import './assets/main.css'
-import './stores/themeStore'
-
 import { createApp } from 'vue'
-import App from './App.vue'
-import router from './router'
-import { setUnauthorizedNavigator } from './services/api'
+import App from '@/App.vue'
+import { registerPlugins } from '@core/utils/plugins'
 
-setUnauthorizedNavigator(() => {
-  if (router.currentRoute.value.name !== 'login') {
-    router.replace({ name: 'login' })
-  }
-})
+// Styles
+import '@core/scss/template/index.scss'
+import '@styles/styles.scss'
 
-createApp(App).use(router).mount('#app')
+// Create vue app
+const app = createApp(App)
+
+
+// Register plugins
+registerPlugins(app)
+
+// Mount vue app
+app.mount('#app')
+
+// Quitar splash HTML inicial (evita pantalla cargando infinita si Vue ya montó)
+const loaderEl = document.getElementById('loading-bg')
+if (loaderEl)
+  loaderEl.remove()

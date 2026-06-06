@@ -1,0 +1,50 @@
+export default [
+  { heading: 'NightPOS' },
+  {
+    title: 'Dashboard',
+    to: 'nightpos-dashboard',
+    icon: { icon: 'ri-dashboard-line' },
+  },
+  {
+    title: 'Caja',
+    to: 'nightpos-cash',
+    icon: { icon: 'ri-cash-line' },
+    action: 'access',
+    subject: 'cash.access',
+  },
+  {
+    title: 'Comandas',
+    to: 'nightpos-orders',
+    icon: { icon: 'ri-restaurant-line' },
+    action: 'access',
+    subject: 'orders.access',
+  },
+  {
+    title: 'Ventas',
+    to: 'nightpos-sales',
+    icon: { icon: 'ri-bill-line' },
+    action: 'access',
+    subject: 'sales.list',
+  },
+  {
+    title: 'Productos',
+    to: 'nightpos-products',
+    icon: { icon: 'ri-goblet-line' },
+    action: 'access',
+    subject: 'products.list',
+  },
+  {
+    title: 'Categorías',
+    to: 'nightpos-categories',
+    icon: { icon: 'ri-folder-line' },
+    action: 'access',
+    subject: 'products.list',
+  },
+  {
+    title: 'Usuarios / Personal',
+    to: 'nightpos-users',
+    icon: { icon: 'ri-team-line' },
+    action: 'access',
+    subject: 'admin.users.list',
+  },
+]
