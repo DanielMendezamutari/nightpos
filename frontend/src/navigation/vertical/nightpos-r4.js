@@ -147,7 +147,7 @@ export default [
       { title: 'Garzones', to: 'nightpos-staff-waiters', action: 'access', subject: 'admin.users.list' },
       { title: 'Cajeras', to: 'nightpos-staff-cashiers', action: 'access', subject: 'admin.users.list' },
       { title: 'Chicas', to: 'nightpos-staff-girls', action: 'access', subject: 'admin.users.list' },
-      { title: 'Roles y permisos', to: 'nightpos-staff-roles', action: 'access', subject: 'admin.users.list' },
+      { title: 'Roles y permisos', to: 'nightpos-staff-roles', action: 'access', subject: 'roles.access' },
     ],
   },
 

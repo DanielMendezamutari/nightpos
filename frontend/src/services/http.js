@@ -91,7 +91,12 @@ export function unwrapNightPosResponse(response) {
 }
 
 export function getApiErrorMessage(error) {
-  return error.response?.data?.message
+  const message = error.response?.data?.message
     || error.message
     || 'Error de comunicación con el servidor'
+
+  if (import.meta.env.DEV && typeof window !== 'undefined' && window.__nightposStability?.setLastApiError)
+    window.__nightposStability.setLastApiError(message)
+
+  return message
 }

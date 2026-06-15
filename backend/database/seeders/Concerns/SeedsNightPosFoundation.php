@@ -121,6 +121,12 @@ trait SeedsNightPosFoundation
             ['name' => 'Modo limpieza — ver ingresos', 'slug' => 'cleaning.earnings.view'],
             ['name' => 'Modo chica — inicio', 'slug' => 'girl.dashboard'],
             ['name' => 'Modo chica — ver ingresos', 'slug' => 'girl.earnings.view'],
+            ['name' => 'Acceso a roles y permisos', 'slug' => 'roles.access'],
+            ['name' => 'Crear roles locales', 'slug' => 'roles.create'],
+            ['name' => 'Editar roles locales', 'slug' => 'roles.update'],
+            ['name' => 'Eliminar roles locales', 'slug' => 'roles.delete'],
+            ['name' => 'Actualizar permisos de roles', 'slug' => 'roles.permissions.update'],
+            ['name' => 'Ver catálogo de permisos', 'slug' => 'permissions.access'],
         ])->map(fn (array $row) => PermissionModel::query()->firstOrCreate(
             ['slug' => $row['slug']],
             ['name' => $row['name']],
@@ -242,6 +248,12 @@ trait SeedsNightPosFoundation
                 'admin.cash_sessions.list',
                 'admin.cash_sessions.view',
                 'admin.cash_sessions.summary',
+                'roles.access',
+                'roles.create',
+                'roles.update',
+                'roles.delete',
+                'roles.permissions.update',
+                'permissions.access',
             ])->pluck('id')
         );
 

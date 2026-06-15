@@ -5,3 +5,9 @@ export async function platformSetup(payload) {
 
   return unwrapNightPosResponse(response)
 }
+
+export async function fetchPlatformDashboard() {
+  const response = await api.get('/admin/platform/dashboard')
+
+  return unwrapNightPosResponse(response)
+}

@@ -22,6 +22,7 @@ final class UpdateTenantRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'slug' => ['required', 'string', 'max:100', Rule::unique('tenants', 'slug')->ignore($tenantId)],
             'status' => ['required', 'string', 'in:active,inactive,suspended'],
+            'plan_id' => ['nullable', 'integer', 'exists:plans,id'],
             'plan_name' => ['nullable', 'string', 'max:50'],
             'subscription_starts_at' => ['nullable', 'date'],
             'subscription_ends_at' => ['nullable', 'date', 'after_or_equal:subscription_starts_at'],

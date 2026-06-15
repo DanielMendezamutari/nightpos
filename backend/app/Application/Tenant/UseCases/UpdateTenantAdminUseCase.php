@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace App\Application\Tenant\UseCases;
 
+use App\Application\Plan\Support\TenantPlanUsageCalculator;
 use App\Application\Tenant\DTOs\UpdateTenantInput;
 use App\Application\Tenant\Support\TenantAdminMapper;
 use App\Domain\Auth\Exceptions\PermissionDeniedException;
+use App\Domain\Plan\Exceptions\PlanDomainException;
+use App\Domain\Plan\Exceptions\PlanNotFoundException;
 use App\Domain\Tenant\Exceptions\TenantDomainException;
 use App\Domain\Tenant\Exceptions\TenantNotFoundException;
 use App\Domain\Tenant\Repositories\TenantRepositoryInterface;
+use App\Infrastructure\Persistence\Eloquent\Models\PlanModel;
 use App\Shared\Application\DTOs\OperationResult;
 use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 use App\Shared\Contracts\UseCaseInterface;
@@ -19,6 +23,7 @@ final class UpdateTenantAdminUseCase implements UseCaseInterface
     public function __construct(
         private readonly TenantRepositoryInterface $tenants,
         private readonly AuthenticatedStaffContextInterface $staffContext,
+        private readonly TenantPlanUsageCalculator $planUsage,
     ) {
     }
 
@@ -57,18 +62,40 @@ final class UpdateTenantAdminUseCase implements UseCaseInterface
             throw TenantDomainException::invalidSubscriptionRange();
         }
 
+        $planId = $input->planId;
+        $planName = $input->planName;
+
+        if ($planId !== null) {
+            $plan = PlanModel::query()->find($planId);
+
+            if ($plan === null) {
+                throw PlanNotFoundException::withId($planId);
+            }
+
+            if (! $plan->is_active) {
+                throw PlanDomainException::inactive();
+            }
+
+            $planName = $plan->code;
+        } elseif ($planName !== null && trim($planName) !== '') {
+            $plan = PlanModel::query()->where('code', strtoupper(trim($planName)))->first();
+            $planId = $plan !== null ? (int) $plan->id : null;
+            $planName = $plan?->code ?? strtoupper(trim($planName));
+        }
+
         $tenant = $this->tenants->update(
             id: $input->tenantId,
             name: $name,
             slug: $slug,
             status: $input->status,
-            planName: $input->planName,
+            planId: $planId,
+            planName: $planName,
             subscriptionStartsAt: $input->subscriptionStartsAt,
             subscriptionEndsAt: $input->subscriptionEndsAt,
         );
 
         return OperationResult::ok('Empresa actualizada correctamente.', [
-            'tenant' => TenantAdminMapper::tenant($tenant),
+            'tenant' => TenantAdminMapper::withPlanUsage($tenant, $this->planUsage),
         ]);
     }
 }

@@ -12,6 +12,7 @@ final readonly class PlatformSetupInput extends DataTransferObject
         public string $tenantName,
         public string $tenantSlug,
         public string $tenantStatus,
+        public ?int $planId,
         public ?string $planName,
         public string $branchName,
         public string $branchCode,

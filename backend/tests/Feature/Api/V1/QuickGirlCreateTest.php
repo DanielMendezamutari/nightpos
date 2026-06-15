@@ -69,6 +69,62 @@ it('sets girl staff profile and branch access', function () {
         ->and($response->json('data.girl.accessible_branch_ids'))->not->toBeEmpty();
 });
 
+it('assigns selected accessible branches on quick create', function () {
+    $token = quickGirlAdminToken();
+    $tenantId = \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()
+        ->where('slug', 'casa-demo')
+        ->value('id');
+    $centroId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()
+        ->where('code', 'CENTRO')
+        ->value('id');
+
+    $norte = \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->create([
+        'tenant_id' => $tenantId,
+        'name' => 'Norte',
+        'code' => 'NORTE',
+        'status' => 'active',
+    ]);
+
+    \App\Infrastructure\Persistence\Eloquent\Models\UserBranchAccessModel::query()->firstOrCreate([
+        'user_id' => \App\Infrastructure\Persistence\Eloquent\Models\UserModel::query()
+            ->where('username', 'admin.demo')
+            ->value('id'),
+        'branch_id' => $norte->id,
+    ], [
+        'tenant_id' => $tenantId,
+    ]);
+
+    $response = test()->postJson('/api/v1/staff/quick-girls', [
+        'name' => 'Chica Multi Sucursal',
+        'branch_id' => $centroId,
+        'accessible_branch_ids' => [$centroId, $norte->id],
+    ], nightposOperationalHeaders($token))->assertCreated();
+
+    expect($response->json('data.girl.branch_id'))->toBe($centroId)
+        ->and($response->json('data.girl.accessible_branch_ids'))->toEqualCanonicalizing([$centroId, $norte->id]);
+});
+
+it('rejects quick create with branch outside creator access', function () {
+    $tenantId = \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()
+        ->where('slug', 'casa-demo')
+        ->value('id');
+    $centroId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()
+        ->where('code', 'CENTRO')
+        ->value('id');
+
+    $norte = \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->create([
+        'tenant_id' => $tenantId,
+        'name' => 'Norte',
+        'code' => 'NORTE',
+        'status' => 'active',
+    ]);
+
+    test()->postJson('/api/v1/staff/quick-girls', [
+        'name' => 'Chica Hack Sucursal',
+        'accessible_branch_ids' => [$centroId, $norte->id],
+    ], nightposOperationalHeaders(quickGirlCashierToken()))->assertStatus(422);
+});
+
 it('stores pin hashed not plain', function () {
     test()->postJson('/api/v1/staff/quick-girls', [
         'name' => 'Chica PIN Test',

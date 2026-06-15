@@ -1,5 +1,11 @@
 import api, { unwrapNightPosResponse } from '@/services/http'
 
+export async function fetchAvailableBranches() {
+  const response = await api.get('/branches/available')
+
+  return unwrapNightPosResponse(response).branches ?? []
+}
+
 export async function fetchAdminBranches(tenantSlug = null) {
   const headers = tenantSlug ? { 'X-Tenant-Slug': tenantSlug } : {}
 

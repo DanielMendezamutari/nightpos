@@ -7,10 +7,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Application\Auth\DTOs\LoginWithPasswordInput;
 use App\Application\Auth\DTOs\LoginWithPinInput;
 use App\Application\Auth\UseCases\GetAuthenticatedUserUseCase;
+use App\Application\Auth\UseCases\ListLoginContextBranchesUseCase;
+use App\Application\Auth\UseCases\ListLoginContextTenantsUseCase;
 use App\Application\Auth\UseCases\LoginWithPasswordUseCase;
 use App\Application\Auth\UseCases\LoginWithPinUseCase;
 use App\Application\Auth\UseCases\LogoutUseCase;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\LoginContextBranchesRequest;
 use App\Http\Requests\Api\V1\LoginPasswordRequest;
 use App\Http\Requests\Api\V1\LoginPinRequest;
 use App\Infrastructure\Presentation\Http\Contracts\ApiResponsePresenterInterface;
@@ -23,6 +26,8 @@ final class AuthController extends Controller
         private readonly ApiResponsePresenterInterface $presenter,
         private readonly LoginWithPinUseCase $loginWithPin,
         private readonly LoginWithPasswordUseCase $loginWithPassword,
+        private readonly ListLoginContextTenantsUseCase $listLoginContextTenants,
+        private readonly ListLoginContextBranchesUseCase $listLoginContextBranches,
         private readonly GetAuthenticatedUserUseCase $getAuthenticatedUser,
         private readonly LogoutUseCase $logoutUseCase,
     ) {
@@ -39,6 +44,18 @@ final class AuthController extends Controller
         ));
 
         return $this->presenter->present($result, 200);
+    }
+
+    public function loginContextTenants(): JsonResponse
+    {
+        return $this->presenter->present($this->listLoginContextTenants->execute());
+    }
+
+    public function loginContextBranches(LoginContextBranchesRequest $request): JsonResponse
+    {
+        return $this->presenter->present(
+            $this->listLoginContextBranches->execute($request->validated('tenant_slug')),
+        );
     }
 
     public function loginPassword(LoginPasswordRequest $request): JsonResponse

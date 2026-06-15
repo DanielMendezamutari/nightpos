@@ -1,6 +1,7 @@
 <script setup>
 import { fetchAdminBranches } from '@/api/branches'
 import { fetchAdminTenants } from '@/api/tenants'
+import { useRouteDialogCleanup } from '@/composables/useRouteDialogCleanup'
 import { usePlatformContext } from '@/composables/usePlatformContext'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
 import { getApiErrorMessage } from '@/services/http'
@@ -25,6 +26,8 @@ const showDialog = ref(false)
 const loading = ref(false)
 const tenants = ref([])
 const branches = ref([])
+
+useRouteDialogCleanup(showDialog)
 
 const draft = ref({
   tenant_slug: null,
@@ -134,6 +137,7 @@ defineExpose({ open })
     </VBtn>
 
     <VDialog
+      v-if="showDialog"
       v-model="showDialog"
       max-width="480"
     >

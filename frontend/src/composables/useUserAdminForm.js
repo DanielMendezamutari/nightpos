@@ -1,4 +1,5 @@
-import { fetchAdminBranches } from '@/api/branches'
+import { fetchAdminBranches, fetchAvailableBranches } from '@/api/branches'
+import { useAuthStore } from '@/stores/auth'
 
 export const STAFF_ROLES = [
   { title: 'Cajera', value: 'CASHIER' },
@@ -109,7 +110,22 @@ export function useUserAdminForm() {
   const showCleaningPayField = computed(() => form.value.staff_role === 'CLEANING')
 
   const loadBranches = async () => {
-    branches.value = await fetchAdminBranches()
+    const auth = useAuthStore()
+
+    try {
+      if (auth.hasPermission('admin.branches.list'))
+        branches.value = await fetchAdminBranches()
+      else
+        branches.value = await fetchAvailableBranches()
+    }
+    catch {
+      try {
+        branches.value = await fetchAvailableBranches()
+      }
+      catch {
+        branches.value = []
+      }
+    }
   }
 
   const applyDefaultBranches = () => {

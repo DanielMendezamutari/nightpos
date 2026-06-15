@@ -22,6 +22,8 @@ const users = ref([])
 const loading = ref(false)
 const confirmDeactivate = ref(null)
 
+defineExpose({ reload: load })
+
 const headers = [
   { title: 'Nombre', key: 'name' },
   { title: 'Usuario', key: 'username' },
@@ -64,6 +66,7 @@ onMounted(load)
       :breadcrumbs="breadcrumbs"
     >
       <template #actions>
+        <slot name="extra-actions" />
         <VBtn
           v-if="canCreateAdminUser"
           color="primary"

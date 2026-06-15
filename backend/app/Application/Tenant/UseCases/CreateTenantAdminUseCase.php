@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Application\Tenant\UseCases;
 
 use App\Application\Tenant\DTOs\CreateTenantInput;
-use App\Domain\Tenant\Repositories\TenantRepositoryInterface;
+use App\Application\Tenant\DTOs\TenantProvisionInput;
+use App\Application\Tenant\Support\TenantProvisioner;
 use App\Shared\Application\DTOs\OperationResult;
 use App\Shared\Contracts\UseCaseInterface;
 
 final class CreateTenantAdminUseCase implements UseCaseInterface
 {
     public function __construct(
-        private readonly TenantRepositoryInterface $tenants,
+        private readonly TenantProvisioner $provisioner,
     ) {
     }
 
@@ -22,20 +23,25 @@ final class CreateTenantAdminUseCase implements UseCaseInterface
             return OperationResult::fail('Entrada inválida.');
         }
 
-        $tenant = $this->tenants->create(
-            name: $input->name,
-            slug: $input->slug,
-            status: $input->status,
+        $result = $this->provisioner->provision(new TenantProvisionInput(
+            tenantName: $input->name,
+            tenantSlug: $input->slug,
+            tenantStatus: $input->status,
+            planId: $input->planId,
             planName: $input->planName,
             subscriptionStartsAt: $input->subscriptionStartsAt,
             subscriptionEndsAt: $input->subscriptionEndsAt,
-        );
+            branchName: $input->branchName,
+            branchCode: $input->branchCode,
+            branchAddress: $input->branchAddress,
+            branchStatus: $input->branchStatus,
+            adminName: $input->adminName,
+            adminUsername: $input->adminUsername,
+            adminEmail: $input->adminEmail,
+            adminPassword: $input->adminPassword,
+            adminPin: $input->adminPin,
+        ));
 
-        return OperationResult::ok('Empresa creada correctamente.', [
-            'id' => $tenant->id,
-            'name' => $tenant->name,
-            'slug' => $tenant->slug,
-            'status' => $tenant->status,
-        ]);
+        return OperationResult::ok('Empresa operativa creada correctamente.', $result);
     }
 }

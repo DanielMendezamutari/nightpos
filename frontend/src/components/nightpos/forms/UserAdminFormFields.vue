@@ -123,26 +123,40 @@ const show = section => props.section === 'all' || props.section === section
     <VCol
       v-if="show('access')"
       cols="12"
+    >
+      <VAlert
+        v-if="!branches.length"
+        type="warning"
+        variant="tonal"
+        class="mb-3"
+      >
+        No hay sucursales disponibles para asignar. Verifique su contexto de empresa y sucursal.
+      </VAlert>
+    </VCol>
+    <VCol
+      v-if="show('access') && branches.length"
+      cols="12"
       md="6"
     >
       <VSelect
         v-model="form.branch_id"
-        label="Sucursal principal"
+        label="Sucursal principal *"
         :items="branches.map(b => ({ title: `${b.name} [${b.code}]`, value: b.id }))"
-        clearable
+        :rules="[v => v != null || 'Seleccione sucursal principal']"
       />
     </VCol>
     <VCol
-      v-if="show('access')"
+      v-if="show('access') && branches.length"
       cols="12"
       md="6"
     >
       <VSelect
         v-model="form.accessible_branch_ids"
-        label="Sucursales permitidas"
-        :items="branches.map(b => ({ title: b.name, value: b.id }))"
+        label="Sucursales permitidas *"
+        :items="branches.map(b => ({ title: `${b.name} [${b.code}]`, value: b.id }))"
         multiple
         chips
+        :rules="[v => Array.isArray(v) && v.length > 0 || 'Seleccione al menos una sucursal']"
       />
     </VCol>
     <VCol

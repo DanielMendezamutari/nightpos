@@ -5,6 +5,7 @@ import { themeConfig } from '@themeConfig'
 
 // Components
 import NightPosNavbarContext from '@/components/nightpos/NightPosNavbarContext.vue'
+import NightPosStabilityDebug from '@/components/nightpos/dev/NightPosStabilityDebug.vue'
 import { useNightPosShell } from '@/composables/useNightPosShell'
 import Footer from '@/layouts/components/Footer.vue'
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
@@ -34,7 +35,7 @@ watch([
 // !SECTION
 const configStore = useConfigStore()
 const { showNightPosChrome } = useNightPosShell()
-const { navItems, navMenuKey } = useNightPosNavItems()
+const { navItems } = useNightPosNavItems()
 
 // ℹ️ Provide animation name for vertical nav collapse icon.
 const verticalNavHeaderActionAnimationName = ref(null)
@@ -52,10 +53,7 @@ watch([
 </script>
 
 <template>
-  <VerticalNavLayout
-    :key="navMenuKey"
-    :nav-items="navItems"
-  >
+  <VerticalNavLayout :nav-items="navItems">
     <!-- 👉 navbar -->
     <template #navbar="{ toggleVerticalOverlayNavActive }">
       <div class="d-flex h-100 align-center">
@@ -93,16 +91,13 @@ watch([
     <AppLoadingIndicator ref="refLoadingIndicator" />
 
     <!-- 👉 Pages -->
-    <RouterView v-slot="{ Component, route }">
+    <RouterView v-slot="{ Component }">
       <Suspense
         :timeout="20000"
         @fallback="isFallbackStateActive = true"
         @resolve="isFallbackStateActive = false"
       >
-        <Component
-          :is="Component"
-          :key="route.fullPath"
-        />
+        <component :is="Component" />
       </Suspense>
     </RouterView>
 
@@ -111,6 +106,7 @@ watch([
       <Footer />
     </template>
 
+    <NightPosStabilityDebug v-if="showNightPosChrome" />
   </VerticalNavLayout>
 </template>
 

@@ -40,6 +40,7 @@ final class AdminTenantController extends Controller
             name: $validated['name'],
             slug: $validated['slug'],
             status: $validated['status'] ?? 'active',
+            planId: isset($validated['plan_id']) ? (int) $validated['plan_id'] : null,
             planName: $validated['plan_name'] ?? null,
             subscriptionStartsAt: isset($validated['subscription_starts_at'])
                 ? new \DateTimeImmutable($validated['subscription_starts_at'])
@@ -47,6 +48,15 @@ final class AdminTenantController extends Controller
             subscriptionEndsAt: isset($validated['subscription_ends_at'])
                 ? new \DateTimeImmutable($validated['subscription_ends_at'])
                 : null,
+            branchName: $validated['branch']['name'],
+            branchCode: $validated['branch']['code'],
+            branchAddress: $validated['branch']['address'] ?? null,
+            branchStatus: $validated['branch']['status'] ?? 'active',
+            adminName: $validated['admin']['name'],
+            adminUsername: $validated['admin']['username'],
+            adminEmail: $validated['admin']['email'] ?? null,
+            adminPassword: $validated['admin']['password'],
+            adminPin: $validated['admin']['pin'] ?? null,
         ));
 
         return $this->presenter->present($result, 201);
@@ -66,6 +76,7 @@ final class AdminTenantController extends Controller
             name: $validated['name'],
             slug: $validated['slug'],
             status: $validated['status'],
+            planId: isset($validated['plan_id']) ? (int) $validated['plan_id'] : null,
             planName: $validated['plan_name'] ?? null,
             subscriptionStartsAt: isset($validated['subscription_starts_at'])
                 ? new \DateTimeImmutable($validated['subscription_starts_at'])

@@ -7,6 +7,7 @@ export {}
 declare global {
   const $api: typeof import('./src/utils/api.js')['$api']
   const BRANCH_CODE_COOKIE: typeof import('./src/stores/context.js')['BRANCH_CODE_COOKIE']
+  const BRANCH_NAME_COOKIE: typeof import('./src/stores/context.js')['BRANCH_NAME_COOKIE']
   const CASHIER_ORDER_TABS: typeof import('./src/composables/useOrderListTabs.js')['CASHIER_ORDER_TABS']
   const CASH_SESSION_SECTION_TABS: typeof import('./src/composables/useCashSessionSectionTabs.js')['CASH_SESSION_SECTION_TABS']
   const CATALOG_SECTION_TABS: typeof import('./src/composables/useStaffSectionTabs.js')['CATALOG_SECTION_TABS']
@@ -27,6 +28,7 @@ declare global {
   const STAFF_LABELS: typeof import('./src/composables/useUserAdminForm.js')['STAFF_LABELS']
   const STAFF_ROLES: typeof import('./src/composables/useUserAdminForm.js')['STAFF_ROLES']
   const STAFF_SECTION_TABS: typeof import('./src/composables/useStaffSectionTabs.js')['STAFF_SECTION_TABS']
+  const TENANT_NAME_COOKIE: typeof import('./src/stores/context.js')['TENANT_NAME_COOKIE']
   const TENANT_SLUG_COOKIE: typeof import('./src/stores/context.js')['TENANT_SLUG_COOKIE']
   const WAITER_ORDER_STATUS: typeof import('./src/composables/useWaiterOrderStatus.js')['WAITER_ORDER_STATUS']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
@@ -52,6 +54,7 @@ declare global {
   const confirmedValidator: typeof import('./src/@core/utils/validators.js')['confirmedValidator']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
+  const countBlockingOverlays: typeof import('./src/utils/overlaySafety.js')['countBlockingOverlays']
   const createApp: typeof import('vue')['createApp']
   const createEventHook: typeof import('@vueuse/core')['createEventHook']
   const createGenericProjection: typeof import('@vueuse/math')['createGenericProjection']
@@ -73,6 +76,7 @@ declare global {
   const defineComponent: typeof import('vue')['defineComponent']
   const definePage: typeof import('unplugin-vue-router/runtime')['definePage']
   const defineStore: typeof import('pinia')['defineStore']
+  const dismissStrayOverlays: typeof import('./src/utils/overlaySafety.js')['dismissStrayOverlays']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
   const emailValidator: typeof import('./src/@core/utils/validators.js')['emailValidator']
@@ -87,6 +91,7 @@ declare global {
   const getActivePinia: typeof import('pinia')['getActivePinia']
   const getCurrentInstance: typeof import('vue')['getCurrentInstance']
   const getCurrentScope: typeof import('vue')['getCurrentScope']
+  const getOperationalEventsDebugState: typeof import('./src/composables/useOperationalEvents.js')['getOperationalEventsDebugState']
   const getRoleSlug: typeof import('./src/utils/waiterRouting.js')['getRoleSlug']
   const getStaffRole: typeof import('./src/utils/waiterRouting.js')['getStaffRole']
   const h: typeof import('vue')['h']
@@ -200,6 +205,7 @@ declare global {
   const saleModeLabel: typeof import('./src/composables/useProductSaleModeLabels.js')['saleModeLabel']
   const setActivePinia: typeof import('pinia')['setActivePinia']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
+  const setupOverlaySafety: typeof import('./src/utils/overlaySafety.js')['setupOverlaySafety']
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
@@ -377,6 +383,7 @@ declare global {
   const useRoomOperationalEvents: typeof import('./src/composables/useRoomOperationalEvents.js')['useRoomOperationalEvents']
   const useRound: typeof import('@vueuse/math')['useRound']
   const useRoute: typeof import('vue-router/auto')['useRoute']
+  const useRouteDialogCleanup: typeof import('./src/composables/useRouteDialogCleanup.js')['useRouteDialogCleanup']
   const useRouter: typeof import('vue-router/auto')['useRouter']
   const useScreenOrientation: typeof import('@vueuse/core')['useScreenOrientation']
   const useScreenSafeArea: typeof import('@vueuse/core')['useScreenSafeArea']
@@ -465,6 +472,7 @@ declare module 'vue' {
   interface ComponentCustomProperties {
     readonly $api: UnwrapRef<typeof import('./src/utils/api.js')['$api']>
     readonly BRANCH_CODE_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['BRANCH_CODE_COOKIE']>
+    readonly BRANCH_NAME_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['BRANCH_NAME_COOKIE']>
     readonly CASHIER_ORDER_TABS: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['CASHIER_ORDER_TABS']>
     readonly CASH_SESSION_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useCashSessionSectionTabs.js')['CASH_SESSION_SECTION_TABS']>
     readonly CATALOG_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useStaffSectionTabs.js')['CATALOG_SECTION_TABS']>
@@ -485,6 +493,7 @@ declare module 'vue' {
     readonly STAFF_LABELS: UnwrapRef<typeof import('./src/composables/useUserAdminForm.js')['STAFF_LABELS']>
     readonly STAFF_ROLES: UnwrapRef<typeof import('./src/composables/useUserAdminForm.js')['STAFF_ROLES']>
     readonly STAFF_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useStaffSectionTabs.js')['STAFF_SECTION_TABS']>
+    readonly TENANT_NAME_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['TENANT_NAME_COOKIE']>
     readonly TENANT_SLUG_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['TENANT_SLUG_COOKIE']>
     readonly WAITER_ORDER_STATUS: UnwrapRef<typeof import('./src/composables/useWaiterOrderStatus.js')['WAITER_ORDER_STATUS']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
@@ -510,6 +519,7 @@ declare module 'vue' {
     readonly confirmedValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['confirmedValidator']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
+    readonly countBlockingOverlays: UnwrapRef<typeof import('./src/utils/overlaySafety.js')['countBlockingOverlays']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGenericProjection: UnwrapRef<typeof import('@vueuse/math')['createGenericProjection']>
@@ -531,6 +541,7 @@ declare module 'vue' {
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly definePage: UnwrapRef<typeof import('unplugin-vue-router/runtime')['definePage']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
+    readonly dismissStrayOverlays: UnwrapRef<typeof import('./src/utils/overlaySafety.js')['dismissStrayOverlays']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly emailValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['emailValidator']>
@@ -544,6 +555,7 @@ declare module 'vue' {
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
+    readonly getOperationalEventsDebugState: UnwrapRef<typeof import('./src/composables/useOperationalEvents.js')['getOperationalEventsDebugState']>
     readonly getRoleSlug: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['getRoleSlug']>
     readonly getStaffRole: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['getStaffRole']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
@@ -661,6 +673,7 @@ declare module 'vue' {
     readonly saleModeLabel: UnwrapRef<typeof import('./src/composables/useProductSaleModeLabels.js')['saleModeLabel']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
+    readonly setupOverlaySafety: UnwrapRef<typeof import('./src/utils/overlaySafety.js')['setupOverlaySafety']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
@@ -838,6 +851,7 @@ declare module 'vue' {
     readonly useRoomOperationalEvents: UnwrapRef<typeof import('./src/composables/useRoomOperationalEvents.js')['useRoomOperationalEvents']>
     readonly useRound: UnwrapRef<typeof import('@vueuse/math')['useRound']>
     readonly useRoute: UnwrapRef<typeof import('vue-router/auto')['useRoute']>
+    readonly useRouteDialogCleanup: UnwrapRef<typeof import('./src/composables/useRouteDialogCleanup.js')['useRouteDialogCleanup']>
     readonly useRouter: UnwrapRef<typeof import('vue-router/auto')['useRouter']>
     readonly useScreenOrientation: UnwrapRef<typeof import('@vueuse/core')['useScreenOrientation']>
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>
@@ -918,6 +932,7 @@ declare module '@vue/runtime-core' {
   interface ComponentCustomProperties {
     readonly $api: UnwrapRef<typeof import('./src/utils/api.js')['$api']>
     readonly BRANCH_CODE_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['BRANCH_CODE_COOKIE']>
+    readonly BRANCH_NAME_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['BRANCH_NAME_COOKIE']>
     readonly CASHIER_ORDER_TABS: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['CASHIER_ORDER_TABS']>
     readonly CASH_SESSION_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useCashSessionSectionTabs.js')['CASH_SESSION_SECTION_TABS']>
     readonly CATALOG_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useStaffSectionTabs.js')['CATALOG_SECTION_TABS']>
@@ -938,6 +953,7 @@ declare module '@vue/runtime-core' {
     readonly STAFF_LABELS: UnwrapRef<typeof import('./src/composables/useUserAdminForm.js')['STAFF_LABELS']>
     readonly STAFF_ROLES: UnwrapRef<typeof import('./src/composables/useUserAdminForm.js')['STAFF_ROLES']>
     readonly STAFF_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useStaffSectionTabs.js')['STAFF_SECTION_TABS']>
+    readonly TENANT_NAME_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['TENANT_NAME_COOKIE']>
     readonly TENANT_SLUG_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['TENANT_SLUG_COOKIE']>
     readonly WAITER_ORDER_STATUS: UnwrapRef<typeof import('./src/composables/useWaiterOrderStatus.js')['WAITER_ORDER_STATUS']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
@@ -963,6 +979,7 @@ declare module '@vue/runtime-core' {
     readonly confirmedValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['confirmedValidator']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
+    readonly countBlockingOverlays: UnwrapRef<typeof import('./src/utils/overlaySafety.js')['countBlockingOverlays']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGenericProjection: UnwrapRef<typeof import('@vueuse/math')['createGenericProjection']>
@@ -984,6 +1001,7 @@ declare module '@vue/runtime-core' {
     readonly defineComponent: UnwrapRef<typeof import('vue')['defineComponent']>
     readonly definePage: UnwrapRef<typeof import('unplugin-vue-router/runtime')['definePage']>
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
+    readonly dismissStrayOverlays: UnwrapRef<typeof import('./src/utils/overlaySafety.js')['dismissStrayOverlays']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly emailValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['emailValidator']>
@@ -997,6 +1015,7 @@ declare module '@vue/runtime-core' {
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
+    readonly getOperationalEventsDebugState: UnwrapRef<typeof import('./src/composables/useOperationalEvents.js')['getOperationalEventsDebugState']>
     readonly getRoleSlug: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['getRoleSlug']>
     readonly getStaffRole: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['getStaffRole']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
@@ -1114,6 +1133,7 @@ declare module '@vue/runtime-core' {
     readonly saleModeLabel: UnwrapRef<typeof import('./src/composables/useProductSaleModeLabels.js')['saleModeLabel']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
+    readonly setupOverlaySafety: UnwrapRef<typeof import('./src/utils/overlaySafety.js')['setupOverlaySafety']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
@@ -1291,6 +1311,7 @@ declare module '@vue/runtime-core' {
     readonly useRoomOperationalEvents: UnwrapRef<typeof import('./src/composables/useRoomOperationalEvents.js')['useRoomOperationalEvents']>
     readonly useRound: UnwrapRef<typeof import('@vueuse/math')['useRound']>
     readonly useRoute: UnwrapRef<typeof import('vue-router/auto')['useRoute']>
+    readonly useRouteDialogCleanup: UnwrapRef<typeof import('./src/composables/useRouteDialogCleanup.js')['useRouteDialogCleanup']>
     readonly useRouter: UnwrapRef<typeof import('vue-router/auto')['useRouter']>
     readonly useScreenOrientation: UnwrapRef<typeof import('@vueuse/core')['useScreenOrientation']>
     readonly useScreenSafeArea: UnwrapRef<typeof import('@vueuse/core')['useScreenSafeArea']>

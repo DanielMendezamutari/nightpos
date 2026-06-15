@@ -1,7 +1,7 @@
 <script setup>
 import { layoutConfig } from '@layouts'
 import { useLayoutConfigStore } from '@layouts/stores/config'
-import { getDynamicI18nProps } from '@layouts/utils'
+import { getDynamicI18nProps, getI18nComponentForKey } from '@layouts/utils'
 
 const props = defineProps({
   item: {
@@ -22,7 +22,7 @@ const shallRenderIcon = configStore.isVerticalNavMini()
         mode="out-in"
       >
         <Component
-          :is="shallRenderIcon ? layoutConfig.app.iconRenderer : layoutConfig.app.i18n.enable ? 'i18n-t' : 'span'"
+          :is="shallRenderIcon ? layoutConfig.app.iconRenderer : getI18nComponentForKey(item.heading)"
           :key="shallRenderIcon"
           :class="shallRenderIcon ? 'placeholder-icon' : 'title-text'"
           v-bind="{ ...layoutConfig.icons.sectionTitlePlaceholder, ...getDynamicI18nProps(item.heading, 'span') }"

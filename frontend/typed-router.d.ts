@@ -189,6 +189,7 @@ declare module 'vue-router/auto-routes' {
     'nightpos-staff-cashiers': RouteRecordInfo<'nightpos-staff-cashiers', '/nightpos/staff/cashiers', Record<never, never>, Record<never, never>>,
     'nightpos-staff-girls': RouteRecordInfo<'nightpos-staff-girls', '/nightpos/staff/girls', Record<never, never>, Record<never, never>>,
     'nightpos-staff-roles': RouteRecordInfo<'nightpos-staff-roles', '/nightpos/staff/roles', Record<never, never>, Record<never, never>>,
+    'nightpos-staff-roles-id-permissions': RouteRecordInfo<'nightpos-staff-roles-id-permissions', '/nightpos/staff/roles/:id/permissions', { id: ParamValue<true> }, { id: ParamValue<false> }>,
     'nightpos-staff-waiters': RouteRecordInfo<'nightpos-staff-waiters', '/nightpos/staff/waiters', Record<never, never>, Record<never, never>>,
     'nightpos-users': RouteRecordInfo<'nightpos-users', '/nightpos/users', Record<never, never>, Record<never, never>>,
     'nightpos-users-id': RouteRecordInfo<'nightpos-users-id', '/nightpos/users/:id', { id: ParamValue<true> }, { id: ParamValue<false> }>,

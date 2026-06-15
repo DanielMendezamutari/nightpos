@@ -457,6 +457,13 @@
     "useSseStatus": true,
     "useActionLoading": true,
     "useNotifyStore": true,
-    "useRoomOperationalEvents": true
+    "useRoomOperationalEvents": true,
+    "BRANCH_NAME_COOKIE": true,
+    "TENANT_NAME_COOKIE": true,
+    "getOperationalEventsDebugState": true,
+    "useRouteDialogCleanup": true,
+    "countBlockingOverlays": true,
+    "dismissStrayOverlays": true,
+    "setupOverlaySafety": true
   }
 }

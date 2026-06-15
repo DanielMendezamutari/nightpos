@@ -21,6 +21,7 @@ final class PlatformSetupRequest extends FormRequest
             'tenant.name' => ['required', 'string', 'max:150'],
             'tenant.slug' => ['required', 'string', 'max:100', 'unique:tenants,slug'],
             'tenant.status' => ['nullable', 'string', Rule::in(['active', 'inactive', 'suspended'])],
+            'tenant.plan_id' => ['nullable', 'integer', 'exists:plans,id'],
             'tenant.plan_name' => ['nullable', 'string', 'max:50'],
             'branch' => ['required', 'array'],
             'branch.name' => ['required', 'string', 'max:150'],

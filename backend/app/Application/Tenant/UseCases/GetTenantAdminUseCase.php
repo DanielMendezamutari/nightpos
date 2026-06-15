@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Tenant\UseCases;
 
+use App\Application\Plan\Support\TenantPlanUsageCalculator;
 use App\Application\Tenant\Support\TenantAdminMapper;
 use App\Domain\Auth\Exceptions\PermissionDeniedException;
 use App\Domain\Tenant\Exceptions\TenantNotFoundException;
@@ -17,6 +18,7 @@ final class GetTenantAdminUseCase implements UseCaseInterface
     public function __construct(
         private readonly TenantRepositoryInterface $tenants,
         private readonly AuthenticatedStaffContextInterface $staffContext,
+        private readonly TenantPlanUsageCalculator $planUsage,
     ) {
     }
 
@@ -35,7 +37,7 @@ final class GetTenantAdminUseCase implements UseCaseInterface
         }
 
         return OperationResult::ok('Empresa obtenida.', [
-            'tenant' => TenantAdminMapper::tenant($tenant),
+            'tenant' => TenantAdminMapper::withPlanUsage($tenant, $this->planUsage),
         ]);
     }
 }

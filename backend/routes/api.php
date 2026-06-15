@@ -1,9 +1,12 @@
 <?php
 
+use App\Http\Controllers\Api\V1\Admin\AdminRoleController;
 use App\Http\Controllers\Api\V1\Admin\AdminCashSessionController;
 use App\Http\Controllers\Api\V1\Admin\AdminBranchController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
+use App\Http\Controllers\Api\V1\Admin\PlatformDashboardController;
+use App\Http\Controllers\Api\V1\Admin\PlatformPlanController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSetupController;
 use App\Http\Controllers\Api\V1\CashController;
 use App\Http\Controllers\Api\V1\SaleController;
@@ -44,6 +47,8 @@ Route::prefix('v1')->group(function () {
     Route::prefix('auth')->group(function () {
         Route::post('login-pin', [AuthController::class, 'loginPin']);
         Route::post('login-password', [AuthController::class, 'loginPassword']);
+        Route::get('login-context/tenants', [AuthController::class, 'loginContextTenants']);
+        Route::get('login-context/branches', [AuthController::class, 'loginContextBranches']);
 
         Route::middleware('auth:api')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
@@ -75,6 +80,24 @@ Route::prefix('v1')->group(function () {
                 Route::post('platform/setup', [PlatformSetupController::class, 'store']);
             });
 
+            Route::middleware('nightpos.permission:admin.tenants.list')->prefix('platform')->group(function () {
+                Route::get('dashboard', [PlatformDashboardController::class, 'index']);
+                Route::get('plans', [PlatformPlanController::class, 'index']);
+                Route::get('plans/{id}/limits', [PlatformPlanController::class, 'limits'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:admin.tenants.create')->prefix('platform')->group(function () {
+                Route::post('plans', [PlatformPlanController::class, 'store']);
+                Route::post('plans/{id}/duplicate', [PlatformPlanController::class, 'duplicate'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:admin.tenants.update')->prefix('platform')->group(function () {
+                Route::put('plans/{id}', [PlatformPlanController::class, 'update'])->whereNumber('id');
+                Route::delete('plans/{id}', [PlatformPlanController::class, 'destroy'])->whereNumber('id');
+                Route::put('plans/{id}/limits', [PlatformPlanController::class, 'updateLimits'])->whereNumber('id');
+            });
+
+
             Route::middleware('nightpos.permission:admin.branches.list')->group(function () {
                 Route::get('branches', [AdminBranchController::class, 'index']);
                 Route::get('branches/{id}', [AdminBranchController::class, 'show'])->whereNumber('id');
@@ -101,6 +124,31 @@ Route::prefix('v1')->group(function () {
                 Route::put('users/{id}', [AdminUserController::class, 'update'])->whereNumber('id');
                 Route::delete('users/{id}/branches/{branchId}', [AdminUserController::class, 'revokeBranch'])
                     ->whereNumber(['id', 'branchId']);
+            });
+
+            Route::middleware('nightpos.permission:roles.access')->group(function () {
+                Route::get('roles', [AdminRoleController::class, 'index']);
+                Route::get('roles/{id}', [AdminRoleController::class, 'show'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:permissions.access')->group(function () {
+                Route::get('permissions', [AdminRoleController::class, 'permissions']);
+            });
+
+            Route::middleware('nightpos.permission:roles.create')->group(function () {
+                Route::post('roles', [AdminRoleController::class, 'store']);
+            });
+
+            Route::middleware('nightpos.permission:roles.update')->group(function () {
+                Route::put('roles/{id}', [AdminRoleController::class, 'update'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:roles.permissions.update')->group(function () {
+                Route::put('roles/{id}/permissions', [AdminRoleController::class, 'updatePermissions'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:roles.delete')->group(function () {
+                Route::delete('roles/{id}', [AdminRoleController::class, 'destroy'])->whereNumber('id');
             });
 
             Route::middleware(['nightpos.branch:required', 'nightpos.branch.access'])->group(function () {

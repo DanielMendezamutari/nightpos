@@ -1,1 +1,0 @@
-import{e$ as a,f0 as f,I as u}from"./index-BaS1jTzJ.js";function l(){const s=a(),{show:t,text:e,color:c}=f(s),n=(o,r="success")=>s.notify(o,r);return{snackbar:u({get:()=>({show:t.value,text:e.value,color:c.value}),set:o=>{o&&typeof o.show=="boolean"&&(t.value=o.show)}}),notify:n}}export{l as u};

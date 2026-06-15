@@ -13,6 +13,7 @@ final readonly class UpdateTenantInput extends DataTransferObject
         public string $name,
         public string $slug,
         public string $status,
+        public ?int $planId,
         public ?string $planName,
         public ?\DateTimeImmutable $subscriptionStartsAt,
         public ?\DateTimeImmutable $subscriptionEndsAt,

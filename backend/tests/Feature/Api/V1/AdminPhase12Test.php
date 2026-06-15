@@ -38,7 +38,7 @@ it('allows superadmin to get and update tenant', function () {
     ])
         ->assertOk()
         ->assertJsonPath('data.tenant.name', 'Casa Demo Actualizada')
-        ->assertJsonPath('data.tenant.plan_name', 'enterprise');
+        ->assertJsonPath('data.tenant.plan_name', 'ENTERPRISE');
 });
 
 it('rejects duplicate tenant slug on update', function () {

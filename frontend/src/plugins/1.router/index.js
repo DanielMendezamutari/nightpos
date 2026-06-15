@@ -2,6 +2,7 @@ import { setupLayouts } from 'virtual:generated-layouts'
 import { createRouter, createWebHistory } from 'vue-router/auto'
 import { redirects, routes } from './additional-routes'
 import { setupGuards } from './guards'
+import { setupOverlaySafety } from '@/utils/overlaySafety'
 
 function recursiveLayouts(route) {
   if (route.children) {
@@ -32,6 +33,7 @@ const router = createRouter({
 })
 
 setupGuards(router)
+setupOverlaySafety(router)
 export { router }
 export default function (app) {
   app.use(router)

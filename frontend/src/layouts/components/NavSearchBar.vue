@@ -167,12 +167,13 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
 </script>
 
 <template>
-  <div
-    class="d-flex align-center cursor-pointer gap-x-2"
-    v-bind="$attrs"
-    style="user-select: none;"
-    @click="isAppSearchBarVisible = !isAppSearchBarVisible"
-  >
+  <div class="nav-search-bar">
+    <div
+      class="d-flex align-center cursor-pointer gap-x-2"
+      v-bind="$attrs"
+      style="user-select: none;"
+      @click="isAppSearchBarVisible = !isAppSearchBarVisible"
+    >
     <!-- 👉 Search Trigger button -->
     <!-- close active tour while opening search bar using icon -->
     <IconBtn @click="Shepherd.activeTour?.cancel()">
@@ -288,6 +289,7 @@ const LazyAppBarSearch = defineAsyncComponent(() => import('@core/components/App
       </VListItem>
     </template>
   </LazyAppBarSearch>
+  </div>
 </template>
 
 <style lang="scss">

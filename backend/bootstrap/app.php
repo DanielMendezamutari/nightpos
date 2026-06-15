@@ -20,6 +20,7 @@ use App\Domain\Branch\Exceptions\BranchNotFoundException;
 use App\Domain\Product\Exceptions\ProductCategoryNotFoundException;
 use App\Domain\Product\Exceptions\ProductDomainException;
 use App\Domain\Product\Exceptions\ProductNotFoundException;
+use App\Domain\Role\Exceptions\RoleAdminException;
 use App\Domain\Shift\Exceptions\OfficialShiftNotFoundException;
 use App\Domain\GirlIncome\Exceptions\BraceletNotFoundException;
 use App\Domain\GirlIncome\Exceptions\GirlIncomeDomainException;
@@ -31,6 +32,8 @@ use App\Domain\GirlIncome\Exceptions\ShowNotFoundException;
 use App\Domain\StaffSettlement\Exceptions\StaffSettlementNotFoundException;
 use App\Domain\Shift\Exceptions\ShiftDomainException;
 use App\Domain\StaffSettlement\Exceptions\StaffSettlementDomainException;
+use App\Domain\Plan\Exceptions\PlanDomainException;
+use App\Domain\Plan\Exceptions\PlanNotFoundException;
 use App\Domain\Tenant\Exceptions\TenantDomainException;
 use App\Domain\Tenant\Exceptions\TenantNotFoundException;
 use App\Shared\Domain\Exceptions\DomainException;
@@ -72,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof SaleNotFoundException,
                 $exception instanceof UserNotFoundException,
                 $exception instanceof TenantNotFoundException,
+                $exception instanceof PlanNotFoundException,
                 $exception instanceof BranchNotFoundException,
                 $exception instanceof ProductCategoryNotFoundException,
                 $exception instanceof OfficialShiftNotFoundException,
@@ -80,8 +84,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof RoomServiceNotFoundException,
                 $exception instanceof ShowNotFoundException,
                 $exception instanceof RoomNotFoundException => 404,
+                $exception instanceof RoleAdminException => $exception->statusCode,
                 $exception instanceof ProductDomainException,
                 $exception instanceof TenantDomainException,
+                $exception instanceof PlanDomainException,
                 $exception instanceof BranchDomainException,
                 $exception instanceof ShiftDomainException,
                 $exception instanceof UserDomainException,

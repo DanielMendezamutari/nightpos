@@ -5,6 +5,8 @@ import { useOperationalStore } from '@/stores/operational'
 
 export const TENANT_SLUG_COOKIE = 'tenantSlug'
 export const BRANCH_CODE_COOKIE = 'branchCode'
+export const TENANT_NAME_COOKIE = 'tenantName'
+export const BRANCH_NAME_COOKIE = 'branchName'
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30
 const COOKIE_OPTS = { path: '/', maxAge: COOKIE_MAX_AGE }
 
@@ -31,6 +33,8 @@ export const useContextStore = defineStore('nightposContext', {
   state: () => ({
     tenantSlug: null,
     branchCode: null,
+    tenantName: null,
+    branchName: null,
     /** Incrementa al cambiar contexto; usar en watch para invalidar datos de módulos. */
     version: 0,
   }),
@@ -59,18 +63,26 @@ export const useContextStore = defineStore('nightposContext', {
     hydrateFromCookies() {
       this.tenantSlug = readCookie(TENANT_SLUG_COOKIE)
       this.branchCode = readCookie(BRANCH_CODE_COOKIE)
+      this.tenantName = readCookie(TENANT_NAME_COOKIE)
+      this.branchName = readCookie(BRANCH_NAME_COOKIE)
     },
 
     persistToCookies() {
       writeCookie(TENANT_SLUG_COOKIE, this.tenantSlug)
       writeCookie(BRANCH_CODE_COOKIE, this.branchCode)
+      writeCookie(TENANT_NAME_COOKIE, this.tenantName)
+      writeCookie(BRANCH_NAME_COOKIE, this.branchName)
       // Mantener refs singleton de useCookie alineados (axios legacy / plugins).
       try {
         const tenantRef = useCookie(TENANT_SLUG_COOKIE, COOKIE_OPTS)
         const branchRef = useCookie(BRANCH_CODE_COOKIE, COOKIE_OPTS)
+        const tenantNameRef = useCookie(TENANT_NAME_COOKIE, COOKIE_OPTS)
+        const branchNameRef = useCookie(BRANCH_NAME_COOKIE, COOKIE_OPTS)
 
         tenantRef.value = this.tenantSlug
         branchRef.value = this.branchCode
+        tenantNameRef.value = this.tenantName
+        branchNameRef.value = this.branchName
       }
       catch {
         // SSR o entorno sin document
@@ -98,14 +110,23 @@ export const useContextStore = defineStore('nightposContext', {
       this.bumpVersion()
     },
 
-    async applyContext({ tenantSlug, branchCode }) {
+    async applyContext({ tenantSlug, branchCode, tenantName, branchName }) {
       const normalizedTenant = tenantSlug?.trim() || null
 
       this.tenantSlug = normalizedTenant
-      if (!normalizedTenant)
+      if (!normalizedTenant) {
         this.branchCode = null
-      else if (branchCode !== undefined)
-        this.branchCode = branchCode?.trim() || null
+        this.tenantName = null
+        this.branchName = null
+      }
+      else {
+        if (branchCode !== undefined)
+          this.branchCode = branchCode?.trim() || null
+        if (tenantName !== undefined)
+          this.tenantName = tenantName?.trim() || null
+        if (branchName !== undefined)
+          this.branchName = branchName?.trim() || null
+      }
 
       this.persistToCookies()
       this.bumpVersion()
@@ -121,6 +142,8 @@ export const useContextStore = defineStore('nightposContext', {
     async clearContext() {
       this.tenantSlug = null
       this.branchCode = null
+      this.tenantName = null
+      this.branchName = null
       this.persistToCookies()
       this.bumpVersion()
 
@@ -132,8 +155,8 @@ export const useContextStore = defineStore('nightposContext', {
     },
 
     /** Tras cambio de empresa/sucursal: refrescar tenant/branch y subir versión. */
-    async changeContext({ tenantSlug, branchCode }) {
-      await this.applyContext({ tenantSlug, branchCode })
+    async changeContext({ tenantSlug, branchCode, tenantName, branchName }) {
+      await this.applyContext({ tenantSlug, branchCode, tenantName, branchName })
     },
   },
 })

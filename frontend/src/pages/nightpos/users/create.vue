@@ -14,6 +14,7 @@ definePage({
   },
 })
 
+const route = useRoute()
 const router = useRouter()
 const { canCreateAdminUser } = useNightPosPermissions()
 const { notify } = useNightPosNotify()
@@ -56,8 +57,15 @@ onMounted(async () => {
   }
 
   form.value = emptyUserForm()
+
+  if (route.query.role === 'GIRL')
+    form.value.staff_role = 'GIRL'
+
   await loadBranches()
   applyDefaultBranches()
+
+  if (form.value.staff_role === 'GIRL' && form.value.branch_id && !form.value.accessible_branch_ids.length)
+    form.value.accessible_branch_ids = [form.value.branch_id]
 })
 </script>
 

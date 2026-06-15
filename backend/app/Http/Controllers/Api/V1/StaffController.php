@@ -40,6 +40,8 @@ final class StaffController extends Controller
             name: $validated['name'],
             pin: $validated['pin'] ?? null,
             notes: $validated['notes'] ?? null,
+            branchId: isset($validated['branch_id']) ? (int) $validated['branch_id'] : null,
+            accessibleBranchIds: array_map('intval', $validated['accessible_branch_ids'] ?? []),
         )), 201);
     }
 

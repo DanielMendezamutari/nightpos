@@ -1,3 +1,4 @@
+import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 
 export function useNightPosPermissions() {
@@ -31,5 +32,11 @@ export function useNightPosPermissions() {
     canGenerateSettlements: computed(() => can('settlements.generate')),
     canPaySettlements: computed(() => can('settlements.pay')),
     canListSettlementHistory: computed(() => can('settlements.history')),
+    canAccessRoles: computed(() => can('roles.access')),
+    canCreateRole: computed(() => can('roles.create')),
+    canUpdateRole: computed(() => can('roles.update')),
+    canDeleteRole: computed(() => can('roles.delete')),
+    canUpdateRolePermissions: computed(() => can('roles.permissions.update')),
+    canAccessPermissionsCatalog: computed(() => can('permissions.access')),
   }
 }

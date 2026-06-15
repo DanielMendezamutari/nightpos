@@ -86,10 +86,25 @@ export const _setDirAttr = dir => {
  * @param key i18n translation key
  * @param tag tag to wrap the translation with
  */
-export const getDynamicI18nProps = (key, tag = 'span') => {
+const hasI18nTranslationKey = key => {
   if (!layoutConfig.app.i18n.enable)
+    return false
+  if (typeof key !== 'string' || !key)
+    return false
+
+  // NightPOS usa títulos literales en español, no claves del catálogo i18n.
+  if (/\s/.test(key) || /[áéíóúñ]/i.test(key))
+    return false
+
+  return true
+}
+
+export const getI18nComponentForKey = key => hasI18nTranslationKey(key) ? 'i18n-t' : 'span'
+
+export const getDynamicI18nProps = (key, tag = 'span') => {
+  if (!hasI18nTranslationKey(key))
     return {}
-  
+
   return {
     keypath: key,
     tag,

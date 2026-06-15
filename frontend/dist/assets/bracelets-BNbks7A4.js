@@ -1,1 +1,0 @@
-import{eZ as t,e_ as s}from"./index-BaS1jTzJ.js";async function n(){const e=await t.get("/bracelets");return s(e)}async function c(e){const a=await t.post("/bracelets",e);return s(a)}export{c,n as f};

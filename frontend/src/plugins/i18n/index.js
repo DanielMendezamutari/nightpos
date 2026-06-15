@@ -12,6 +12,8 @@ export const getI18n = () => {
       legacy: false,
       locale: cookieRef('language', themeConfig.app.i18n.defaultLocale).value,
       fallbackLocale: 'en',
+      missingWarn: false,
+      fallbackWarn: false,
       messages,
     })
   }

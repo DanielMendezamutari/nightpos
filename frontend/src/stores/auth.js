@@ -7,6 +7,8 @@ const TOKEN_COOKIE = 'accessToken'
 const USER_COOKIE = 'userData'
 const TENANT_SLUG_COOKIE = 'tenantSlug'
 const BRANCH_CODE_COOKIE = 'branchCode'
+const TENANT_NAME_COOKIE = 'tenantName'
+const BRANCH_NAME_COOKIE = 'branchName'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -60,7 +62,7 @@ export const useAuthStore = defineStore('auth', {
         this.syncAbilitiesFromUser(this.user)
     },
 
-    persistSession(token, user, tenantSlug, branchCode) {
+    persistSession(token, user, tenantSlug, branchCode, tenantName = null, branchName = null) {
       this.token = token
       this.user = user
 
@@ -71,18 +73,40 @@ export const useAuthStore = defineStore('auth', {
       userCookie.value = user
 
       if (tenantSlug) {
-        const slugCookie = useCookie(TENANT_SLUG_COOKIE, { maxAge: 60 * 60 * 12 })
+        const slugCookie = useCookie(TENANT_SLUG_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
 
         slugCookie.value = tenantSlug
       }
 
       if (branchCode) {
-        const branchCookie = useCookie(BRANCH_CODE_COOKIE, { maxAge: 60 * 60 * 12 })
+        const branchCookie = useCookie(BRANCH_CODE_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
 
         branchCookie.value = branchCode
       }
 
+      if (tenantName) {
+        const nameCookie = useCookie(TENANT_NAME_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
+
+        nameCookie.value = tenantName
+      }
+
+      if (branchName) {
+        const branchNameCookie = useCookie(BRANCH_NAME_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
+
+        branchNameCookie.value = branchName
+      }
+
       this.syncAbilitiesFromUser(user)
+    },
+
+    clearAuthOnly() {
+      this.token = null
+      this.user = null
+      this.error = null
+      useCookie(TOKEN_COOKIE).value = null
+      useCookie(USER_COOKIE).value = null
+      useCookie('userAbilityRules').value = null
+      ability.update([])
     },
 
     clearSession() {
@@ -103,7 +127,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    async loginWithPin({ pin, tenantSlug, branchCode }) {
+    async loginWithPin({ pin, tenantSlug, branchCode, tenantName, branchName }) {
       this.loading = true
       this.error = null
 
@@ -116,8 +140,13 @@ export const useAuthStore = defineStore('auth', {
 
         const data = unwrapNightPosResponse(response)
 
-        this.persistSession(data.token, data.user, tenantSlug, branchCode)
-        await useContextStore().applyContext({ tenantSlug, branchCode })
+        this.persistSession(data.token, data.user, tenantSlug, branchCode, tenantName, branchName)
+        await useContextStore().applyContext({
+          tenantSlug,
+          branchCode,
+          tenantName,
+          branchName,
+        })
 
         return data
       }

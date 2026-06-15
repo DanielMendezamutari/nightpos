@@ -38,6 +38,11 @@ final class UserDomainException extends DomainException
         return new self('La sucursal no pertenece a la empresa.');
     }
 
+    public static function branchNotAccessible(): self
+    {
+        return new self('No puede asignar sucursales fuera de su alcance.');
+    }
+
     public static function duplicateGirlName(): self
     {
         return new self('Ya existe una chica activa con ese nombre en esta sucursal.');

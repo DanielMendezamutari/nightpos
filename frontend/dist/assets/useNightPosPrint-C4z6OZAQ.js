@@ -1,0 +1,1 @@
+import{eP as o,ak as u,a8 as i}from"./index-JbOKxrHA.js";function f(){const r=o();return{openPrintRoute:(e,{autoPrint:t=!0}={})=>{const n=r.resolve({...e,query:{...e.query??{},...t?{print:"1"}:{}}});return!!window.open(n.href,"_blank","noopener,noreferrer")},triggerAutoPrint:()=>{u().query.print==="1"&&i(()=>{setTimeout(()=>window.print(),400)})}}}export{f as u};

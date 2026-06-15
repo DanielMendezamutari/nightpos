@@ -19,6 +19,9 @@ final class QuickCreateGirlRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'pin' => ['nullable', 'string', 'regex:/^\d{4,6}$/'],
             'notes' => ['nullable', 'string', 'max:1000'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'accessible_branch_ids' => ['nullable', 'array', 'min:1'],
+            'accessible_branch_ids.*' => ['integer', 'exists:branches,id'],
         ];
     }
 }

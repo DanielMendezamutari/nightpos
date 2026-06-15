@@ -27,6 +27,7 @@ final class PlatformSetupController extends Controller
             tenantName: $validated['tenant']['name'],
             tenantSlug: $validated['tenant']['slug'],
             tenantStatus: $validated['tenant']['status'] ?? 'active',
+            planId: isset($validated['tenant']['plan_id']) ? (int) $validated['tenant']['plan_id'] : null,
             planName: $validated['tenant']['plan_name'] ?? null,
             branchName: $validated['branch']['name'],
             branchCode: $validated['branch']['code'],

@@ -15,10 +15,10 @@
 |-----------|--------|
 | **Clasificación** | **MVP operativo con reportes → listo para piloto real** |
 | **% estimado hacia V1 (boliche operable)** | **~99%** (post P0+P1 frontend) |
-| **% estimado hacia producción comercial SaaS** | ~83% |
+| **% estimado hacia producción comercial SaaS** | ~88% (post SAAS-1) |
 | **¿Opera una noche de prueba controlada?** | **Sí** (1 caja, datos precargados, sin impresión obligatoria) |
 | **¿Listo para piloto en local real?** | **Sí** — solo bloquea decisión de impresión y preproducción |
-| **Suite de tests** | **376 passing, 2539 assertions (100% verde)** |
+| **Suite de tests** | **415 passing, 3008 assertions (100% verde)** |
 
 ### Lectura rápida
 
@@ -52,9 +52,9 @@ Criterio de "completado": API + reglas de negocio + UI mínima + tests o cobertu
 
 | Módulo | Estado | Evidencia |
 |--------|--------|-----------|
-| **SaaS / tenants / sucursales** | ✅ | Fase 4–5, platform setup, wizard |
-| **Usuarios / roles / permisos (RBAC)** | ✅ | Fase 4–5, 10, 12; middleware por slug |
-| **Login PIN / password** | ✅ | `AuthApiTest`; superadmin sin tenant; fix superadmin login |
+| **SaaS / tenants / sucursales** | ✅ | Fase 4–5, platform setup, wizard, **SAAS-1 planes** |
+| **Usuarios / roles / permisos (RBAC)** | ✅ | Fase 4–5, 10, 12; middleware por slug; **gestión local roles** (`ROLE_PERMISSION_MANAGEMENT_REPORT.md`) |
+| **Login PIN / password** | ✅ | `AuthApiTest`; superadmin sin tenant; **selección empresa/sucursal** (`LOGIN_CONTEXT_SELECTION_REPORT.md`) |
 | **Productos / categorías / precios** | ✅ | Fase 6, 12; SOLO/CON_ACOMPANANTE, girl/house amount |
 | **Catálogo POS (POS-CAT)** | ✅ | `POS_CAT_REPORT.md`; endpoint `pos-catalog`, picker unificado |
 | **Comandas (orders)** | ✅ | Fase 7, C1; crear, ítems, enviar barra, cancelar, historial |
@@ -343,7 +343,8 @@ Incluye:
 - BI avanzado / dashboards gerenciales comparativos
 - App nativa (más allá de PWA si se decidiera)
 - Multi-moneda
-- Suscripciones SaaS automatizadas (billing, planes, límites, cobro)
+- Suscripciones SaaS automatizadas (billing, cobro recurrente) — **SAAS-2+**
+- Enforcement de límites por plan — **SAAS-4**
 - Marketing / CRM / clientes / créditos / cotizaciones
 - Delivery, combos, recetas, cocina separada (legacy restaurante)
 - Portal propio de chica / garzón con analítica
@@ -487,7 +488,23 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Garzón | `frontend/WAITER_MOBILE_*`, `backend/PHASE_C4_WAITER_REPORT.md` |
 | Limpieza | `backend/CLEANING_MOBILE_MODE_REPORT.md`, `ROOM_SERVICE_NOTIFICATIONS_REPORT.md` |
 | Despliegue | `DEPLOYMENT_CHECKLIST.md` |
+| SaaS planes (SAAS-1) | `backend/SAAS_PLAN_MANAGEMENT_REPORT.md`, `frontend/SAAS_PLAN_MANAGEMENT_REPORT.md` |
 
 ---
 
-*Documento de planificación. No incluye cambios de código. Próxima acción de desarrollo: **V1-92 SSE-1 BASE**.*
+## SAAS-1 — Planes y límites (completado 2026-06-14)
+
+| Entrega | Estado |
+|---------|--------|
+| Unificación `TenantProvisioner` (wizard + crear empresa) | ✅ |
+| Tablas `plans`, `plan_limits`, `tenants.plan_id` | ✅ |
+| CRUD planes API + UI superadmin | ✅ |
+| Uso vs límites (OK/WARNING/LIMIT_REACHED, sin bloqueo) | ✅ |
+| Dashboard SaaS ampliado | ✅ |
+| Tests `TenantProvisioningTest`, `PlanManagementTest` | ✅ |
+
+**Siguiente fase:** SAAS-2 — Suscripciones (no iniciada).
+
+---
+
+*Documento de planificación. Próxima acción SaaS: **SAAS-2 Suscripciones**.*

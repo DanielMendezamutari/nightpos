@@ -24,16 +24,13 @@ watch([
   <AppLoadingIndicator ref="refLoadingIndicator" />
 
   <div class="layout-wrapper layout-blank">
-    <RouterView #="{ Component, route }">
+    <RouterView v-slot="{ Component }">
       <Suspense
         :timeout="20000"
         @fallback="isFallbackStateActive = true"
         @resolve="isFallbackStateActive = false"
       >
-        <Component
-          :is="Component"
-          :key="route.fullPath"
-        />
+        <component :is="Component" />
       </Suspense>
     </RouterView>
   </div>

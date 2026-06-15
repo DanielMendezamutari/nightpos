@@ -24,6 +24,7 @@ final class ListTenantsAdminUseCase implements UseCaseInterface
             'name' => $tenant->name,
             'slug' => $tenant->slug,
             'status' => $tenant->status,
+            'plan_id' => $tenant->planId,
             'plan_name' => $tenant->planName,
         ], $items);
 
