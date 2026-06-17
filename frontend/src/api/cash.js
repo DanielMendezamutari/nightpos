@@ -23,3 +23,9 @@ export async function closeCashSession(payload) {
 
   return unwrapNightPosResponse(response).session
 }
+
+export async function fetchCashSessionCloseCheck() {
+  const response = await api.get('/cash/session/current/close-check')
+
+  return unwrapNightPosResponse(response)
+}

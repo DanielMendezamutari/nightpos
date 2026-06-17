@@ -1,6 +1,7 @@
 <script setup>
 import { openCashSession } from '@/api/cash'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import { useDialogKeyboardShortcuts } from '@/composables/useDialogKeyboardShortcuts'
 import { getApiErrorMessage } from '@/services/http'
 
 const props = defineProps({
@@ -52,6 +53,14 @@ const save = async () => {
     saving.value = false
   }
 }
+
+useDialogKeyboardShortcuts({
+  active: toRef(props, 'modelValue'),
+  onConfirm: save,
+  onCancel: close,
+  canConfirm: () => !saving.value,
+  loading: saving,
+})
 </script>
 
 <template>

@@ -14,6 +14,11 @@ interface CashSessionRepositoryInterface extends RepositoryInterface
 
     public function findOpenForUser(int $tenantId, int $branchId, int $userId): ?CashSession;
 
+    /**
+     * @return list<array{id: int, opened_by_user_id: int, status: string, official_shift_id: ?int}>
+     */
+    public function listOpenSessionsForBranch(int $tenantId, int $branchId): array;
+
     public function open(
         int $tenantId,
         int $branchId,
@@ -53,6 +58,11 @@ interface CashSessionRepositoryInterface extends RepositoryInterface
      * @return array{income: string, expense: string}
      */
     public function sumManualMovements(int $cashSessionId): array;
+
+    /**
+     * @return array<string, array{income: string, expense: string}>
+     */
+    public function sumMovementsByMethod(int $cashSessionId): array;
 
     /**
      * @return list<\App\Infrastructure\Persistence\Eloquent\Models\CashSessionModel>

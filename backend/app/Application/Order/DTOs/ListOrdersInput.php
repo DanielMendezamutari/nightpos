@@ -20,6 +20,10 @@ final readonly class ListOrdersInput
 
         public bool $currentShiftOnly = false,
 
+        public bool $cashierScoped = false,
+
+        public bool $currentCashSessionOnly = false,
+
         public ?string $scope = null,
 
         public ?int $limit = null,

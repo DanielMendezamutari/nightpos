@@ -105,22 +105,38 @@ it('auto creates shift when charging after previous shift was closed', function 
     $waiter = nightposLoginPin('5678');
 
     $orderId = nightposCreateOrderWithItem($waiter)['order_id'];
+    $firstShiftId = (int) OrderModel::query()->where('id', $orderId)->value('official_shift_id');
 
     test()->postJson('/api/v1/cash/session/open', ['opening_amount' => 0], nightposOperationalHeaders($cashier));
-    test()->postJson('/api/v1/cash/session/close', ['declared_closing_amount' => 0], nightposOperationalHeaders($cashier));
-    $shiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
-    test()->postJson("/api/v1/shifts/{$shiftId}/close", ['counted_cash' => 0], nightposOperationalHeaders($admin))->assertOk();
+
+    OrderModel::query()
+        ->where('id', '!=', $orderId)
+        ->whereIn('status', ['OPEN', 'SENT_TO_BAR'])
+        ->update(['status' => 'CANCELLED', 'cancelled_at' => now()]);
+
+    test()->postJson("/api/v1/orders/{$orderId}/charge", [
+        'payments' => [['method' => 'CASH', 'amount' => 50]],
+    ], nightposOperationalHeaders($cashier))->assertCreated();
+
+    nightposPrepareCashSessionClose($cashier, $admin);
+    test()->postJson('/api/v1/cash/session/close', ['declared_closing_amount' => 50], nightposOperationalHeaders($cashier))->assertOk();
+    test()->postJson("/api/v1/shifts/{$firstShiftId}/close", ['counted_cash' => 50], nightposOperationalHeaders($admin))->assertOk();
 
     expect(OfficialShiftModel::query()->where('status', 'OPEN')->count())->toBe(0);
 
     test()->postJson('/api/v1/cash/session/open', ['opening_amount' => 0], nightposOperationalHeaders($cashier))
         ->assertCreated();
 
-    test()->postJson("/api/v1/orders/{$orderId}/charge", [
+    $newShiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+    expect($newShiftId)->not->toBe($firstShiftId);
+
+    $newOrderId = nightposCreateOrderWithItem($waiter)['order_id'];
+
+    test()->postJson("/api/v1/orders/{$newOrderId}/charge", [
         'payments' => [['method' => 'CASH', 'amount' => 50]],
     ], nightposOperationalHeaders($cashier))->assertCreated();
 
-    expect(SaleModel::query()->where('order_id', $orderId)->value('official_shift_id'))->not->toBeNull();
+    expect(SaleModel::query()->where('order_id', $newOrderId)->value('official_shift_id'))->toBe($newShiftId);
     expect(OfficialShiftModel::query()->where('status', 'OPEN')->count())->toBe(1);
 });
 

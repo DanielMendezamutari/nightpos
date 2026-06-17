@@ -92,4 +92,10 @@ interface UserRepositoryInterface extends RepositoryInterface
     public function grantBranchAccess(int $userId, int $tenantId, int $branchId): void;
 
     public function revokeBranchAccess(int $userId, int $tenantId, int $branchId): void;
+
+    /**
+     * @param  list<int>  $userIds
+     * @return array<int, string> Map user id → display name
+     */
+    public function findDisplayNamesByIds(array $userIds): array;
 }

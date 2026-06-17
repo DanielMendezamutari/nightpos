@@ -34,7 +34,7 @@ const router = useRouter()
 
 const sessionExpiredHint = computed(() =>
   route.query.reason === 'session_expired'
-    ? 'La sesión expiró o fue invalidada. Vuelva a iniciar sesión.'
+    ? 'Tu sesión expiró. Vuelve a ingresar.'
     : '',
 )
 

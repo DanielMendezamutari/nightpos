@@ -6,7 +6,9 @@ namespace App\Application\Order\UseCases;
 
 use App\Application\Order\DTOs\CancelOrderItemInput;
 use App\Application\Order\Services\OrderAccessGuard;
-use App\Application\Order\Support\OrderMapper;
+use App\Application\Order\Services\OrderPresentationService;
+use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Domain\Order\Exceptions\OrderDomainException;
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
 use App\Domain\Order\ValueObjects\OrderStatus;
@@ -26,6 +28,8 @@ final class CancelOrderItemUseCase implements UseCaseInterface
         private readonly OrderRepositoryInterface $orders,
         private readonly OrderAccessGuard $accessGuard,
         private readonly AuditLogRecorder $audit,
+        private readonly OperationalEventEmitter $eventEmitter,
+        private readonly OrderPresentationService $presentation,
     ) {
     }
 
@@ -86,8 +90,20 @@ final class CancelOrderItemUseCase implements UseCaseInterface
             'reason' => $reason,
         ]);
 
+        $this->eventEmitter->emit(
+            $tenant->id,
+            $branch->id,
+            'order.updated',
+            OrderOperationalEventPayload::build(
+                orderId: $order->id,
+                status: $updated?->status ?? $order->status,
+                source: 'cancel_order_item',
+                summary: 'Línea cancelada',
+            )
+        );
+
         return OperationResult::ok('Línea cancelada.', [
-            'order' => OrderMapper::order($updated),
+            'order' => $this->presentation->presentOrder($updated, $tenant->id),
         ]);
     }
 }

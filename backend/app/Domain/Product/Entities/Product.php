@@ -19,6 +19,10 @@ final readonly class Product
         public string $unit,
         public bool $trackInventory,
         public string $status,
+        public string $settlementBehavior = 'GIRL_LINE',
+        public int $braceletUnitsPerLine = 1,
+        public bool $requiresAllocation = false,
+        public ?string $allocationType = null,
     ) {
     }
 
@@ -30,5 +34,10 @@ final readonly class Product
     public function belongsToTenant(int $tenantId): bool
     {
         return $this->tenantId === $tenantId;
+    }
+
+    public function requiredBraceletUnits(int $quantity): int
+    {
+        return $this->braceletUnitsPerLine * max(1, $quantity);
     }
 }

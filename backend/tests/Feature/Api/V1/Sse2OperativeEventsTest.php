@@ -307,7 +307,7 @@ it('paying a settlement emits settlement.paid and cash.movement.created events',
     $beforePaid = sse2CountEvents('settlement.paid');
     $beforeCash = sse2CountEvents('cash.movement.created');
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($cashier))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($cashier))
         ->assertOk();
 
     expect(sse2CountEvents('settlement.paid'))->toBe($beforePaid + 1);

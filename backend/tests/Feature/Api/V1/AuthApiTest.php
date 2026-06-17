@@ -79,6 +79,38 @@ it('logs out and invalidates session token when blacklist enabled', function () 
     ])->assertOk()->assertJsonPath('success', true);
 });
 
+it('refreshes an authenticated token within refresh window', function () {
+    $login = $this->postJson('/api/v1/auth/login-pin', [
+        'pin' => '1234',
+        'tenant_slug' => 'casa-demo',
+        'branch_code' => 'CENTRO',
+    ]);
+
+    $token = $login->json('data.token');
+
+    $refresh = $this->postJson('/api/v1/auth/refresh', [], [
+        'Authorization' => 'Bearer '.$token,
+    ]);
+
+    $refresh->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonStructure(['data' => ['token', 'token_type']]);
+
+    $newToken = $refresh->json('data.token');
+
+    expect($newToken)->not->toBe($token);
+
+    $this->getJson('/api/v1/auth/me', [
+        'Authorization' => 'Bearer '.$newToken,
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.user.username', 'cajero.demo');
+});
+
+it('uses operational jwt ttl default of twelve hours', function () {
+    expect((int) config('jwt.ttl'))->toBeGreaterThanOrEqual(720);
+});
+
 it('stores pin as hash not plain text', function () {
     $cashier = UserModel::query()->where('username', 'cajero.demo')->first();
 

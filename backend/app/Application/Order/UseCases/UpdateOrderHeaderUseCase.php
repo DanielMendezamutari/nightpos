@@ -6,7 +6,9 @@ namespace App\Application\Order\UseCases;
 
 use App\Application\Order\DTOs\UpdateOrderHeaderInput;
 use App\Application\Order\Services\OrderAccessGuard;
-use App\Application\Order\Support\OrderMapper;
+use App\Application\Order\Services\OrderPresentationService;
+use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Domain\Order\Exceptions\OrderDomainException;
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
 use App\Domain\Order\ValueObjects\OrderStatus;
@@ -26,6 +28,8 @@ final class UpdateOrderHeaderUseCase implements UseCaseInterface
         private readonly OrderAccessGuard $accessGuard,
         private readonly ServiceAreaRepositoryInterface $serviceAreas,
         private readonly AuditLogRecorder $audit,
+        private readonly OperationalEventEmitter $eventEmitter,
+        private readonly OrderPresentationService $presentation,
     ) {
     }
 
@@ -84,8 +88,20 @@ final class UpdateOrderHeaderUseCase implements UseCaseInterface
             'service_area_id' => $serviceAreaId,
         ]);
 
+        $this->eventEmitter->emit(
+            $tenant->id,
+            $branch->id,
+            'order.updated',
+            OrderOperationalEventPayload::build(
+                orderId: $order->id,
+                status: $updated->status,
+                source: 'update_order_header',
+                summary: 'Comanda actualizada',
+            )
+        );
+
         return OperationResult::ok('Comanda actualizada.', [
-            'order' => OrderMapper::order($updated),
+            'order' => $this->presentation->presentOrder($updated, $tenant->id),
         ]);
     }
 }

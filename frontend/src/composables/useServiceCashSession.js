@@ -13,7 +13,7 @@ export function useServiceCashSession() {
     try {
       const session = await fetchCurrentCashSession()
       cashSession.value = session ?? null
-      cashSessionOpen.value = session?.status === 'OPEN'
+      cashSessionOpen.value = Boolean(session)
     }
     catch (error) {
       cashSession.value = null
@@ -29,7 +29,7 @@ export function useServiceCashSession() {
 
   const onCashOpened = async session => {
     showOpenCash.value = false
-    if (session?.status === 'OPEN')
+    if (session)
       cashSessionOpen.value = true
 
     await loadCashSession()

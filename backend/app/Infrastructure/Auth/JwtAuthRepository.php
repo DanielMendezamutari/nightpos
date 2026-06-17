@@ -14,9 +14,23 @@ final class JwtAuthRepository implements AuthRepositoryInterface
     {
         $user = UserModel::query()->findOrFail($userId);
 
-        auth('api')->logout();
+        try {
+            auth('api')->logout();
+        } catch (\Throwable) {
+            // Sin token activo en el guard.
+        }
 
-        return (string) auth('api')->login($user);
+        $token = (string) auth('api')->login($user);
+
+        auth('api')->forgetUser();
+        JWTAuth::unsetToken();
+
+        return $token;
+    }
+
+    public function refreshCurrentToken(): string
+    {
+        return (string) JWTAuth::parseToken()->refresh();
     }
 
     public function invalidateCurrentToken(): void

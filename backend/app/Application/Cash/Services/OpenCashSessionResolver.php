@@ -19,6 +19,14 @@ final class OpenCashSessionResolver
 
     public function findOpenForCurrentUser(int $tenantId, int $branchId, int $userId): ?CashSession
     {
+        return $this->resolveOpenCashSessionForUser($tenantId, $branchId, $userId);
+    }
+
+    /**
+     * Fuente única de verdad: caja OPEN del usuario en tenant/sucursal.
+     */
+    public function resolveOpenCashSessionForUser(int $tenantId, int $branchId, int $userId): ?CashSession
+    {
         return $this->sessions->findOpenForUser($tenantId, $branchId, $userId);
     }
 }

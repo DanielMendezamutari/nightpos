@@ -2,10 +2,11 @@
 import NightPosFormActions from '@/components/nightpos/layout/NightPosFormActions.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
-import { closeShift, downloadShiftCsv, fetchCurrentShift, fetchShiftSummary } from '@/api/shifts'
+import { closeShift, downloadShiftCsv, fetchCurrentShift, fetchShiftCloseCheck, fetchShiftSummary } from '@/api/shifts'
 import { fetchCurrentShiftSettlements } from '@/api/settlements'
-import { fetchProductReconciliation, fetchShiftClosureCheck } from '@/api/reports'
+import { fetchProductReconciliation } from '@/api/reports'
 import ProductReconciliationPanel from '@/components/nightpos/reports/ProductReconciliationPanel.vue'
+import ComboBraceletSummaryPanel from '@/components/nightpos/reports/ComboBraceletSummaryPanel.vue'
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { useFilteredShiftTabs } from '@/composables/useShiftSectionTabs'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
@@ -104,7 +105,7 @@ const load = async () => {
       const [data, settlData, checkData, reconData] = await Promise.all([
         fetchShiftSummary(shift.value.id),
         fetchCurrentShiftSettlements().catch(() => null),
-        fetchShiftClosureCheck().catch(() => null),
+        fetchShiftCloseCheck().catch(() => null),
         fetchProductReconciliation({ officialShiftId: shift.value.id }).catch(() => null),
       ])
 
@@ -371,6 +372,13 @@ onMounted(load)
           Conciliación de productos
         </VCardTitle>
         <VCardText>
+          <ComboBraceletSummaryPanel
+            v-if="summary?.combo_bracelets?.total_bracelet_units"
+            :summary="summary.combo_bracelets"
+            compact
+            class="mb-4"
+          />
+
           <ProductReconciliationPanel
             :data="reconciliation"
             title=""

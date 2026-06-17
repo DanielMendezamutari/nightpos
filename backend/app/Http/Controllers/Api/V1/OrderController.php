@@ -11,6 +11,7 @@ use App\Application\Order\DTOs\GetOrderInput;
 use App\Application\Order\DTOs\ListOrdersInput;
 use App\Application\Order\DTOs\CancelOrderItemInput;
 use App\Application\Order\DTOs\OrderActionInput;
+use App\Application\Order\DTOs\SyncOrderItemAllocationsInput;
 use App\Application\Order\DTOs\RemoveOrderItemInput;
 use App\Application\Order\DTOs\UpdateOrderHeaderInput;
 use App\Application\Order\DTOs\UpdateOrderItemInput;
@@ -19,10 +20,12 @@ use App\Application\Order\UseCases\AssignOrderItemGirlUseCase;
 use App\Application\Order\UseCases\CancelOrderItemUseCase;
 use App\Application\Order\UseCases\CancelOrderUseCase;
 use App\Application\Order\UseCases\CreateOrderUseCase;
+use App\Application\Order\UseCases\GetOrderPrecheckUseCase;
 use App\Application\Order\UseCases\GetOrderUseCase;
 use App\Application\Order\UseCases\ListOrdersUseCase;
 use App\Application\Order\UseCases\RemoveOrderItemUseCase;
 use App\Application\Order\UseCases\SendOrderToBarUseCase;
+use App\Application\Order\UseCases\SyncOrderItemAllocationsUseCase;
 use App\Application\Order\UseCases\UpdateOrderHeaderUseCase;
 use App\Application\Order\UseCases\UpdateOrderItemUseCase;
 use App\Application\Sale\DTOs\ChargeOrderInput;
@@ -33,6 +36,7 @@ use App\Http\Requests\Api\V1\Order\AssignOrderItemGirlRequest;
 use App\Http\Requests\Api\V1\Order\CancelOrderItemRequest;
 use App\Http\Requests\Api\V1\Order\CreateOrderRequest;
 use App\Http\Requests\Api\V1\Order\UpdateOrderHeaderRequest;
+use App\Http\Requests\Api\V1\Order\SyncOrderItemAllocationsRequest;
 use App\Http\Requests\Api\V1\Order\UpdateOrderItemRequest;
 use App\Http\Requests\Api\V1\Sale\ChargeOrderRequest;
 use App\Infrastructure\Presentation\Http\Contracts\ApiResponsePresenterInterface;
@@ -46,11 +50,13 @@ final class OrderController extends Controller
         private readonly ListOrdersUseCase $listOrders,
         private readonly CreateOrderUseCase $createOrder,
         private readonly GetOrderUseCase $getOrder,
+        private readonly GetOrderPrecheckUseCase $getOrderPrecheck,
         private readonly AddOrderItemUseCase $addOrderItem,
         private readonly AssignOrderItemGirlUseCase $assignOrderItemGirl,
         private readonly SendOrderToBarUseCase $sendOrderToBar,
         private readonly CancelOrderUseCase $cancelOrder,
         private readonly UpdateOrderItemUseCase $updateOrderItem,
+        private readonly SyncOrderItemAllocationsUseCase $syncOrderItemAllocations,
         private readonly RemoveOrderItemUseCase $removeOrderItem,
         private readonly CancelOrderItemUseCase $cancelOrderItem,
         private readonly UpdateOrderHeaderUseCase $updateOrderHeader,
@@ -63,11 +69,15 @@ final class OrderController extends Controller
         $status = $request->query('status');
         $scope = $request->query('scope');
         $currentShiftOnly = filter_var($request->query('current_shift', false), FILTER_VALIDATE_BOOLEAN);
+        $cashierScoped = filter_var($request->query('cashier_scope', false), FILTER_VALIDATE_BOOLEAN);
+        $currentCashSessionOnly = filter_var($request->query('current_session', false), FILTER_VALIDATE_BOOLEAN);
 
         return $this->presenter->present($this->listOrders->execute(
             new ListOrdersInput(
                 is_string($status) && $status !== '' ? strtoupper($status) : null,
                 $currentShiftOnly,
+                $cashierScoped,
+                $currentCashSessionOnly,
                 is_string($scope) && $scope !== '' ? $scope : null,
             )
         ));
@@ -90,6 +100,11 @@ final class OrderController extends Controller
     public function show(int $id): JsonResponse
     {
         return $this->presenter->present($this->getOrder->execute(new GetOrderInput($id)));
+    }
+
+    public function precheck(int $id): JsonResponse
+    {
+        return $this->presenter->present($this->getOrderPrecheck->execute(new GetOrderInput($id)));
     }
 
     public function addItem(int $id, AddOrderItemRequest $request): JsonResponse
@@ -141,6 +156,24 @@ final class OrderController extends Controller
                 : null,
             clearGirl: array_key_exists('girl_user_id', $validated) && $validated['girl_user_id'] === null,
             reason: $validated['reason'] ?? null,
+        ));
+
+        return $this->presenter->present($result);
+    }
+
+    public function syncItemAllocations(int $id, int $itemId, SyncOrderItemAllocationsRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        $allocations = array_map(static fn (array $row) => [
+            'girl_user_id' => (int) $row['girl_user_id'],
+            'units' => (int) $row['units'],
+        ], $validated['allocations']);
+
+        $result = $this->syncOrderItemAllocations->execute(new SyncOrderItemAllocationsInput(
+            orderId: $id,
+            itemId: $itemId,
+            allocations: $allocations,
         ));
 
         return $this->presenter->present($result);

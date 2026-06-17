@@ -7,6 +7,7 @@ namespace App\Application\Cash\UseCases;
 use App\Application\Cash\Services\CashSessionFinancialSummaryBuilder;
 use App\Application\Cash\Services\OpenCashSessionResolver;
 use App\Application\Cash\Support\CashMapper;
+use App\Application\Reports\Services\ComboBraceletReportingService;
 use App\Application\Shift\Support\ShiftMapper;
 use App\Domain\Shift\Repositories\OfficialShiftRepositoryInterface;
 use App\Shared\Application\DTOs\OperationResult;
@@ -24,6 +25,7 @@ final class GetCurrentCashSessionUseCase implements UseCaseInterface
         private readonly OpenCashSessionResolver $cashSessionResolver,
         private readonly CashSessionFinancialSummaryBuilder $financialSummaryBuilder,
         private readonly OfficialShiftRepositoryInterface $shifts,
+        private readonly ComboBraceletReportingService $comboReporting,
     ) {
     }
 
@@ -59,6 +61,11 @@ final class GetCurrentCashSessionUseCase implements UseCaseInterface
 
             $sessionData['financial_summary'] = $financial;
             $sessionData['sales_by_method']   = $this->financialSummaryBuilder->salesByMethod($session->id);
+            $sessionData['combo_bracelets']   = $this->comboReporting->buildScopeSummary(
+                $tenant->id,
+                $branch->id,
+                ['cash_session_id' => $session->id],
+            );
 
             $payload['session'] = $sessionData;
         }

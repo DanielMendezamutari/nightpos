@@ -1,6 +1,6 @@
 <script setup>
 import PrintableTicketShell from '@/components/nightpos/print/PrintableTicketShell.vue'
-import { formatMoney, SALE_MODE_LABELS } from '@/composables/useOrderHelpers'
+import { formatCompanionBraceletLine, formatMoney, SALE_MODE_LABELS, shouldShowCompanionBraceletLine } from '@/composables/useOrderHelpers'
 
 const props = defineProps({
   sale: {
@@ -102,6 +102,26 @@ const saleType = computed(() => (props.sale?.order_id ? 'Comanda' : 'Venta direc
               {{ item.product_name_snapshot || item.product_name }}
               <span class="nightpos-print-muted d-block">
                 {{ SALE_MODE_LABELS[item.sale_mode] || item.sale_mode }}
+              </span>
+              <span
+                v-if="shouldShowCompanionBraceletLine(item)"
+                class="nightpos-print-muted d-block"
+              >{{ formatCompanionBraceletLine(item) }}</span>
+              <span
+                v-if="item.requires_allocation"
+                class="nightpos-print-muted d-block"
+              >
+                Manillas: {{ item.allocated_bracelet_units ?? 0 }}/{{ item.required_bracelet_units ?? 0 }}
+              </span>
+              <span
+                v-if="item.allocations?.length"
+                class="nightpos-print-muted d-block"
+              >
+                <span
+                  v-for="alloc in item.allocations"
+                  :key="alloc.id"
+                  class="d-block"
+                >{{ alloc.girl_name }} ×{{ alloc.units }} — {{ formatMoney(alloc.total_amount, sale.currency) }}</span>
               </span>
             </td>
             <td class="text-end">

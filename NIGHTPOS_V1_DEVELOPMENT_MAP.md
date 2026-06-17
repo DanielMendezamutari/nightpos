@@ -18,7 +18,7 @@
 | **% estimado hacia producción comercial SaaS** | ~88% (post SAAS-1) |
 | **¿Opera una noche de prueba controlada?** | **Sí** (1 caja, datos precargados, sin impresión obligatoria) |
 | **¿Listo para piloto en local real?** | **Sí** — solo bloquea decisión de impresión y preproducción |
-| **Suite de tests** | **415 passing, 3008 assertions (100% verde)** |
+| **Suite de tests** | **529 passing (100% verde)** |
 
 ### Lectura rápida
 
@@ -26,7 +26,7 @@ NightPOS ya **no es un MVP visual**: es un POS nocturno funcional con SaaS multi
 
 La brecha hacia V1 ya **no es construir el núcleo**, sino:
 
-1. **Tiempo real (SSE)** — hoy varias pantallas dependen de F5 o polling.
+1. **Tiempo real (SSE)** — P0 comandas completado; barra sin pantalla SSE dedicada en V1.
 2. **Reportes / cierre documentado** — cierre de turno confiable y exportable.
 3. **Impresión mínima** — comanda a barra y ticket caja (o documentar su ausencia).
 4. **QA operativo end-to-end** y **preproducción** (env, backups, build, HTTPS).
@@ -81,6 +81,7 @@ Criterio de "completado": API + reglas de negocio + UI mínima + tests o cobertu
 | **POS-CAT** | ✅ implementado, ⏳ validación | QA con 20/100/200 productos en celular y caja real |
 | **SSE-1 (infra tiempo real)** | ✅ completado | `operational_events`, `sse_tokens`, token SSE, stream, `useOperationalEvents`, reconnect, heartbeat, filtros |
 | **SSE-2 (eventos UI)** | ✅ completado | 17 eventos conectados, 10 páginas SSE, 12 tests |
+| **P0 Fast Operation (comandas tiempo real)** | ✅ completado 2026-06-16 | `order.updated` en 5 use cases, payload estándar, `useOrderOperationalEvents`, SSE layout persistente, polling 30 s — `FAST_OPERATION_REALTIME_P0_IMPLEMENTATION_REPORT.md` (be+fe) |
 | **P0 Feedback visual** | ✅ completado | Snackbar global Pinia, loading acciones críticas — `P0_FEEDBACK_VISUAL_REPORT.md` |
 | **P1 SSE piezas/habitaciones** | ✅ completado | 4 pantallas + fix `useOperationalEvents` — `P1_SSE_ROOMS_REPORT.md` |
 | **Reportes** | ✅ V1-96 | Cierre turno, 6 tabs reportes, CSV; falta PDF/Excel en V2 |
@@ -209,6 +210,25 @@ Logros:
 **12 nuevos tests en `Sse2OperativeEventsTest.php`** (365 total, 100% verde).
 
 **Documentación:** `backend/SSE_2_REPORT.md`, `frontend/SSE_2_REPORT.md`.
+
+---
+
+### FASE P0 — FAST OPERATION MODE (COMANDAS TIEMPO REAL) ✅ (COMPLETADA 2026-06-16)
+
+**Objetivo:** garzón, cajera y admin ven cambios de comandas sin F5 (caso reportado: cajera no ve comanda nueva).
+
+**Backend:**
+- `order.updated` en `UpdateOrderItem`, `RemoveOrderItem`, `AssignOrderItemGirl`, `CancelOrderItem`, `UpdateOrderHeader`
+- Payload estándar vía `OrderOperationalEventPayload` (`order_id`, `status`, `source`, `refresh`)
+- 10 tests `SseOrderEventsP0Test.php` — suite completa verde
+
+**Frontend:**
+- `useOrderOperationalEvents`, `useOperationalPollingFallback`, `useOperationalSseHost`
+- Banner SSE en cajera, orders, waiter, cash, settlements
+- Polling 30 s en listas y detalle de comandas
+- SSE persistente en layouts operativos
+
+**Documentación:** `FAST_OPERATION_REALTIME_AUDIT.md` (be+fe), `FAST_OPERATION_REALTIME_P0_IMPLEMENTATION_REPORT.md` (be+fe).
 
 ---
 
@@ -483,7 +503,12 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Pago mixto | `backend/DIRECT_SALE_MIXED_PAYMENTS_REPORT.md`, `frontend/DIRECT_SALE_MIXED_PAYMENTS_REPORT.md` |
 | Catálogo POS | `backend/POS_CAT_REPORT.md`, `frontend/POS_CAT_REPORT.md` |
 | Caja / fiscalización | `backend/ADMIN_CASH_SESSIONS_REPORT.md`, `OPERATION_CASH_FINANCE_AUDIT.md` |
+| Motivos de caja | `backend/CASH_MOVEMENT_REASONS_MANAGEMENT_REPORT.md`, `frontend/CASH_MOVEMENT_REASONS_MANAGEMENT_REPORT.md` |
+| Cierre caja / scope cajera | `backend/CASHIER_CLOSE_CHECK_REPORT.md`, `frontend/CASHIER_CLOSE_CHECK_REPORT.md`, `backend/CASHIER_SHIFT_SCOPE_FIX_REPORT.md`, `frontend/CASHIER_SHIFT_SCOPE_FIX_REPORT.md` |
+| Liquidaciones / scope turno | `backend/SETTLEMENT_SHIFT_SCOPE_FIX_REPORT.md`, `frontend/SETTLEMENT_SHIFT_SCOPE_FIX_REPORT.md` |
 | Liquidaciones | `backend/CLEANING_SETTLEMENTS_REPORT.md`, `frontend/SETTLEMENTS_CASH_UI_FIX_REPORT.md` |
+| Liquidaciones parciales / cortes | `backend/PARTIAL_SETTLEMENTS_IMPLEMENTATION_REPORT.md`, `frontend/PARTIAL_SETTLEMENTS_IMPLEMENTATION_REPORT.md` |
+| Liquidaciones parciales post-Mis mesas | `backend/PARTIAL_SETTLEMENTS_AFTER_TABLES_FIX_REPORT.md`, `frontend/PARTIAL_SETTLEMENTS_AFTER_TABLES_FIX_REPORT.md` |
 | Comandas | `ORDERS_COMPLETE_AUDIT.md`, `CASHIER_ORDER_AND_DIRECT_SALE_AUDIT.md` |
 | Garzón | `frontend/WAITER_MOBILE_*`, `backend/PHASE_C4_WAITER_REPORT.md` |
 | Limpieza | `backend/CLEANING_MOBILE_MODE_REPORT.md`, `ROOM_SERVICE_NOTIFICATIONS_REPORT.md` |
@@ -504,6 +529,356 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Tests `TenantProvisioningTest`, `PlanManagementTest` | ✅ |
 
 **Siguiente fase:** SAAS-2 — Suscripciones (no iniciada).
+
+---
+
+## BUGFIX — Motivos de caja (completado 2026-06-14)
+
+| Entrega | Estado |
+|---------|--------|
+| Fix unwrap API → selector Mi Caja poblado | ✅ |
+| Tipo `BOTH` en backend y UI | ✅ |
+| `GET /cash/movement-reasons` para cajera (`cash.access`) | ✅ |
+| Navegación Configuración → Motivos de caja con permiso | ✅ |
+| Alerta + accesos rápidos Crear/Gestionar en Mi Caja | ✅ |
+| Seeder motivos básicos (INCOME/EXPENSE/BOTH) | ✅ |
+| Tests `CashMovementReasonsManagementTest` (10) + `PhaseC3Test` | ✅ |
+| Build frontend | ✅ |
+
+**Permisos:** `settings.cash_reasons` (ver/usar), `settings.cash_reasons.manage` (administrar; incluye cajera senior).  
+**Ruta UI:** `/nightpos/settings/cash-reasons`.  
+**Pendiente V2:** campo `description`, endpoint DELETE explícito, slugs `cash_movement_reasons.*` si se unifica nomenclatura.
+
+---
+
+## BUGFIX — Cierre caja + scope cajera + Enter cobrar (completado 2026-06-15)
+
+| Entrega | Estado |
+|---------|--------|
+| Enter cobra en ChargeOrderModal y venta directa | ✅ |
+| `GET /cash/session/current/close-check` + enforcement | ✅ |
+| Bloqueo cierre: comandas, piezas, liquidaciones | ✅ |
+| Scope cajera turno/caja (`cashier_scope`, `current_session`) | ✅ |
+| `GET /shifts/current/close-check` (sin `reports.access`) | ✅ |
+| Cajera básica sin `shifts.close` | ✅ |
+| Tests `CashierCloseCheckTest` (9) | ✅ |
+| Build frontend | ✅ |
+
+---
+
+## BUGFIX — Liquidaciones scope turno (completado 2026-06-15)
+
+| Entrega | Estado |
+|---------|--------|
+| `resolveOpenShiftId()` — solo turno OPEN en liquidaciones | ✅ |
+| Sin fallback a turnos cerrados en current-shift | ✅ |
+| `context` + `sources_summary` en API | ✅ |
+| Close-check usa `cash_session.official_shift_id` | ✅ |
+| UI turno actual + mensaje vacío | ✅ |
+| Tests `SettlementShiftScopeTest` (5) | ✅ |
+
+---
+
+## FEATURE — Liquidaciones parciales / múltiples cortes (completado 2026-06-16)
+
+| Entrega | Estado |
+|---------|--------|
+| Múltiples `staff_settlements` por persona/turno/tipo | ✅ |
+| `ensureSettlement()` solo reutiliza PENDING | ✅ |
+| Deduplicación por `staff_settlement_items` | ✅ |
+| `cut_number` / `cut_label` en API | ✅ |
+| Blocker `unsettled_settlement_sources` (caja + turno) | ✅ |
+| UI cortes en girls/waiters/cleaning/history | ✅ |
+| Tests `PartialSettlementsTest` (10) | ✅ |
+| Docs `PARTIAL_SETTLEMENTS_*` | ✅ |
+
+---
+
+## FEATURE — Combos con manillas multichica CBA-1…CBA-5 (completado 2026-06-16)
+
+| Entrega | Estado |
+|---------|--------|
+| CBA-1 Catálogo declarativo (`settlement_behavior`, `bracelet_units_per_line`, etc.) | ✅ |
+| CBA-2 `order_item_allocations` + sync API + validación suma exacta | ✅ |
+| CBA-3 `sale_item_allocations` snapshot al cobrar | ✅ |
+| CBA-4 Liquidación `GIRL_BRACELET_ALLOCATION` por chica/allocation | ✅ |
+| CBA-5 UI `BraceletAllocationPanel` garzón + cajera | ✅ |
+| **CBA-UX Flujo híbrido garzón (una chica + reparto táctil)** | ✅ 2026-06-16 |
+| Bloqueo venta directa combos V1 | ✅ |
+| Tests `ComboBraceletAllocationTest` (11) | ✅ |
+| Docs `COMBO_BRACELET_ALLOCATION_*` | ✅ |
+
+**Regla:** `SUM(manillas) = quantity × bracelet_units_per_line`.  
+**Sin romper:** CON_ACOMPAÑANTE simple, manillas legacy, liquidaciones parciales, piezas/shows.  
+**Pendiente V2:** venta directa con allocator.
+
+Ver **CBA-6:** `COMBO_BRACELET_REPORTING_CLOSURE_REPORT.md`.  
+Ver **CBA-UX:** `frontend/WAITER_COMBO_UX_IMPLEMENTATION_REPORT.md`.
+
+---
+
+## FEATURE — CBA-UX Flujo híbrido garzón combos (completado 2026-06-16)
+
+| Ítem | Estado |
+|------|--------|
+| Picker combo sin Solo/Con acompañante | ✅ |
+| Atajo «todas para una chica» (1 tap) | ✅ |
+| Reparto multichica táctil (todas las chicas visibles) | ✅ |
+| Indicador visual manillas ●●●○○○ | ✅ |
+| Cantidad × manillas anticipado (ej. 2 = 12) | ✅ |
+| Editar reparto mismo diálogo | ✅ |
+| Re-reparto al cambiar cantidad | ✅ |
+| Productos normales sin cambios | ✅ |
+
+**Doc:** `frontend/WAITER_COMBO_UX_IMPLEMENTATION_REPORT.md`
+
+---
+
+## FEATURE — CBA-6 Reportes, cierre y precuenta combos (completado 2026-06-16)
+
+| Entrega | Estado |
+|---------|--------|
+| `ComboBraceletReportingService` + reportes enriquecidos | ✅ |
+| Cierre caja/turno con `combo_bracelets` | ✅ |
+| `GET orders/{id}/precheck` + ticket venta con allocations | ✅ |
+| UI precuenta, reportes, `ComboBraceletSummaryPanel` | ✅ |
+| Tests `ComboBraceletReportingTest` (10) | ✅ |
+| Docs `COMBO_BRACELET_REPORTING_CLOSURE_*` | ✅ |
+
+---
+
+## FEATURE — Fase A: Acompañante visible en comanda/ticket/precuenta (completado 2026-06-16)
+
+| Entrega | Estado |
+|---------|--------|
+| `girl_name` en ítems simples `CON_ACOMPANANTE` (API) | ✅ |
+| Batch load nombres (`UserRepository::findDisplayNamesByIds`) | ✅ |
+| `girl_name` en ventas/tickets (`SaleAllocationPresenter`) | ✅ |
+| Descripción liquidación `GIRL_CONSUMPTION` con nombre | ✅ |
+| UI `Manilla: María` / `Manilla: Sin asignar` | ✅ |
+| Tests `CompanionNameDisplayTest` (5) | ✅ |
+| Docs `COMPANION_NAME_DISPLAY_*` | ✅ |
+
+**Regla:** SOLO_CLIENTE sin `girl_name`; combos sin cambio (allocations).  
+**Pendiente:** Fase D copy manillas — ver `WAITER_TABLES_COMPANION_BRACELET_AUDIT.md`.
+
+---
+
+## FEATURE — Fase B: Modelo de mesas MVP (backend completado 2026-06-16)
+
+| Entrega | Estado |
+|---------|--------|
+| Tablas `service_tables`, `waiter_table_assignments` | ✅ |
+| `orders.service_table_id` | ✅ |
+| CRUD admin `/service-tables` | ✅ |
+| Sync asignaciones `/waiter-table-assignments/sync` | ✅ |
+| `GET /waiter/my-tables` (FREE/OCCUPIED) | ✅ |
+| `POST /waiter/my-tables/{id}/open` (idempotente) | ✅ |
+| Guard anti-duplicado comanda activa por mesa | ✅ |
+| Permisos Phase B + seeder | ✅ |
+| Tests `WaiterTablesPhaseBTest` (10) | ✅ |
+| Doc `WAITER_TABLES_PHASE_B_REPORT.md` | ✅ |
+
+---
+
+## FEATURE — Fase C: Mis mesas garzón + config admin (frontend completado 2026-06-16)
+
+| Entrega | Estado |
+|---------|--------|
+| Home garzón grid LIBRE/OCUPADA (tap-to-open) | ✅ |
+| `WaiterTableTile` + `WaiterTablesGrid` + `useWaiterTables` | ✅ |
+| SSE/polling refresh al cobrar | ✅ |
+| Bottom nav Mesas / Comandas / Otra mesa | ✅ |
+| Config Mesas (`settings/service-tables`) | ✅ |
+| Asignar mesas garzones (`staff/waiter-assignments`) | ✅ |
+| Doc `WAITER_TABLES_PHASE_C_REPORT.md` | ✅ |
+| Bugfix freeze asignación mesas (`WAITER_ASSIGNMENTS_FREEZE_FIX_REPORT.md`) | ✅ |
+| UX garzón solo mesas asignadas (sin «Otra mesa») | ✅ |
+| Tests + fix liquidaciones parciales post-Mis mesas | ✅ |
+
+**Liquidaciones parciales:** migración `2026_06_16_100010` + tests `PartialSettlementsAfterTablesTest`; Mis mesas no rompe pipeline. Docs: `PARTIAL_SETTLEMENTS_AFTER_TABLES_FIX_REPORT.md`.
+
+**Bugfix 2026-06-16:** overlay VSelect + `nextTick` sin import en `overlaySafety.js` congelaba navegación tras guardar asignaciones — corregido.
+
+**Pendiente Fase D:** copy manillas + mover manillas manuales.
+
+---
+
+## FEATURE — Cajera alta presión Fase 0 (completado 2026-06-16)
+
+**Objetivo:** quick wins operativos sin rediseñar layout cajera.
+
+| Área | Entregable |
+|------|------------|
+| API cola cobro | `waiting_minutes`, flags combo/acompañante/bloqueo, orden urgencia |
+| UI cola | chips + Cobrar disabled si `charge_blocked` |
+| Atajos | Enter/Esc en modales pago, caja, movimientos, liquidaciones |
+| Mi caja | `?open=1` abre diálogo apertura |
+| Ventas turno | SSE + reimprimir última venta |
+
+**Docs:** `backend/CASHIER_HIGH_PRESSURE_PHASE0_REPORT.md`, `frontend/CASHIER_HIGH_PRESSURE_PHASE0_REPORT.md`, auditorías actualizadas.
+
+**Tests:** `CashierChargeQueuePhase0Test` (11). Suite completa OK.
+
+**Pendiente Fase 1:** ~~shell cajera + cobro desde card sin detalle.~~ **Fase 1 completada 2026-06-16** — `CASHIER_HIGH_PRESSURE_PHASE1_REPORT.md`.
+
+**Pendiente Fase 2:** ~~shell cajera dedicado~~ **Fase 2A completada 2026-06-16** — `CASHIER_HIGH_PRESSURE_PHASE2A_SHELL_REPORT.md`. **Ajuste 2A (cierre por método + Más permisos) 2026-06-17.** Pendiente: pago express desde card (Fase 2B).
+
+---
+
+## AJUSTE Fase 2A — Cierre por método + Menú «Más» (2026-06-17)
+
+| Área | Entregable |
+|------|------------|
+| Cierre caja | Resumen Efectivo/QR/Tarjeta en Mi Caja y diálogo cierre; declaración por método |
+| Backend summary | `sales_by_method`, `opening_cash`, alias `income/expense/sales/expected_*` |
+| Tab Más | `useCashierMoreMenu` — secciones por permiso (Operación, Catálogo, Config, Finanzas) |
+| Routing | Allowlist ampliado: products, services, rooms, settings, shift-console, staff |
+| Permisos | Sin cambio seeders; auditoría cajera básica vs senior |
+
+**Docs:** `backend/CASHIER_CLOSE_BY_METHOD_REPORT.md`, `frontend/CASHIER_CLOSE_BY_METHOD_REPORT.md`, `backend/CASHIER_MORE_PERMISSIONS_AUDIT_REPORT.md`, `frontend/CASHIER_MORE_PERMISSIONS_AUDIT_REPORT.md`, `frontend/CASHIER_MORE_MENU_IMPLEMENTATION_REPORT.md`
+
+**Backend:** `CashSessionFinancialSummaryBuilder` (campos adicionales retrocompatibles).
+
+**Close API:** solo `declared_closing_amount`; QR/tarjeta en `closing_notes`.
+
+**Tests:** `SettlementPaymentMethodTest` OK.
+
+**Pendiente:** Fase 2B cajera (pago express desde card).
+
+---
+
+## AJUSTE UX/Auth — Logout cajera + sesión operativa (2026-06-17)
+
+| Área | Entregable |
+|------|------------|
+| Cuenta en shell | Sección Cuenta en «Más» + menú usuario desktop en status bar |
+| Logout | Cerrar sesión / Cambiar cuenta → limpia tokens, contexto, SSE → login |
+| JWT TTL | Default 12 h (`JWT_TTL=720`), refresh 14 días, `refresh_iat=true` |
+| Refresh API | `POST /auth/refresh` + interceptor axios renueva token en 401 |
+| Login expirado | «Tu sesión expiró. Vuelve a ingresar.» |
+
+**Docs:** `backend/AUTH_SESSION_TTL_OPERATIONAL_REPORT.md`, `frontend/AUTH_SESSION_TTL_OPERATIONAL_REPORT.md`, `frontend/CASHIER_LOGOUT_SWITCH_ACCOUNT_REPORT.md`
+
+**Tests:** `AuthApiTest` (+2 refresh/TTL).
+
+**Pendiente:** Fase 2B cajera (en pausa hasta validar logout + sesión).
+
+---
+
+## AUDITORÍA V1 RELEASE CANDIDATE (2026-06-17)
+
+Radiografía de producto completa — **sin cambios de código**.
+
+| Documento | Contenido |
+|-----------|-----------|
+| `backend/NIGHTPOS_V1_RELEASE_AUDIT.md` | API, reglas, permisos, kardex, seguridad, infra |
+| `frontend/NIGHTPOS_V1_RELEASE_AUDIT.md` | UX, shells, flujos, clics, impresión, SSE |
+
+**Veredicto:** **NO listo** para viernes/sábado autónomo de máxima carga. **SÍ** para piloto controlado con V1-98 + V1-99 + alcance firmado (sin barra/kardex/impresión auto si no aplica).
+
+**Bloqueadores P0:** V1-98 (0%), V1-99 (~20%), kardex/barra/impresión si el local los exige.
+
+**Siguiente paso obligatorio:** ejecutar V1-98 QA operativo → V1-99 preprod → declarar RC solo sin P0/P1 abiertos.
+
+---
+
+## AUDITORÍA PLANIFICADA — Kardex / Inventario V1 (2026-06-17)
+
+Diseño de módulo kardex para cerrar V1 operativo con control de stock. **Sin implementación aún.**
+
+| Documento | Contenido |
+|-----------|-----------|
+| `backend/INVENTORY_KARDEX_V1_AUDIT.md` | Estado actual, modelo, hooks venta, combos, API, permisos, fases INV-1…5 |
+| `frontend/INVENTORY_KARDEX_V1_AUDIT.md` | UI producto, sección Inventario, cierre, reportes, fases INV-FE-1…5 |
+
+**Estado actual:** `track_inventory` inerte; sin stock/movimientos/componentes; combos = manillas liquidación, no inventario.
+
+**Recomendación stock V1:** permitir negativo + alertas (no bloquear venta).
+
+**Estimado implementación:** ~12–17 días backend + ~8–10 días frontend + QA.
+
+---
+
+## AJUSTE UX — Tab Piezas en shell cajera (2026-06-17)
+
+| Área | Entregable |
+|------|------------|
+| Navegación | `Cobrar \| Piezas \| Venta \| Caja \| Más` (desktop + bottom nav) |
+| Ruta shell | `/nightpos/cashier/piezas` → reutiliza `room-services/index.vue` |
+| Permisos tab | Visible si `room_services.access` o `rooms.access` |
+| Más | Piezas eliminado del menú secundario (sin duplicado) |
+| Redirect | `nightpos-services-room-services` → shell piezas (cajera básica) |
+
+**Docs:** `CASHIER_HIGH_PRESSURE_PHASE2A_SHELL_REPORT.md`, `CASHIER_MORE_MENU_IMPLEMENTATION_REPORT.md` actualizados.
+
+**Backend:** sin cambios.
+
+---
+
+## FEATURE — Cajera alta presión Fase 2A Shell (completado 2026-06-16)
+
+**Objetivo:** shell cajera simplificado solo para cajera básica — Cobrar | Piezas | Venta | Caja | Más.
+
+| Área | Entregable |
+|------|------------|
+| Shell | `CashierShell` + status bar + bottom/desktop nav |
+| Home | `/nightpos/cashier/orders` vía guards + `resolveHomeRoute` |
+| Tabs | Cobrar, Venta directa, Mi caja, Más (permisos) |
+| Caja cerrada | Banner persistente + Abrir caja en todos los tabs |
+| Indicadores | Caja, pendientes BOB, SSE |
+| Guards | Allowlist shell + redirect admin → shell |
+| Senior/admin | Menú completo sin cambios |
+
+**Docs:** `frontend/CASHIER_HIGH_PRESSURE_PHASE2A_SHELL_REPORT.md`
+
+**Backend:** sin cambios.
+
+**Build:** `npm run build` — OK.
+
+---
+
+## BUGFIX — Consistencia liquidaciones / close-check (2026-06-17)
+
+**Problema:** close-check bloqueaba por pagos pendientes pero Liquidaciones mostraba vacío.
+
+| Área | Fix |
+|------|-----|
+| Scope cajera | `my_cash_session` muestra PENDING de su caja |
+| Close-check | Filtra por `cash_session_id`; blockers `SETTLEMENTS_*` |
+| Generate | Cajera usa turno de su sesión de caja |
+| API | `settlement_summary` en endpoints de liquidaciones |
+| Frontend | Alerts + mensaje generate + botón Ir en blockers |
+
+**Docs:** `backend/SETTLEMENT_CLOSE_CHECK_CONSISTENCY_FIX_REPORT.md`, `frontend/SETTLEMENT_CLOSE_CHECK_CONSISTENCY_FIX_REPORT.md`
+
+**Tests:** `SettlementCloseCheckConsistencyTest` (7).
+
+**Pendiente:** Fase 2B cajera (en pausa).
+
+---
+
+## FEATURE — Cajera alta presión Fase 1 (completado 2026-06-16)
+
+**Objetivo:** cobrar desde la cola **sin navegar al detalle**.
+
+| Área | Entregable |
+|------|------------|
+| Cobro inline | `Cobrar` en card → `ChargeOrderModal` en la misma pantalla |
+| Carga previa | `fetchOrder(id)` + overlay loading en card |
+| Jerarquía UX | **Cobrar** primario · **Corregir** secundario (outlined) |
+| Bloqueos | `charge_blocked` → Cobrar disabled + chips |
+| Post-cobro | Snackbar «Comanda cobrada.» + refresh lista + SSE |
+| Caja cerrada | `QuickOpenCashDialog` inline (sin navegar) |
+| Modal | Título con mesa + Nº comanda |
+
+**Docs:** `frontend/CASHIER_HIGH_PRESSURE_PHASE1_REPORT.md`
+
+**Backend:** sin cambios (usa API Fase 0).
+
+**Clics cobro simple:** 5–6 → **2** (Cobrar + Todo efectivo + Enter).
+
+**Build:** `npm run build` — OK.
 
 ---
 

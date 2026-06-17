@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Application\Order\UseCases;
 
 use App\Application\Order\DTOs\GetOrderInput;
-use App\Application\Order\Support\OrderMapper;
-use App\Domain\Order\Exceptions\OrderNotFoundException;
+use App\Application\Order\Services\OrderPresentationService;
 use App\Application\Waiter\Services\WaiterOrderAccessPolicy;
+use App\Domain\Order\Exceptions\OrderNotFoundException;
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 use App\Shared\Application\DTOs\OperationResult;
@@ -20,6 +20,7 @@ final class GetOrderUseCase implements UseCaseInterface
         private readonly TenantContextInterface $tenantContext,
         private readonly OrderRepositoryInterface $orders,
         private readonly WaiterOrderAccessPolicy $waiterAccess,
+        private readonly OrderPresentationService $presentation,
     ) {
     }
 
@@ -43,7 +44,7 @@ final class GetOrderUseCase implements UseCaseInterface
 
         $this->waiterAccess->assertCanAccess($order);
 
-        $data = OrderMapper::order($order);
+        $data = $this->presentation->presentOrder($order, $tenant->id);
 
         if ($order->waiterUserId !== null) {
             $data['waiter_name'] = UserModel::query()->where('id', $order->waiterUserId)->value('name');

@@ -25,3 +25,17 @@ export async function fetchWaiterGirls() {
 
   return unwrapNightPosResponse(response).items ?? []
 }
+
+/** Mesas asignadas al garzón con estado LIBRE / OCCUPIED. */
+export async function fetchWaiterMyTables() {
+  const response = await api.get('/waiter/my-tables')
+
+  return unwrapNightPosResponse(response).tables ?? []
+}
+
+/** Tap en mesa: crea comanda si libre o devuelve la activa. */
+export async function openWaiterTable(tableId) {
+  const response = await api.post(`/waiter/my-tables/${tableId}/open`)
+
+  return unwrapNightPosResponse(response)
+}

@@ -12,6 +12,8 @@ use App\Application\Sale\Support\SaleMapper;
 use App\Application\Shift\UseCases\EnsureOperationalShiftUseCase;
 use App\Domain\Cash\Repositories\CashSessionRepositoryInterface;
 use App\Domain\Cash\ValueObjects\CashMovementType;
+use App\Domain\Product\Exceptions\ProductDomainException;
+use App\Domain\Product\Repositories\ProductRepositoryInterface;
 use App\Domain\Product\ValueObjects\SaleMode;
 use App\Domain\Sale\Exceptions\SaleDomainException;
 use App\Domain\Sale\Repositories\SaleRepositoryInterface;
@@ -35,6 +37,7 @@ final class CreateDirectSaleUseCase implements UseCaseInterface
         private readonly CashSessionRepositoryInterface $cashSessions,
         private readonly SaleRepositoryInterface $sales,
         private readonly OrderItemPricing $itemPricing,
+        private readonly ProductRepositoryInterface $products,
         private readonly EnsureOperationalShiftUseCase $ensureOperationalShift,
         private readonly PaymentMethodRepositoryInterface $paymentMethods,
         private readonly AuditLogRecorder $audit,
@@ -82,6 +85,12 @@ final class CreateDirectSaleUseCase implements UseCaseInterface
             $saleMode = SaleMode::fromString($row['sale_mode']);
             $quantity = max(1, (int) $row['quantity']);
             $girlUserId = isset($row['girl_user_id']) ? (int) $row['girl_user_id'] : null;
+
+            $product = $this->products->findById($productId, $tenant->id);
+
+            if ($product !== null && $product->requiresAllocation) {
+                throw ProductDomainException::directSaleAllocationNotSupported();
+            }
 
             if ($saleMode->isConAcompanante() && $girlUserId === null) {
                 throw SaleDomainException::directSaleGirlRequired();

@@ -18,25 +18,28 @@ Se extrajo la lógica de pagos mixtos a componentes reutilizables y se integró 
 
 | Archivo | Rol |
 |---|---|
-| `composables/useMixedPayments.js` | Lógica: montos, suma, faltante, cambio, validación |
-| `components/nightpos/payments/MixedPaymentForm.vue` | UI reutilizable (variant `inline` o `selector`) |
+| `composables/useMixedPayments.js` | Lógica: montos, suma, faltante, cambio, validación; método inferido por campo |
+| `components/nightpos/payments/MixedPaymentForm.vue` | UI: 3 campos (efectivo/QR/tarjeta) + atajos, sin selector de método |
 
 ### Archivos modificados
 
 | Archivo | Cambio |
 |---|---|
-| `pages/nightpos/cash/direct-sale.vue` | `MixedPaymentForm` inline + validación antes de cobrar |
-| `components/nightpos/orders/ChargeOrderModal.vue` | Refactorizado para usar `MixedPaymentForm` (sin duplicar lógica) |
+| `pages/nightpos/cash/direct-sale.vue` | `MixedPaymentForm` + validación antes de cobrar |
+| `components/nightpos/orders/ChargeOrderModal.vue` | Refactorizado para usar `MixedPaymentForm` |
 
-## 3. UI en Venta directa (variant `inline`)
+## 3. UI (2026-06-16 — sin selector redundante)
 
-En el panel carrito:
+En el panel de pago:
 
-- Campos: **Efectivo**, **QR**, **Tarjeta**
+- Campos: **Efectivo**, **QR**, **Tarjeta** — cada uno define su `method` automáticamente
+- **No** hay dropdown para elegir método tras ingresar montos
 - Resumen: Total ingresado / Faltante / Excedente
-- Atajos: **Todo efectivo**, **Todo QR**, **Todo tarjeta**, **Limpiar**
+- Atajos: **Todo efectivo**, **Todo QR**, **Todo tarjeta**, **Limpiar** (solo llenan campos)
 - Campo opcional: Monto recibido (efectivo) → muestra **Cambio**
-- Botón **Cobrar** envía array `payments` al backend
+- Botón **Cobrar** envía array `payments` al backend (sin métodos en 0)
+
+> Actualización UX: ver `frontend/MIXED_PAYMENT_UX_SIMPLIFICATION_REPORT.md`
 
 ## 4. Validaciones frontend
 

@@ -1,6 +1,6 @@
 <script setup>
 import { fetchSale } from '@/api/sales'
-import { formatMoney, SALE_MODE_LABELS } from '@/composables/useOrderHelpers'
+import { formatCompanionBraceletLine, formatMoney, SALE_MODE_LABELS, shouldShowCompanionBraceletLine } from '@/composables/useOrderHelpers'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { getApiErrorMessage } from '@/services/http'
@@ -245,14 +245,17 @@ watch(
               {{ formatMoney(item.line_total, sale.currency) }}
             </template>
             <template #item.girl_user_id="{ item }">
-              <span v-if="item.sale_mode === 'CON_ACOMPANANTE'">
-                {{ item.girl_user_id ? userName(item.girl_user_id) : 'Sin asignar' }}
+              <span v-if="shouldShowCompanionBraceletLine(item)">
+                {{ formatCompanionBraceletLine(item) }}
                 <span
                   v-if="item.girl_amount_snapshot"
                   class="text-caption d-block"
                 >
                   Chica: {{ formatMoney(item.girl_amount_snapshot, sale.currency) }}
                 </span>
+              </span>
+              <span v-else-if="item.sale_mode === 'CON_ACOMPANANTE' && item.requires_allocation">
+                —
               </span>
               <span v-else>—</span>
             </template>

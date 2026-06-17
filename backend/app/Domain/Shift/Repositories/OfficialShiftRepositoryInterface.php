@@ -34,6 +34,11 @@ interface OfficialShiftRepositoryInterface extends RepositoryInterface
     public function close(int $shiftId, int $tenantId, int $closedByUserId): OfficialShift;
 
     /**
+     * Cierra un turno AUTO vencido por rotación de horario (status CLOSED + nota).
+     */
+    public function markAutoClosed(int $shiftId, int $tenantId, int $closedByUserId): OfficialShift;
+
+    /**
      * @return array{
      *   total_cash: string,
      *   total_qr: string,

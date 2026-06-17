@@ -1,16 +1,13 @@
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 
 /**
  * Pagos mixtos (efectivo / QR / tarjeta) para cobro de comanda y venta directa.
+ * El método se infiere del campo donde se ingresa monto (sin selector redundante).
  *
  * @param {import('vue').Ref<number>|import('vue').ComputedRef<number>} totalRef Total a cobrar
- * @param {{ variant?: 'selector' | 'inline' }} options
  */
-export function useMixedPayments(totalRef, options = {}) {
-  const variant = options.variant ?? 'selector'
-
+export function useMixedPayments(totalRef) {
   const form = ref({
-    method: 'CASH',
     cashAmount: null,
     qrAmount: null,
     cardAmount: null,
@@ -20,57 +17,23 @@ export function useMixedPayments(totalRef, options = {}) {
   const total = computed(() => Number(totalRef.value ?? 0))
 
   const payments = computed(() => {
-    const t = total.value
+    const rows = []
 
-    if (variant === 'inline') {
-      const rows = []
+    if (Number(form.value.cashAmount) > 0)
+      rows.push({ method: 'CASH', amount: Number(form.value.cashAmount) })
+    if (Number(form.value.qrAmount) > 0)
+      rows.push({ method: 'QR', amount: Number(form.value.qrAmount) })
+    if (Number(form.value.cardAmount) > 0)
+      rows.push({ method: 'CARD', amount: Number(form.value.cardAmount) })
 
-      if (Number(form.value.cashAmount) > 0)
-        rows.push({ method: 'CASH', amount: Number(form.value.cashAmount) })
-      if (Number(form.value.qrAmount) > 0)
-        rows.push({ method: 'QR', amount: Number(form.value.qrAmount) })
-      if (Number(form.value.cardAmount) > 0)
-        rows.push({ method: 'CARD', amount: Number(form.value.cardAmount) })
-
-      return rows
-    }
-
-    const method = form.value.method
-
-    if (method === 'MIXED') {
-      const rows = []
-
-      if (Number(form.value.cashAmount) > 0)
-        rows.push({ method: 'CASH', amount: Number(form.value.cashAmount) })
-      if (Number(form.value.qrAmount) > 0)
-        rows.push({ method: 'QR', amount: Number(form.value.qrAmount) })
-      if (Number(form.value.cardAmount) > 0)
-        rows.push({ method: 'CARD', amount: Number(form.value.cardAmount) })
-
-      return rows
-    }
-
-    if (t > 0)
-      return [{ method, amount: t }]
-
-    return []
+    return rows
   })
 
   const paymentsSum = computed(() =>
     payments.value.reduce((sum, row) => sum + row.amount, 0),
   )
 
-  const cashPortion = computed(() => {
-    if (variant === 'inline')
-      return Number(form.value.cashAmount) || 0
-
-    if (form.value.method === 'CASH')
-      return total.value
-    if (form.value.method === 'MIXED')
-      return Number(form.value.cashAmount) || 0
-
-    return 0
-  })
+  const cashPortion = computed(() => Number(form.value.cashAmount) || 0)
 
   const changeAmount = computed(() => {
     const received = Number(form.value.receivedAmount)
@@ -108,24 +71,8 @@ export function useMixedPayments(totalRef, options = {}) {
     return true
   })
 
-  watch(
-    () => form.value.method,
-    method => {
-      if (variant !== 'selector')
-        return
-
-      if (method !== 'MIXED') {
-        form.value.cashAmount = null
-        form.value.qrAmount = null
-        form.value.cardAmount = null
-      }
-      form.value.receivedAmount = null
-    },
-  )
-
   function reset() {
     form.value = {
-      method: 'CASH',
       cashAmount: null,
       qrAmount: null,
       cardAmount: null,

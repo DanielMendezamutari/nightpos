@@ -62,16 +62,17 @@ onMounted(load)
         <VBtn
           v-if="canUpdateProduct && product"
           variant="tonal"
-          :to="{ name: 'nightpos-products-id-edit', params: { id: route.params.id } }"
+          prepend-icon="ri-file-copy-line"
+          :to="{ name: 'nightpos-products-create', query: { duplicate: route.params.id } }"
         >
-          Editar datos
+          Duplicar producto
         </VBtn>
         <VBtn
-          v-if="product"
+          v-if="canUpdateProduct && product"
           color="primary"
-          :to="{ name: 'nightpos-products-id-prices', params: { id: route.params.id } }"
+          :to="{ name: 'nightpos-products-id-edit', params: { id: route.params.id } }"
         >
-          Configurar precios
+          Editar producto
         </VBtn>
       </template>
     </NightPosPageHeader>
@@ -98,6 +99,19 @@ onMounted(load)
               <VListItem title="Categoría">
                 <template #subtitle>
                   {{ categoryName }}
+                </template>
+              </VListItem>
+              <VListItem title="Unidad">
+                <template #subtitle>
+                  {{ product.unit || '—' }}
+                </template>
+              </VListItem>
+              <VListItem
+                v-if="product.settlement_behavior === 'GIRL_BRACELET_ALLOCATION'"
+                title="Combo manillas"
+              >
+                <template #subtitle>
+                  {{ product.bracelet_units_per_line }} manillas por línea · reparto obligatorio al vender con acompañante
                 </template>
               </VListItem>
               <VListItem title="Estado">

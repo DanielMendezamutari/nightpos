@@ -7,6 +7,7 @@ import { themeConfig } from '@themeConfig'
 import NightPosNavbarContext from '@/components/nightpos/NightPosNavbarContext.vue'
 import NightPosStabilityDebug from '@/components/nightpos/dev/NightPosStabilityDebug.vue'
 import { useNightPosShell } from '@/composables/useNightPosShell'
+import { useOperationalSseHost } from '@/composables/useOperationalSseHost'
 import Footer from '@/layouts/components/Footer.vue'
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
@@ -36,6 +37,9 @@ watch([
 const configStore = useConfigStore()
 const { showNightPosChrome } = useNightPosShell()
 const { navItems } = useNightPosNavItems()
+
+if (showNightPosChrome.value)
+  useOperationalSseHost()
 
 // ℹ️ Provide animation name for vertical nav collapse icon.
 const verticalNavHeaderActionAnimationName = ref(null)

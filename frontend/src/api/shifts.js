@@ -6,6 +6,12 @@ export async function fetchCurrentShift() {
   return unwrapNightPosResponse(response).shift
 }
 
+export async function fetchShiftCloseCheck() {
+  const response = await api.get('/shifts/current/close-check')
+
+  return unwrapNightPosResponse(response)
+}
+
 export async function fetchShifts() {
   const response = await api.get('/shifts')
 

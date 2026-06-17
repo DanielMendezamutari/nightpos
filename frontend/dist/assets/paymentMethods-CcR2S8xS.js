@@ -1,0 +1,1 @@
+const l=[{title:"Efectivo",value:"CASH"},{title:"QR",value:"QR"},{title:"Tarjeta",value:"CARD"}];function i(e){const t=l.find(a=>a.value===e);return(t==null?void 0:t.title)??e??"—"}export{l as P,i as p};

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Sale\UseCases;
 
 use App\Application\Sale\DTOs\GetSaleInput;
+use App\Application\Sale\Support\SaleAllocationPresenter;
 use App\Application\Sale\Support\SaleMapper;
 use App\Domain\Sale\Exceptions\SaleNotFoundException;
 use App\Domain\Sale\Repositories\SaleRepositoryInterface;
@@ -18,6 +19,7 @@ final class GetSaleUseCase implements UseCaseInterface
     public function __construct(
         private readonly TenantContextInterface $tenantContext,
         private readonly SaleRepositoryInterface $sales,
+        private readonly SaleAllocationPresenter $saleAllocationPresenter,
     ) {
     }
 
@@ -39,7 +41,7 @@ final class GetSaleUseCase implements UseCaseInterface
             throw new SaleNotFoundException();
         }
 
-        $data = SaleMapper::sale($sale);
+        $data = $this->saleAllocationPresenter->enrichSale(SaleMapper::sale($sale));
         $data['cashier_name'] = $this->resolveUserName($sale->cashierUserId);
         $data['waiter_name'] = $this->resolveUserName($sale->waiterUserId);
 

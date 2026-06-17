@@ -58,8 +58,7 @@ function nightposLoginPin(string $pin = '1234', ?string $tenantSlug = 'casa-demo
     $response = test()->postJson('/api/v1/auth/login-pin', $payload);
     $response->assertOk();
 
-    auth('api')->forgetUser();
-    test()->flushHeaders();
+    nightposResetApiAuth();
 
     return (string) $response->json('data.token');
 }
@@ -83,8 +82,7 @@ function nightposLoginPassword(
     $response = test()->postJson('/api/v1/auth/login-password', $payload);
     $response->assertOk();
 
-    auth('api')->forgetUser();
-    test()->flushHeaders();
+    nightposResetApiAuth();
 
     return (string) $response->json('data.token');
 }
@@ -119,19 +117,16 @@ function nightposEnsureShiftOpen(?string $branchCode = 'CENTRO'): void
 {
     $token = nightposLoginPassword('admin.demo', 'AdminDemo123!');
 
-    auth('api')->forgetUser();
-    test()->flushHeaders();
+    nightposResetApiAuth();
 
     $current = test()->getJson('/api/v1/shifts/current', nightposOperationalHeaders($token, $branchCode));
 
     if ($current->json('data.shift') === null) {
-        auth('api')->forgetUser();
-        test()->flushHeaders();
+        nightposResetApiAuth();
         nightposOpenShift($token);
     }
 
-    auth('api')->forgetUser();
-    test()->flushHeaders();
+    nightposResetApiAuth();
 }
 
 function nightposDemoWaiterUserId(): int
@@ -166,12 +161,17 @@ function nightposRoomServicePayload(array $overrides = []): array
     ], $overrides);
 }
 
+function nightposResetApiAuth(): void
+{
+    auth('api')->forgetUser();
+    \PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth::unsetToken();
+    test()->flushHeaders();
+}
+
 function nightposOpenCashSession(string $token, float $openingAmount = 100): void
 {
     nightposEnsureShiftOpen();
-
-    auth('api')->forgetUser();
-    test()->flushHeaders();
+    nightposResetApiAuth();
 
     $response = test()->postJson('/api/v1/cash/session/open', [
         'opening_amount' => $openingAmount,
@@ -188,8 +188,7 @@ function nightposOpenCashSession(string $token, float $openingAmount = 100): voi
 
 function nightposOperationalHeaders(string $token, ?string $branchCode = 'CENTRO'): array
 {
-    auth('api')->forgetUser();
-    test()->flushHeaders();
+    nightposResetApiAuth();
 
     $headers = [
         'Authorization' => 'Bearer '.$token,
@@ -270,4 +269,40 @@ function nightposCreateOrderWithItem(string $token, array $orderPayload = [], ar
         ->assertCreated();
 
     return ['order_id' => $orderId, 'product_id' => $productId];
+}
+
+/**
+ * Prepara cierre de caja: genera/paga liquidaciones y cancela comandas abiertas del turno.
+ */
+function nightposPrepareCashSessionClose(string $cashierToken, ?string $adminToken = null): void
+{
+    $adminToken ??= nightposLoginPassword('admin.demo', 'AdminDemo123!');
+
+    $shiftId = (int) \App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel::query()
+        ->where('status', 'OPEN')
+        ->value('id');
+
+    if ($shiftId === 0) {
+        return;
+    }
+
+    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders($adminToken))
+        ->assertCreated();
+
+    $pendingIds = \App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel::query()
+        ->where('official_shift_id', $shiftId)
+        ->where('status', 'PENDING')
+        ->pluck('id');
+
+    foreach ($pendingIds as $id) {
+        test()->postJson("/api/v1/settlements/{$id}/mark-paid", [
+            'payment_method' => 'CASH',
+        ], nightposOperationalHeaders($cashierToken))
+            ->assertOk();
+    }
+
+    \App\Infrastructure\Persistence\Eloquent\Models\OrderModel::query()
+        ->where('official_shift_id', $shiftId)
+        ->whereIn('status', ['OPEN', 'SENT_TO_BAR'])
+        ->update(['status' => 'CANCELLED', 'cancelled_at' => now()]);
 }

@@ -8,6 +8,10 @@ import SaleDetailDialog from '@/components/nightpos/sales/SaleDetailDialog.vue'
 
 import { useOnContextChange } from '@/composables/useOnContextChange'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
+import { useOperationalEvents } from '@/composables/useOperationalEvents'
+import { useOperationalPollingFallback } from '@/composables/useOperationalPollingFallback'
+import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
+import { useNightPosPrint } from '@/composables/useNightPosPrint'
 
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
 
@@ -32,6 +36,7 @@ definePage({
 const { canListSales, canListAdminUsers } = useNightPosPermissions()
 
 const { notify } = useNightPosNotify()
+const { openPrintRoute } = useNightPosPrint()
 
 
 
@@ -319,7 +324,40 @@ const reloadSalesPage = async () => {
   await loadSales()
 }
 
-onMounted(reloadSalesPage)
+const lastSale = computed(() => sales.value[0] ?? null)
+
+const reprintLastSale = () => {
+  if (!lastSale.value?.id) {
+    notify('No hay ventas para reimprimir.', 'info')
+
+    return
+  }
+
+  openPrintRoute({ name: 'nightpos-print-sale-id', params: { id: lastSale.value.id } })
+}
+
+const { on, start: startSse, stop: stopSse, connected: sseConnected, reconnecting: sseReconnecting } = useOperationalEvents()
+
+let salesDebounce = null
+const debouncedLoadSales = () => {
+  clearTimeout(salesDebounce)
+  salesDebounce = setTimeout(loadSales, 600)
+}
+
+on('sale.created', debouncedLoadSales)
+on('direct_sale.created', debouncedLoadSales)
+
+useOperationalPollingFallback(loadSales)
+
+onMounted(async () => {
+  await reloadSalesPage()
+  startSse()
+})
+
+onUnmounted(() => {
+  stopSse()
+})
+
 useOnContextChange(reloadSalesPage)
 
 </script>
@@ -330,19 +368,35 @@ useOnContextChange(reloadSalesPage)
 
   <div class="sales-page">
 
-    <div class="mb-4">
+    <NightPosSseBanner
+      :connected="sseConnected"
+      :reconnecting="sseReconnecting"
+    />
 
-      <h4 class="text-h4 mb-1">
+    <div class="mb-4 d-flex flex-wrap align-center justify-space-between gap-3">
 
-        Ventas del turno
+      <div>
+        <h4 class="text-h4 mb-1">
 
-      </h4>
+          Ventas del turno
 
-      <p class="mb-0 text-body-2">
+        </h4>
 
-        Cobros de la sesión de caja abierta. Abra el detalle para ver ítems, snapshots y comisiones.
+        <p class="mb-0 text-body-2">
 
-      </p>
+          Cobros de la sesión de caja abierta. Abra el detalle para ver ítems, snapshots y comisiones.
+
+        </p>
+      </div>
+
+      <VBtn
+        v-if="lastSale"
+        variant="tonal"
+        prepend-icon="ri-printer-line"
+        @click="reprintLastSale"
+      >
+        Reimprimir última venta
+      </VBtn>
 
     </div>
 

@@ -1,6 +1,8 @@
 <script setup>
 
 import SettlementsCashBanner from '@/components/nightpos/settlements/SettlementsCashBanner.vue'
+import CashMovementDialog from '@/components/nightpos/cash/CashMovementDialog.vue'
+import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
 
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 
@@ -17,8 +19,10 @@ import { useFilteredSettlementTabs } from '@/composables/useSettlementSectionTab
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import { useServiceCashSession } from '@/composables/useServiceCashSession'
 
 import { useOperationalEvents } from '@/composables/useOperationalEvents'
+import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
 
 import { getApiErrorMessage } from '@/services/http'
 
@@ -34,7 +38,7 @@ const { can } = useNightPosPermissions()
 
 const { notify } = useNightPosNotify()
 
-const { loading, shift, summary, reload } = useCurrentShiftSettlements()
+const { loading, shift, summary, context, sourcesSummary, reload } = useCurrentShiftSettlements()
 
 const {
 
@@ -51,20 +55,42 @@ const {
 
 
 const generating = ref(false)
+const showCashMovement = ref(false)
+
+const {
+  cashSessionOpen,
+  loadCashSession,
+  showOpenCash,
+} = useServiceCashSession()
+
+const scopeLabel = computed(() => {
+  if (context.value?.scope === 'my_cash_session') {
+    return 'Mostrando: Mi caja actual'
+  }
+  if (context.value?.scope === 'shift') {
+    return 'Mostrando: Turno completo de sucursal'
+  }
+
+  return null
+})
 
 
 
 const summaryHasData = computed(() => {
-
   const s = summary.value || {}
 
   return Number(s.total_waiters ?? 0) > 0
-
     || Number(s.total_girls ?? 0) > 0
-
     || Number(s.total_cleaning ?? 0) > 0
-
+    || Number(s.total_pending ?? 0) > 0
 })
+
+const settlementSummary = computed(() => context.value?.settlement_summary ?? null)
+
+const hasPendingPayments = computed(() => (
+  Number(settlementSummary.value?.generated_pending_count ?? 0) > 0
+  || Number(summary.value?.total_pending ?? 0) > 0
+))
 
 
 
@@ -116,6 +142,24 @@ const onCashOpened = async () => {
 
 
 
+const openCashMovement = async () => {
+  await loadCashSession()
+  if (!cashSessionOpen.value) {
+    notify('Debe abrir caja para registrar movimientos.', 'warning')
+    showOpenCash.value = true
+
+    return
+  }
+  showCashMovement.value = true
+}
+
+const onMovementRegistered = async () => {
+  await loadCashSession()
+  await refreshAll()
+}
+
+
+
 const generate = async () => {
 
   if (!can('settlements.generate'))
@@ -132,9 +176,15 @@ const generate = async () => {
 
     const result = await generateCurrentShiftSettlements()
 
-
-
-    notify(`Liquidaciones generadas (${result.created_items} líneas nuevas)`)
+    if (result.created_items > 0) {
+      notify(`Liquidaciones generadas (${result.created_items} líneas nuevas)`)
+    }
+    else if ((result.settlement_summary?.generated_pending_count ?? 0) > 0) {
+      notify('No hay nuevas liquidaciones para generar. Tienes pagos pendientes por pagar.', 'warning')
+    }
+    else {
+      notify('No hay liquidaciones nuevas para generar en este turno/caja.', 'info')
+    }
 
     await refreshAll()
 
@@ -161,7 +211,7 @@ const generate = async () => {
 }
 
 // ─── SSE real-time ──────────────────────────────────────────────────────────
-const { on, start: startSse, stop: stopSse } = useOperationalEvents()
+const { on, start: startSse, stop: stopSse, connected: sseConnected, reconnecting: sseReconnecting } = useOperationalEvents()
 
 let settlementDebounce = null
 const debouncedRefresh = () => {
@@ -185,6 +235,11 @@ onUnmounted(() => { stopSse() })
 
   <div>
 
+    <NightPosSseBanner
+      :connected="sseConnected"
+      :reconnecting="sseReconnecting"
+    />
+
     <NightPosPageHeader
 
       title="Liquidaciones"
@@ -204,6 +259,15 @@ onUnmounted(() => { stopSse() })
     >
 
       <template #actions>
+        <VBtn
+          v-if="can('cash.access')"
+          variant="tonal"
+          prepend-icon="ri-exchange-dollar-line"
+          class="me-2"
+          @click="openCashMovement"
+        >
+          Registrar movimiento
+        </VBtn>
 
         <VBtn
 
@@ -250,7 +314,7 @@ onUnmounted(() => { stopSse() })
 
     >
 
-      Sin turno clasificado aún. Opere caja/comandas (el turno se crea solo) o pulse «Generar liquidaciones del turno actual».
+      No hay turno abierto para liquidaciones. Abra un turno o opere caja/comandas para iniciar el turno actual.
 
     </VAlert>
 
@@ -268,7 +332,79 @@ onUnmounted(() => { stopSse() })
 
     >
 
-      Turno: <strong>{{ shift.name }}</strong> · {{ shift.business_date }} · {{ shift.shift_type }}
+      <div class="text-body-2">
+
+        <strong>Turno actual</strong>
+
+        · ID {{ shift.id }}
+
+        · {{ shift.shift_type_label || (shift.shift_type === 'DAY' ? 'Día' : 'Noche') }}
+
+        · {{ shift.business_date }}
+
+        <span v-if="context?.branch_id"> · Sucursal #{{ context.branch_id }}</span>
+
+      </div>
+
+      <div
+
+        v-if="context"
+
+        class="text-caption text-medium-emphasis mt-1"
+
+      >
+
+        <span v-if="scopeLabel">{{ scopeLabel }} · </span>
+
+        Caja #{{ context.cash_session_id ?? '—' }} · Cajera #{{ context.cashier_user_id ?? '—' }}
+
+      </div>
+
+    </VAlert>
+
+
+
+    <VAlert
+
+      v-if="shift && hasPendingPayments && !loading"
+
+      type="warning"
+
+      variant="tonal"
+
+      class="mb-4"
+
+    >
+
+      Hay liquidaciones pendientes de pago por
+
+      <strong>{{ settlementSummary?.generated_pending_amount ?? summary?.total_pending }} BOB</strong>.
+
+      Vaya a Garzones, Chicas o Limpieza para pagarlas.
+
+    </VAlert>
+
+
+
+    <VAlert
+
+      v-if="shift && !summaryHasData && !loading && !hasPendingPayments"
+
+      type="warning"
+
+      variant="tonal"
+
+      class="mb-4"
+
+    >
+
+      No hay liquidaciones para este turno/caja.
+
+      <span v-if="sourcesSummary">
+
+        Fuentes: ventas {{ sourcesSummary.sales ?? 0 }}, manillas {{ sourcesSummary.bracelets ?? 0 }}, piezas {{ sourcesSummary.rooms ?? 0 }}.
+
+      </span>
 
     </VAlert>
 
@@ -406,7 +542,7 @@ onUnmounted(() => { stopSse() })
 
     <VAlert
 
-      v-if="!loading && shift && !summaryHasData"
+      v-if="!loading && shift && !summaryHasData && !hasPendingPayments"
 
       type="warning"
 
@@ -479,6 +615,16 @@ onUnmounted(() => { stopSse() })
       Actualizando fuentes pendientes…
 
     </p>
+
+    <CashMovementDialog
+      v-model="showCashMovement"
+      @registered="onMovementRegistered"
+    />
+
+    <QuickOpenCashDialog
+      v-model="showOpenCash"
+      @opened="onCashOpened"
+    />
 
   </div>
 

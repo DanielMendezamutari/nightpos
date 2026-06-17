@@ -21,6 +21,10 @@ final class ProductModel extends Model
         'barcode',
         'description',
         'product_type',
+        'settlement_behavior',
+        'bracelet_units_per_line',
+        'requires_allocation',
+        'allocation_type',
         'unit',
         'track_inventory',
         'status',
@@ -30,6 +34,8 @@ final class ProductModel extends Model
     {
         return [
             'track_inventory' => 'boolean',
+            'requires_allocation' => 'boolean',
+            'bracelet_units_per_line' => 'integer',
         ];
     }
 

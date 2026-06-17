@@ -8,6 +8,7 @@ use App\Application\Cash\DTOs\CloseCashSessionInput;
 use App\Application\Cash\DTOs\OpenCashSessionInput;
 use App\Application\Cash\DTOs\RegisterCashMovementInput;
 use App\Application\Cash\UseCases\CloseCashSessionUseCase;
+use App\Application\Cash\UseCases\GetCashSessionCloseCheckUseCase;
 use App\Application\Cash\UseCases\GetCurrentCashSessionUseCase;
 use App\Application\Cash\UseCases\OpenCashSessionUseCase;
 use App\Application\Cash\UseCases\RegisterCashMovementUseCase;
@@ -23,6 +24,7 @@ final class CashController extends Controller
     public function __construct(
         private readonly ApiResponsePresenterInterface $presenter,
         private readonly GetCurrentCashSessionUseCase $getCurrentSession,
+        private readonly GetCashSessionCloseCheckUseCase $getCloseCheck,
         private readonly OpenCashSessionUseCase $openSession,
         private readonly RegisterCashMovementUseCase $registerMovement,
         private readonly CloseCashSessionUseCase $closeSession,
@@ -32,6 +34,11 @@ final class CashController extends Controller
     public function current(): JsonResponse
     {
         return $this->presenter->present($this->getCurrentSession->execute());
+    }
+
+    public function closeCheck(): JsonResponse
+    {
+        return $this->presenter->present($this->getCloseCheck->execute());
     }
 
     public function open(OpenCashSessionRequest $request): JsonResponse

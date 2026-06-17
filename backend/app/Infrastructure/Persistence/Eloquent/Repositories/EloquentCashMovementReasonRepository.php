@@ -18,7 +18,11 @@ final class EloquentCashMovementReasonRepository implements CashMovementReasonRe
             });
 
         if ($type !== null) {
-            $query->where('type', strtoupper($type));
+            $movementType = strtoupper($type);
+            $query->where(function ($q) use ($movementType) {
+                $q->where('type', $movementType)
+                    ->orWhere('type', 'BOTH');
+            });
         }
 
         if ($activeOnly) {

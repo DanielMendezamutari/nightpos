@@ -3,15 +3,20 @@ import { fetchProducts } from '@/api/products'
 import {
   cancelOrderItem,
   removeOrderItem,
+  syncOrderItemAllocations,
   updateOrderItem,
 } from '@/api/orders'
+import ComboAllocationDialog from '@/components/nightpos/orders/ComboAllocationDialog.vue'
 import ChangeOrderItemProductDialog from '@/components/nightpos/orders/ChangeOrderItemProductDialog.vue'
 import { loadOperationalGirlsForSelect } from '@/composables/useOperationalGirls'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
 import {
+  formatAllocationSummary,
+  formatCompanionBraceletLine,
   formatMoney,
   orderItemStatusLabel,
   SALE_MODE_LABELS,
+  shouldShowCompanionBraceletLine,
 } from '@/composables/useOrderHelpers'
 import { getApiErrorMessage } from '@/services/http'
 
@@ -41,6 +46,7 @@ const dialog = ref({
   girl: false,
   remove: false,
   cancel: false,
+  allocation: false,
 })
 const activeItem = ref(null)
 const form = ref({
@@ -151,7 +157,7 @@ const openDialog = async (type, item) => {
   if (type === 'product')
     await loadProducts()
 
-  if ((type === 'girl' || type === 'mode') && !girls.value.length) {
+  if ((type === 'girl' || type === 'mode' || type === 'allocation') && !girls.value.length) {
     try {
       girls.value = await loadOperationalGirlsForSelect()
     }
@@ -169,14 +175,55 @@ const closeDialog = async key => {
   await clearActiveItemLater()
 }
 
-const applyUpdate = async payload => {
+const saveAllocation = async allocations => {
   if (!activeItem.value || !guardPermission())
     return
 
   localLoading.value = true
 
   try {
-    const order = await updateOrderItem(props.order.id, activeItem.value.id, payload)
+    const order = await syncOrderItemAllocations(props.order.id, activeItem.value.id, allocations)
+
+    await emitOrderUpdate(order)
+    notify('Reparto de manillas guardado')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error), 'error')
+  }
+  finally {
+    localLoading.value = false
+  }
+}
+
+const applyUpdate = async payload => {
+  if (!activeItem.value || !guardPermission())
+    return
+
+  const itemId = activeItem.value.id
+  const quantityChanged = payload.quantity != null
+    && Number(payload.quantity) !== Number(activeItem.value.quantity)
+
+  localLoading.value = true
+
+  try {
+    const order = await updateOrderItem(props.order.id, itemId, payload)
+    const updatedItem = order.items?.find(i => i.id === itemId)
+
+    if (updatedItem?.requires_allocation && quantityChanged && !updatedItem.allocation_complete) {
+      emit('updated', order)
+      notify(`Ahora debes repartir ${updatedItem.required_bracelet_units} manillas`, 'warning')
+      activeItem.value = updatedItem
+      if (!girls.value.length) {
+        try {
+          girls.value = await loadOperationalGirlsForSelect()
+        }
+        catch {
+          girls.value = []
+        }
+      }
+      dialog.value.allocation = true
+      return
+    }
 
     await emitOrderUpdate(order)
     notify('Línea actualizada')
@@ -258,7 +305,11 @@ onBeforeUnmount(() => {
   activeItem.value = null
 })
 
-defineExpose({ closeAllDialogs })
+const openAllocationForItem = async item => {
+  await openDialog('allocation', item)
+}
+
+defineExpose({ closeAllDialogs, openAllocationForItem })
 </script>
 
 <template>
@@ -323,6 +374,30 @@ defineExpose({ closeAllDialogs })
                   {{ orderItemStatusLabel(item.item_status) }}
                 </VChip>
                 <div
+                  v-if="shouldShowCompanionBraceletLine(item)"
+                  class="text-caption text-medium-emphasis mt-1"
+                >
+                  {{ formatCompanionBraceletLine(item) }}
+                </div>
+                <div
+                  v-if="item.requires_allocation"
+                  class="text-caption mt-1"
+                >
+                  <div>Manillas: {{ item.allocated_bracelet_units }}/{{ item.required_bracelet_units }}</div>
+                  <div
+                    v-if="formatAllocationSummary(item).length"
+                    class="text-medium-emphasis"
+                  >
+                    Distribución
+                  </div>
+                  <div
+                    v-for="row in formatAllocationSummary(item)"
+                    :key="`${row.name}-${row.units}`"
+                  >
+                    {{ row.name }} ×{{ row.units }}
+                  </div>
+                </div>
+                <div
                   v-if="item.cancellation_reason"
                   class="text-error text-caption mt-1"
                 >
@@ -379,6 +454,15 @@ defineExpose({ closeAllDialogs })
             <VListItemSubtitle>
               {{ item.quantity }} × {{ formatMoney(item.unit_price, order.currency) }}
               = {{ formatMoney(item.line_total, order.currency) }}
+              <div
+                v-if="shouldShowCompanionBraceletLine(item)"
+                class="text-medium-emphasis"
+              >
+                {{ formatCompanionBraceletLine(item) }}
+              </div>
+              <template v-if="item.requires_allocation">
+                · Manillas {{ item.allocated_bracelet_units }}/{{ item.required_bracelet_units }}
+              </template>
             </VListItemSubtitle>
             <template
               v-if="canEditLine(item)"
@@ -428,7 +512,13 @@ defineExpose({ closeAllDialogs })
               @click="pickAction('mode')"
             />
             <VListItem
-              v-if="activeItem.sale_mode === 'CON_ACOMPANANTE'"
+              v-if="activeItem.requires_allocation"
+              title="Repartir manillas"
+              prepend-icon="ri-user-shared-line"
+              @click="pickAction('allocation')"
+            />
+            <VListItem
+              v-if="activeItem.sale_mode === 'CON_ACOMPANANTE' && !activeItem.requires_allocation"
               title="Cambiar chica"
               prepend-icon="ri-user-star-line"
               @click="pickAction('girl')"
@@ -589,6 +679,21 @@ defineExpose({ closeAllDialogs })
         </VCardActions>
       </VCard>
     </VDialog>
+
+    <ComboAllocationDialog
+      v-if="dialog.allocation && activeItem"
+      :model-value="true"
+      :product-name="activeItem.product_name"
+      :quantity="activeItem.quantity"
+      :units-per-combo="activeItem.bracelet_units_per_line ?? 6"
+      :required-units="activeItem.required_bracelet_units"
+      :girls="girls"
+      :loading="busy"
+      :initial-rows="activeItem.allocations ?? []"
+      edit-mode
+      @update:model-value="val => { if (!val) closeDialog('allocation') }"
+      @save="saveAllocation"
+    />
 
     <VDialog
       v-if="dialog.remove && activeItem"

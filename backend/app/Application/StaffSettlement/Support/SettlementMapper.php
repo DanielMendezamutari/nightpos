@@ -64,6 +64,11 @@ final class SettlementMapper
             'sale_mode' => $row['sale_mode'] ?? null,
             'sale_number' => $row['sale_number'] ?? null,
             'order_number' => $row['order_number'] ?? null,
+            'display_description' => $row['display_description'] ?? null,
+            'units' => $row['units'] ?? null,
+            'unit_amount' => $row['unit_amount'] ?? null,
+            'allocation_total_amount' => $row['allocation_total_amount'] ?? null,
+            'girl_name' => $row['girl_name'] ?? null,
             'created_at' => $row['created_at'],
         ];
     }

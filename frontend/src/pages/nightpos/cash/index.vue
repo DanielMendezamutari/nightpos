@@ -4,28 +4,31 @@ import {
 
   closeCashSession,
 
+  fetchCashSessionCloseCheck,
+
   fetchCurrentCashSession,
 
   openCashSession,
 
-  registerCashMovement,
-
 } from '@/api/cash'
-
-import { fetchCashMovementReasons } from '@/api/cashMovementReasons'
 import { fetchProductReconciliation } from '@/api/reports'
 import { fetchCurrentShiftSettlements } from '@/api/settlements'
 import ProductReconciliationPanel from '@/components/nightpos/reports/ProductReconciliationPanel.vue'
+import ComboBraceletSummaryPanel from '@/components/nightpos/reports/ComboBraceletSummaryPanel.vue'
+import CashMovementDialog from '@/components/nightpos/cash/CashMovementDialog.vue'
+import { paymentMethodLabel } from '@/constants/paymentMethods'
 
 import { useOnContextChange } from '@/composables/useOnContextChange'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useOperationalEvents } from '@/composables/useOperationalEvents'
+import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
 
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
 
 import { formatMoney } from '@/composables/useOrderHelpers'
 
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
+import { useDialogKeyboardShortcuts } from '@/composables/useDialogKeyboardShortcuts'
 import { getApiErrorMessage } from '@/services/http'
 
 
@@ -42,10 +45,12 @@ definePage({
 
 
 
-const { canAccessCash, canDirectSale } = useNightPosPermissions()
+const { canAccessCash, canDirectSale, can } = useNightPosPermissions()
 
 const { notify } = useNightPosNotify()
 const { openPrintRoute } = useNightPosPrint()
+const router = useRouter()
+const route = useRoute()
 
 
 
@@ -63,35 +68,14 @@ const showMovement = ref(false)
 
 const showClose = ref(false)
 
-
-
 const openForm = ref({ opening_amount: 0, opening_notes: '' })
 
-const movementReasons = ref([])
-
-const movementForm = ref({
-  movement_type: 'EXPENSE',
-  amount: null,
-  cash_movement_reason_id: null,
-  notes: '',
+const closeForm = ref({
+  declared_closing_amount: null,
+  declared_qr_amount: null,
+  declared_card_amount: null,
+  closing_notes: '',
 })
-
-const movementReasonOptions = computed(() => movementReasons.value
-  .filter(r => r.status === 'active' && r.type === movementForm.value.movement_type)
-  .map(r => ({ title: r.name, value: r.id })))
-
-const loadMovementReasons = async () => {
-  if (!canAccessCash.value)
-    return
-  try {
-    movementReasons.value = await fetchCashMovementReasons({ active_only: true })
-  }
-  catch {
-    movementReasons.value = []
-  }
-}
-
-const closeForm = ref({ declared_closing_amount: null, closing_notes: '' })
 
 
 
@@ -156,6 +140,35 @@ const closeDifferencePreview = computed(() => {
 
   return Number(declared) - expectedClosing.value
 
+})
+
+const expectedByMethod = computed(() => {
+  const fin = session.value?.financial_summary
+  const expected = fin?.expected_by_method ?? {}
+
+  return {
+    cash: Number(expected.cash ?? fin?.expected_cash ?? expectedClosing.value),
+    qr: Number(expected.qr ?? fin?.expected_qr ?? 0),
+    card: Number(expected.card ?? fin?.expected_card ?? 0),
+  }
+})
+
+const closeDifferenceByMethod = computed(() => {
+  const form = closeForm.value
+  const expected = expectedByMethod.value
+
+  const diff = (declared, methodExpected) => {
+    if (declared == null || declared === '')
+      return null
+
+    return Number(declared) - methodExpected
+  }
+
+  return {
+    cash: diff(form.declared_closing_amount, expected.cash),
+    qr: diff(form.declared_qr_amount, expected.qr),
+    card: diff(form.declared_card_amount, expected.card),
+  }
 })
 
 
@@ -308,7 +321,38 @@ const kpiCards = computed(() => {
 
 })
 
+const methodBalanceRows = computed(() => {
+  if (!session.value?.financial_summary)
+    return []
 
+  const fin = session.value.financial_summary
+  const income = fin.income_by_method ?? {}
+  const expense = fin.expense_by_method ?? {}
+  const expected = fin.expected_by_method ?? {}
+  const sales = fin.sales_by_method ?? {
+    cash: fin.sales_cash ?? fin.total_cash ?? '0.00',
+    qr: fin.sales_qr ?? fin.total_qr ?? '0.00',
+    card: fin.sales_card ?? fin.total_card ?? '0.00',
+  }
+  const openingCash = fin.opening_cash ?? session.value.opening_amount ?? '0.00'
+
+  return [
+    { key: 'cash', label: 'Efectivo', color: 'success' },
+    { key: 'qr', label: 'QR', color: 'info' },
+    { key: 'card', label: 'Tarjeta', color: 'warning' },
+  ].map(row => ({
+    ...row,
+    opening: row.key === 'cash' ? openingCash : null,
+    sales: sales[row.key] ?? '0.00',
+    income: income[row.key] ?? fin[`income_${row.key}`] ?? '0.00',
+    expense: expense[row.key] ?? fin[`expense_${row.key}`] ?? '0.00',
+    expected: expected[row.key] ?? fin[`expected_${row.key}`] ?? '0.00',
+  }))
+})
+
+const onMovementRegistered = updatedSession => {
+  session.value = updatedSession
+}
 
 const movementHeaders = [
 
@@ -392,56 +436,9 @@ const submitOpen = async () => {
 
     showOpen.value = false
 
+    clearOpenCashQuery()
+
     notify('Caja abierta')
-
-  }
-
-  catch (error) {
-
-    notify(getApiErrorMessage(error), 'error')
-
-  }
-
-  finally {
-
-    actionLoading.value = false
-
-  }
-
-}
-
-
-
-const submitMovement = async () => {
-
-  actionLoading.value = true
-
-
-
-  try {
-
-    session.value = await registerCashMovement({
-
-      movement_type: movementForm.value.movement_type,
-
-      amount: Number(movementForm.value.amount),
-
-      cash_movement_reason_id: movementForm.value.cash_movement_reason_id,
-
-      notes: movementForm.value.notes || null,
-
-    })
-
-    showMovement.value = false
-
-    movementForm.value = {
-      movement_type: 'EXPENSE',
-      amount: null,
-      cash_movement_reason_id: null,
-      notes: '',
-    }
-
-    notify('Movimiento registrado')
 
   }
 
@@ -468,12 +465,31 @@ const submitClose = async () => {
 
 
   try {
+    const verificationNotes = []
+    const form = closeForm.value
+
+    if (form.declared_qr_amount != null && form.declared_qr_amount !== '')
+      verificationNotes.push(`QR verificado: ${form.declared_qr_amount}`)
+
+    if (form.declared_card_amount != null && form.declared_card_amount !== '')
+      verificationNotes.push(`Tarjeta verificada: ${form.declared_card_amount}`)
+
+    const diff = closeDifferenceByMethod.value
+    if (diff.qr != null)
+      verificationNotes.push(`Diferencia QR: ${diff.qr.toFixed(2)}`)
+
+    if (diff.card != null)
+      verificationNotes.push(`Diferencia tarjeta: ${diff.card.toFixed(2)}`)
+
+    const closingNotes = [form.closing_notes, ...verificationNotes]
+      .filter(Boolean)
+      .join(' | ') || null
 
     await closeCashSession({
 
-      declared_closing_amount: Number(closeForm.value.declared_closing_amount),
+      declared_closing_amount: Number(form.declared_closing_amount),
 
-      closing_notes: closeForm.value.closing_notes || null,
+      closing_notes: closingNotes,
 
     })
 
@@ -503,26 +519,49 @@ const submitClose = async () => {
 
 const pendingSettlementsTotal = ref(0)
 const pendingSettlementsLoading = ref(false)
+const closeCheck = ref(null)
+const closeCheckLoading = ref(false)
+const showCloseBlockers = ref(false)
 
 const openCloseDialog = async () => {
+  closeCheckLoading.value = true
+  closeCheck.value = null
 
-  closeForm.value.declared_closing_amount = expectedClosing.value
-
-  showClose.value = true
-
-  pendingSettlementsLoading.value = true
   try {
-    const data = await fetchCurrentShiftSettlements()
-    const pending = Number(data.summary?.total_pending ?? 0)
-    pendingSettlementsTotal.value = pending
+    closeCheck.value = await fetchCashSessionCloseCheck()
+
+    if (!closeCheck.value?.can_close) {
+      showCloseBlockers.value = true
+      return
+    }
+
+    closeForm.value = {
+      declared_closing_amount: expectedByMethod.value.cash,
+      declared_qr_amount: expectedByMethod.value.qr,
+      declared_card_amount: expectedByMethod.value.card,
+      closing_notes: '',
+    }
+    showClose.value = true
+
+    pendingSettlementsLoading.value = true
+    try {
+      const data = await fetchCurrentShiftSettlements()
+      const pending = Number(data.summary?.total_pending ?? 0)
+      pendingSettlementsTotal.value = pending
+    }
+    catch {
+      pendingSettlementsTotal.value = 0
+    }
+    finally {
+      pendingSettlementsLoading.value = false
+    }
   }
-  catch {
-    pendingSettlementsTotal.value = 0
+  catch (error) {
+    notify(getApiErrorMessage(error), 'error')
   }
   finally {
-    pendingSettlementsLoading.value = false
+    closeCheckLoading.value = false
   }
-
 }
 
 
@@ -557,10 +596,6 @@ const formatMovementDate = value => {
 
 
 
-watch(() => movementForm.value.movement_type, () => {
-  movementForm.value.cash_movement_reason_id = null
-})
-
 // ─── SSE real-time ──────────────────────────────────────────────────────────
 const { on, start: startSse, stop: stopSse, connected: sseConnected, reconnecting: sseReconnecting } = useOperationalEvents()
 
@@ -578,9 +613,48 @@ on('direct_sale.created', debouncedCashLoad)
 on('settlement.paid', debouncedCashLoad)
 // ─────────────────────────────────────────────────────────────────────────────
 
+const clearOpenCashQuery = () => {
+  if (route.query.open == null)
+    return
+
+  const nextQuery = { ...route.query }
+
+  delete nextQuery.open
+  router.replace({ query: nextQuery })
+}
+
+const maybeOpenCashFromQuery = () => {
+  if (route.query.open !== '1' || session.value || loading.value)
+    return
+
+  showOpen.value = true
+  clearOpenCashQuery()
+}
+
+useDialogKeyboardShortcuts({
+  active: showOpen,
+  onConfirm: submitOpen,
+  onCancel: () => { showOpen.value = false },
+  canConfirm: () => !actionLoading.value,
+  loading: actionLoading,
+})
+
+useDialogKeyboardShortcuts({
+  active: showClose,
+  onConfirm: submitClose,
+  onCancel: () => { showClose.value = false },
+  canConfirm: () => !actionLoading.value && closeForm.value.declared_closing_amount != null,
+  loading: actionLoading,
+})
+
 onMounted(async () => {
-  await Promise.all([loadSession(), loadMovementReasons()])
+  await loadSession()
+  maybeOpenCashFromQuery()
   startSse()
+})
+
+watch([session, loading], () => {
+  maybeOpenCashFromQuery()
 })
 
 onUnmounted(() => {
@@ -588,7 +662,7 @@ onUnmounted(() => {
 })
 
 useOnContextChange(async () => {
-  await Promise.all([loadSession(), loadMovementReasons()])
+  await loadSession()
 })
 
 </script>
@@ -598,6 +672,11 @@ useOnContextChange(async () => {
 <template>
 
   <div class="cash-page">
+
+    <NightPosSseBanner
+      :connected="sseConnected"
+      :reconnecting="sseReconnecting"
+    />
 
     <div class="mb-4 d-flex flex-wrap justify-space-between align-start gap-2">
 
@@ -729,6 +808,50 @@ useOnContextChange(async () => {
 
 
 
+      <VCard
+        v-if="methodBalanceRows.length"
+        class="mb-4"
+        title="Resumen por método de pago"
+      >
+        <VCardText>
+          <VTable density="compact">
+            <thead>
+              <tr>
+                <th>Método</th>
+                <th>Inicial</th>
+                <th>Ingresos</th>
+                <th>Ventas</th>
+                <th>Egresos</th>
+                <th>Esperado / neto</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in methodBalanceRows"
+                :key="row.key"
+              >
+                <td>
+                  <VChip
+                    size="small"
+                    :color="row.color"
+                    variant="tonal"
+                  >
+                    {{ row.label }}
+                  </VChip>
+                </td>
+                <td>{{ row.opening != null ? fmtBob(row.opening) : '—' }}</td>
+                <td>{{ fmtBob(row.income) }}</td>
+                <td>{{ fmtBob(row.sales) }}</td>
+                <td>{{ fmtBob(row.expense) }}</td>
+                <td><strong>{{ fmtBob(row.expected) }}</strong></td>
+              </tr>
+            </tbody>
+          </VTable>
+        </VCardText>
+      </VCard>
+
+
+
       <VCard class="mb-4">
 
         <VCardTitle class="d-flex flex-wrap align-center gap-2">
@@ -805,7 +928,7 @@ useOnContextChange(async () => {
 
               >
 
-                {{ item.payment_method }}
+                {{ paymentMethodLabel(item.payment_method) }}
 
               </VChip>
 
@@ -836,6 +959,13 @@ useOnContextChange(async () => {
       <VCard v-if="reconciliation" class="mb-4">
         <VCardTitle>Productos vendidos</VCardTitle>
         <VCardText>
+          <ComboBraceletSummaryPanel
+            v-if="session?.combo_bracelets?.total_bracelet_units"
+            :summary="session.combo_bracelets"
+            compact
+            class="mb-4"
+          />
+
           <ProductReconciliationPanel
             :data="reconciliation"
             :loading="reconciliationLoading"
@@ -889,6 +1019,8 @@ useOnContextChange(async () => {
           size="x-large"
 
           block
+
+          :loading="closeCheckLoading"
 
           @click="openCloseDialog"
 
@@ -988,117 +1120,84 @@ useOnContextChange(async () => {
 
 
 
-    <VDialog
-
+    <CashMovementDialog
       v-model="showMovement"
+      @registered="onMovementRegistered"
+    />
 
-      max-width="440"
-
+    <VDialog
+      v-model="showCloseBlockers"
+      max-width="520"
     >
-
-      <VCard title="Registrar movimiento">
-
+      <VCard title="No puedes cerrar caja todavía">
         <VCardText>
-
-          <VSelect
-
-            v-model="movementForm.movement_type"
-
-            :items="[
-
-              { title: 'Ingreso manual', value: 'INCOME' },
-
-              { title: 'Egreso manual', value: 'EXPENSE' },
-
-            ]"
-
-            label="Tipo"
-
+          <VAlert
+            type="error"
+            variant="tonal"
             class="mb-4"
+          >
+            Resuelve los pendientes operativos antes de cerrar tu caja.
+          </VAlert>
 
-          />
-
-          <VTextField
-
-            v-model.number="movementForm.amount"
-
-            type="number"
-
-            label="Monto (BOB)"
-
-            min="0.01"
-
+          <ComboBraceletSummaryPanel
+            v-if="closeCheck?.combo_bracelets?.total_bracelet_units"
+            :summary="closeCheck.combo_bracelets"
+            compact
             class="mb-4"
-
           />
 
-          <VSelect
+          <VAlert
+            v-for="blocker in closeCheck?.blockers ?? []"
+            :key="blocker.code"
+            type="error"
+            variant="tonal"
+            density="compact"
+            class="mb-2"
+          >
+            <div class="d-flex flex-wrap align-center justify-space-between gap-2">
+              <span>{{ blocker.message }}</span>
+              <VBtn
+                v-if="blocker.route"
+                size="x-small"
+                variant="tonal"
+                color="primary"
+                @click="router.push({ name: blocker.route }); showCloseBlockers = false"
+              >
+                Ir
+              </VBtn>
+            </div>
+          </VAlert>
 
-            v-model="movementForm.cash_movement_reason_id"
-
-            :items="movementReasonOptions"
-
-            label="Motivo *"
-
-            class="mb-4"
-
-          />
-
-          <VTextField
-
-            v-model="movementForm.notes"
-
-            label="Notas adicionales"
-
-          />
-
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <VBtn
+              v-for="action in closeCheck?.actions ?? []"
+              :key="action.route"
+              size="small"
+              variant="tonal"
+              color="primary"
+              @click="router.push({ name: action.route }); showCloseBlockers = false"
+            >
+              {{ action.label }}
+            </VBtn>
+          </div>
         </VCardText>
-
         <VCardActions>
-
-          <VBtn
-
-            variant="text"
-
-            @click="showMovement = false"
-
-          >
-
-            Cancelar
-
-          </VBtn>
-
           <VSpacer />
-
           <VBtn
-
-            color="primary"
-
-            size="large"
-
-            :loading="actionLoading"
-
-            @click="submitMovement"
-
+            variant="text"
+            @click="showCloseBlockers = false"
           >
-
-            Guardar
-
+            Entendido
           </VBtn>
-
         </VCardActions>
-
       </VCard>
-
     </VDialog>
-
-
 
     <VDialog
 
       v-model="showClose"
 
-      max-width="480"
+      max-width="640"
 
     >
 
@@ -1126,21 +1225,45 @@ useOnContextChange(async () => {
             </VBtn>
           </VAlert>
 
-          <VAlert
+          <p class="text-subtitle-2 mb-2">
+            Resumen por método
+          </p>
 
-            type="info"
-
-            variant="tonal"
-
+          <VTable
+            v-if="methodBalanceRows.length"
+            density="compact"
             class="mb-4"
-
           >
+            <thead>
+              <tr>
+                <th>Método</th>
+                <th>Inicial</th>
+                <th>Ingresos</th>
+                <th>Ventas</th>
+                <th>Egresos</th>
+                <th>Esperado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="row in methodBalanceRows"
+                :key="`close-${row.key}`"
+              >
+                <td>{{ row.label }}</td>
+                <td>{{ row.opening != null ? fmtBob(row.opening) : '—' }}</td>
+                <td>{{ fmtBob(row.income) }}</td>
+                <td>{{ fmtBob(row.sales) }}</td>
+                <td>{{ fmtBob(row.expense) }}</td>
+                <td><strong>{{ fmtBob(row.expected) }}</strong></td>
+              </tr>
+            </tbody>
+          </VTable>
 
-            Monto esperado según sistema:
+          <VDivider class="mb-4" />
 
-            <strong>{{ fmtBob(expectedClosing) }}</strong>
-
-          </VAlert>
+          <p class="text-subtitle-2 mb-3">
+            Debe declarar
+          </p>
 
           <VTextField
 
@@ -1152,24 +1275,63 @@ useOnContextChange(async () => {
 
             min="0"
 
-            class="mb-2"
+            class="mb-1"
 
           />
 
           <p
-
-            v-if="closeDifferencePreview != null"
-
-            class="text-body-2 mb-4"
-
-            :class="closeDifferencePreview === 0 ? 'text-success' : 'text-warning'"
-
+            v-if="closeDifferenceByMethod.cash != null"
+            class="text-body-2 mb-3"
+            :class="closeDifferenceByMethod.cash === 0 ? 'text-success' : 'text-warning'"
           >
+            Diferencia efectivo:
+            <strong>{{ fmtBob(closeDifferenceByMethod.cash) }}</strong>
+          </p>
 
-            Diferencia (contado − esperado):
+          <VTextField
 
-            <strong>{{ fmtBob(closeDifferencePreview) }}</strong>
+            v-model.number="closeForm.declared_qr_amount"
 
+            type="number"
+
+            label="QR verificado (BOB)"
+
+            min="0"
+
+            class="mb-1"
+
+          />
+
+          <p
+            v-if="closeDifferenceByMethod.qr != null"
+            class="text-body-2 mb-3"
+            :class="closeDifferenceByMethod.qr === 0 ? 'text-success' : 'text-info'"
+          >
+            Diferencia QR:
+            <strong>{{ fmtBob(closeDifferenceByMethod.qr) }}</strong>
+          </p>
+
+          <VTextField
+
+            v-model.number="closeForm.declared_card_amount"
+
+            type="number"
+
+            label="Tarjeta verificada (BOB)"
+
+            min="0"
+
+            class="mb-1"
+
+          />
+
+          <p
+            v-if="closeDifferenceByMethod.card != null"
+            class="text-body-2 mb-4"
+            :class="closeDifferenceByMethod.card === 0 ? 'text-success' : 'text-info'"
+          >
+            Diferencia tarjeta:
+            <strong>{{ fmtBob(closeDifferenceByMethod.card) }}</strong>
           </p>
 
           <VTextField

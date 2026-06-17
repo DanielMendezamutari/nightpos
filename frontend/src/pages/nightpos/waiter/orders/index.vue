@@ -5,6 +5,9 @@ import WaiterOrderActions from '@/components/nightpos/waiter/WaiterOrderActions.
 import WaiterOrderCard from '@/components/nightpos/waiter/WaiterOrderCard.vue'
 import { fetchWaiterOrders } from '@/api/waiter'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
+import { useOrderOperationalEvents } from '@/composables/useOrderOperationalEvents'
+import { useOperationalPollingFallback } from '@/composables/useOperationalPollingFallback'
 import { getApiErrorMessage } from '@/services/http'
 
 definePage({
@@ -41,6 +44,12 @@ const load = async () => {
   }
 }
 
+const { connected: sseConnected, reconnecting: sseReconnecting } = useOrderOperationalEvents(load, {
+  updatedDebounceMs: 500,
+})
+
+useOperationalPollingFallback(load)
+
 watch(scope, load)
 onMounted(load)
 </script>
@@ -51,6 +60,13 @@ onMounted(load)
       :title="scopeTitle"
       show-back
     />
+
+    <VContainer class="py-2 px-4">
+      <NightPosSseBanner
+        :connected="sseConnected"
+        :reconnecting="sseReconnecting"
+      />
+    </VContainer>
 
     <VContainer class="py-4 px-4">
       <VProgressLinear

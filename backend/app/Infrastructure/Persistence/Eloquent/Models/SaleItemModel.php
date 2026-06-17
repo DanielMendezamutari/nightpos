@@ -6,6 +6,7 @@ namespace App\Infrastructure\Persistence\Eloquent\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class SaleItemModel extends Model
 {
@@ -44,5 +45,10 @@ final class SaleItemModel extends Model
     public function sale(): BelongsTo
     {
         return $this->belongsTo(SaleModel::class, 'sale_id');
+    }
+
+    public function allocations(): HasMany
+    {
+        return $this->hasMany(SaleItemAllocationModel::class, 'sale_item_id');
     }
 }

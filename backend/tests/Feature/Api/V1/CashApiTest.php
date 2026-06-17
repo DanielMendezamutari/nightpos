@@ -26,13 +26,14 @@ it('allows cashier to open and close cash session', function () {
 
     $reasonId = CashMovementReasonModel::query()
         ->where('type', 'INCOME')
-        ->where('name', 'Otros')
+        ->where('name', 'Otro ingreso')
         ->value('id');
 
     $this->postJson('/api/v1/cash/movements', [
         'movement_type' => 'INCOME',
         'amount' => 100,
         'cash_movement_reason_id' => $reasonId,
+        'payment_method' => 'CASH',
         'notes' => 'Propina',
     ], nightposOperationalHeaders($token))
         ->assertCreated()
@@ -41,6 +42,8 @@ it('allows cashier to open and close cash session', function () {
     $this->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($token))
         ->assertOk()
         ->assertJsonPath('data.session.status', 'OPEN');
+
+    nightposPrepareCashSessionClose($token);
 
     $this->postJson('/api/v1/cash/session/close', [
         'declared_closing_amount' => 600,

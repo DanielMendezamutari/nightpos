@@ -4,14 +4,19 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
+use App\Application\Reports\Services\ComboBraceletReportingService;
 use App\Domain\Reports\Repositories\ReportReadRepositoryInterface;
+use App\Domain\StaffSettlement\Repositories\StaffSettlementRepositoryInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\BraceletModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CashMovementModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CashSessionModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
+use App\Infrastructure\Persistence\Eloquent\Models\OrderModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OrderItemModel;
 use App\Infrastructure\Persistence\Eloquent\Models\RoomModel;
 use App\Infrastructure\Persistence\Eloquent\Models\RoomServiceModel;
+use App\Infrastructure\Persistence\Eloquent\Models\ProductModel;
+use App\Infrastructure\Persistence\Eloquent\Models\SaleItemAllocationModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SaleItemModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SaleModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SalePaymentModel;
@@ -21,6 +26,11 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentReportReadRepository implements ReportReadRepositoryInterface
 {
+    public function __construct(
+        private readonly StaffSettlementRepositoryInterface $settlements,
+        private readonly ComboBraceletReportingService $comboReporting,
+    ) {}
+
     public function getDailySummary(int $tenantId, int $branchId, array $filters): array
     {
         $shiftIds = $this->resolveShiftIds($tenantId, $branchId, $filters);
@@ -119,6 +129,10 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
 
         $totalServices = $braceletsTotal + $showsTotal + $roomServicesTotal;
 
+        $comboSummary = $this->comboReporting->buildScopeSummary($tenantId, $branchId, [
+            'shift_ids' => $shiftIds,
+        ]);
+
         return [
             'sales' => [
                 'total'      => $this->fmt($totalSales),
@@ -149,6 +163,7 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
                 'used'     => $roomsUsed,
                 'cleaning' => $roomsCleaning,
             ],
+            'combo_bracelets' => $comboSummary,
         ];
     }
 
@@ -157,7 +172,7 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
         $shiftIds = $this->resolveShiftIds($tenantId, $branchId, $filters);
 
         $query = SaleModel::query()
-            ->with(['payments', 'items', 'cashier'])
+            ->with(['payments', 'items.allocations.girl', 'cashier'])
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
             ->when(!empty($shiftIds), fn ($q) => $q->whereIn('official_shift_id', $shiftIds))
@@ -168,7 +183,10 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
 
         $sales = $query->limit(500)->get();
 
-        $rows = $sales->map(function ($sale) {
+        $productIds = $sales->flatMap(fn ($sale) => $sale->items->pluck('product_id'))->unique()->filter()->values()->all();
+        $products = $this->comboReporting->loadProductsByIds(array_map('intval', $productIds));
+
+        $rows = $sales->map(function ($sale) use ($products) {
             return [
                 'id'             => $sale->id,
                 'sale_number'    => $sale->sale_number,
@@ -178,15 +196,25 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
                 'payment_mode'   => $sale->payment_mode,
                 'total'          => $sale->total,
                 'paid_at'        => $sale->paid_at,
-                'items'          => $sale->items->map(fn ($item) => [
-                    'product_name'  => $item->product_name_snapshot,
-                    'sale_mode'     => $item->sale_mode,
-                    'quantity'      => $item->quantity,
-                    'unit_price'    => $item->unit_price_snapshot,
-                    'line_total'    => $item->line_total,
-                    'girl_amount'   => $item->girl_amount_snapshot,
-                    'house_amount'  => $item->house_amount_snapshot,
-                ]),
+                'items'          => $sale->items->map(function ($item) use ($products) {
+                    $base = [
+                        'product_id'    => $item->product_id,
+                        'product_name'  => $item->product_name_snapshot,
+                        'sale_mode'     => $item->sale_mode,
+                        'quantity'      => $item->quantity,
+                        'unit_price'    => $item->unit_price_snapshot,
+                        'line_total'    => $item->line_total,
+                        'girl_amount'   => $item->girl_amount_snapshot,
+                        'house_amount'  => $item->house_amount_snapshot,
+                    ];
+
+                    return $this->comboReporting->enrichSaleItemRow(
+                        $base,
+                        (int) $item->quantity,
+                        $products->get((int) $item->product_id),
+                        $item->relationLoaded('allocations') ? $item->allocations : collect(),
+                    );
+                }),
                 'payments'       => $sale->payments->map(fn ($p) => [
                     'method' => $p->payment_method,
                     'amount' => $p->amount,
@@ -342,10 +370,13 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
         $girlTotal    = (float) collect($roomServices)->sum('girl_amount');
         $cleaningTotal = (float) collect($roomServices)->sum('cleaning_amount');
 
+        $comboAllocations = $this->scopedComboAllocationRows($tenantId, $branchId, $shiftIds, $filters);
+
         return [
             'bracelets'     => $bracelets,
             'shows'         => $shows,
             'room_services' => $roomServices,
+            'combo_allocations' => $comboAllocations,
             'totals'        => [
                 'bracelets_total'      => $this->fmt($braceletsTotal),
                 'shows_total'          => $this->fmt($showsTotal),
@@ -381,6 +412,19 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
             'paid_by'        => $s->paidBy?->name ?? '-',
             'paid_at'        => $s->paid_at,
             'items_count'    => $s->items->count(),
+            'items'          => $s->items->map(function ($item) {
+                $row = [
+                    'id' => $item->id,
+                    'source_type' => $item->source_type,
+                    'source_id' => $item->source_id,
+                    'description' => $item->description,
+                    'amount' => $item->amount,
+                    'sale_id' => $item->sale_id,
+                    'order_id' => $item->order_id,
+                ];
+
+                return $this->comboReporting->enrichSettlementItem($row);
+            })->all(),
         ])->all();
 
         $paidRows    = collect($rows)->where('status', 'PAID');
@@ -465,6 +509,13 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
             ->whereIn('status', ['ACTIVE', 'DUE'])
             ->count();
 
+        $activeOrders = OrderModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('official_shift_id', $officialShiftId)
+            ->whereIn('status', ['OPEN', 'SENT_TO_BAR'])
+            ->count();
+
         // Warnings
         $pendingSettlements = StaffSettlementModel::query()
             ->where('tenant_id', $tenantId)
@@ -478,6 +529,8 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
             ->where('branch_id', $branchId)
             ->where('official_shift_id', $officialShiftId)
             ->count();
+
+        $unsettledSources = $this->settlements->countUnsettledShiftSources($tenantId, $branchId, $officialShiftId);
 
         $roomsCleaning = RoomModel::query()
             ->where('tenant_id', $tenantId)
@@ -520,19 +573,37 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
             ];
         }
 
+        if ($activeOrders > 0) {
+            $blockers[] = [
+                'code'    => 'active_orders',
+                'message' => "Hay {$activeOrders} " . ($activeOrders === 1 ? 'comanda pendiente' : 'comandas pendientes') . ' de cobro.',
+                'count'   => $activeOrders,
+            ];
+        }
+
+        if ($settlementsGenerated === 0) {
+            $blockers[] = [
+                'code'    => 'no_settlements_generated',
+                'message' => 'No se han generado liquidaciones para este turno.',
+                'count'   => 0,
+            ];
+        }
+
+        if ($unsettledSources > 0) {
+            $blockers[] = [
+                'code'    => 'unsettled_settlement_sources',
+                'message' => $unsettledSources === 1
+                    ? 'Hay 1 fuente pendiente de generar liquidación.'
+                    : "Hay {$unsettledSources} fuentes pendientes de generar liquidación.",
+                'count'   => $unsettledSources,
+            ];
+        }
+
         if ($pendingSettlements > 0) {
             $warnings[] = [
                 'code'    => 'pending_settlements',
                 'message' => "Hay {$pendingSettlements} liquidaciones pendientes de pago.",
                 'count'   => $pendingSettlements,
-            ];
-        }
-
-        if ($settlementsGenerated === 0) {
-            $warnings[] = [
-                'code'    => 'no_settlements_generated',
-                'message' => 'No se han generado liquidaciones para este turno.',
-                'count'   => 0,
             ];
         }
 
@@ -561,10 +632,15 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
             'summary'     => [
                 'open_cash_sessions'   => $openSessions,
                 'active_room_services' => $activeRoomServices,
+                'active_orders'        => $activeOrders,
                 'pending_settlements'  => $pendingSettlements,
+                'unsettled_sources'    => $unsettledSources,
                 'rooms_in_cleaning'    => $roomsCleaning,
                 'cash_difference'      => $cashDifference,
             ],
+            'combo_bracelets' => $this->comboReporting->buildScopeSummary($tenantId, $branchId, [
+                'official_shift_id' => $officialShiftId,
+            ]),
         ];
     }
 
@@ -593,6 +669,8 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
             ->groupBy('sale_items.product_id')
             ->get()
             ->keyBy('product_id');
+
+        $braceletByProduct = $this->comboReporting->braceletUnitsSoldByProduct($tenantId, $branchId, $filters);
 
         // ── Ordered side (order_items) ───────────────────────────────────────
         $orderQuery = OrderItemModel::query()
@@ -641,6 +719,7 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
             $cancelledQty = (int) ($o->cancelled_qty ?? 0);
 
             if ($s !== null) {
+                $braceletMeta = $braceletByProduct[(int) $productId] ?? null;
                 $sold[] = [
                     'product_id'           => (int) $productId,
                     'product_name'         => $s->product_name ?? $name,
@@ -650,6 +729,9 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
                     'companion_quantity'   => (int) $s->companion_qty,
                     'direct_sale_quantity' => $directQty,
                     'order_sale_quantity'  => $orderQty,
+                    'combo_quantity'       => (int) ($braceletMeta['combo_quantity'] ?? 0),
+                    'bracelet_units_sold'  => (int) ($braceletMeta['bracelet_units_sold'] ?? 0),
+                    'requires_allocation'  => ($braceletMeta['bracelet_units_sold'] ?? 0) > 0,
                 ];
             }
 
@@ -706,8 +788,48 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
                 'has_differences'      => $mismatchCount > 0,
                 'total_quantity_sold'  => (int) collect($sold)->sum('quantity_sold'),
                 'total_amount_sold'    => $this->fmt((float) collect($sold)->sum(fn ($r) => (float) $r['total_amount'])),
+                'total_bracelet_units' => (int) collect($sold)->sum('bracelet_units_sold'),
             ],
+            'combo_bracelets' => $this->comboReporting->buildScopeSummary($tenantId, $branchId, $filters),
         ];
+    }
+
+    /**
+     * @param  list<int>  $shiftIds
+     * @param  array<string, mixed>  $filters
+     * @return list<array<string, mixed>>
+     */
+    private function scopedComboAllocationRows(int $tenantId, int $branchId, array $shiftIds, array $filters): array
+    {
+        $payload = array_merge($filters, ['shift_ids' => $shiftIds]);
+
+        return SaleItemAllocationModel::query()
+            ->with(['girl', 'saleItem.sale'])
+            ->where('sale_item_allocations.tenant_id', $tenantId)
+            ->where('sale_item_allocations.branch_id', $branchId)
+            ->join('sale_items', 'sale_items.id', '=', 'sale_item_allocations.sale_item_id')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->when(! empty($shiftIds), fn ($q) => $q->whereIn('sales.official_shift_id', $shiftIds))
+            ->when(isset($filters['girl_user_id']), fn ($q) => $q->where('sale_item_allocations.girl_user_id', (int) $filters['girl_user_id']))
+            ->orderByDesc('sale_item_allocations.id')
+            ->select('sale_item_allocations.*')
+            ->limit(500)
+            ->get()
+            ->map(function (SaleItemAllocationModel $row) {
+                return [
+                    'type' => 'combo_allocation',
+                    'id' => (int) $row->id,
+                    'girl' => $row->girl?->name ?? '-',
+                    'product_name' => $row->saleItem?->product_name_snapshot ?? '-',
+                    'units' => (int) $row->units,
+                    'unit_price' => number_format((float) $row->unit_amount_snapshot, 2, '.', ''),
+                    'total_amount' => number_format((float) $row->total_amount_snapshot, 2, '.', ''),
+                    'sale_number' => $row->saleItem?->sale?->sale_number,
+                    'order_id' => $row->saleItem?->sale?->order_id,
+                    'registered_at' => $row->saleItem?->sale?->paid_at,
+                ];
+            })
+            ->all();
     }
 
     private function resolveReconciliationStatus(

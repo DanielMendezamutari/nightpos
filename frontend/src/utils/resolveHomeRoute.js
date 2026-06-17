@@ -1,4 +1,5 @@
 import { readAuthSessionFromCookies, readContextFromCookies } from '@/utils/authSession'
+import { isBasicCashierStaff } from '@/utils/cashierRouting'
 
 export function getStaffRole(user) {
   return user?.staff_role ?? user?.staffRole ?? null
@@ -73,14 +74,17 @@ export function resolveHomeRoute(user, context = {}) {
     return { name: 'nightpos-dashboard' }
   }
 
-  if (role === 'cashier' || staff === 'CASHIER') {
-    if (can('shift_console.access'))
-      return { name: 'nightpos-shift-console' }
+  if (isBasicCashierStaff(user)) {
+    if (can('sales.charge'))
+      return { name: 'nightpos-cashier-orders' }
+
+    if (can('sales.direct_create'))
+      return { name: 'nightpos-cashier-venta' }
 
     if (can('cash.access'))
-      return { name: 'nightpos-cash' }
+      return { name: 'nightpos-cashier-caja' }
 
-    return { name: 'nightpos-dashboard' }
+    return { name: 'nightpos-cashier-more' }
   }
 
   if (['admin', 'manager', 'owner', 'cashier_senior'].includes(role)) {

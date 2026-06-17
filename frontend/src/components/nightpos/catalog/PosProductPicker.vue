@@ -23,6 +23,7 @@ const props = defineProps({
 const emit = defineEmits([
   'pick-product',
   'pick-mode',
+  'pick-combo',
   'configure-price',
   'create-product',
   'toggle-favorite',
@@ -111,6 +112,8 @@ const loadShortcuts = async () => {
 const onPickProduct = product => emit('pick-product', product)
 
 const onPickMode = (product, saleMode) => emit('pick-mode', { product, saleMode })
+
+const onPickCombo = product => emit('pick-combo', { product, saleMode: 'CON_ACOMPANANTE' })
 
 const onToggleFavorite = product => {
   emit('toggle-favorite', product)
@@ -294,6 +297,15 @@ watch(() => props.sellableOnly, value => {
                 <div class="text-caption text-medium-emphasis">
                   {{ productCategoryLabel(product, categoryMap) }}
                 </div>
+                <VChip
+                  v-if="product.requires_allocation"
+                  size="x-small"
+                  color="secondary"
+                  variant="tonal"
+                  class="mt-1"
+                >
+                  Combo {{ product.bracelet_units_per_line }} manillas
+                </VChip>
               </div>
               <VBtn
                 v-if="showFavorites"
@@ -309,7 +321,10 @@ watch(() => props.sellableOnly, value => {
               </VBtn>
             </div>
 
-            <div :class="compact ? 'text-body-2 mt-3' : 'text-caption mb-2 mt-2'">
+            <div
+              v-if="!product.requires_allocation"
+              :class="compact ? 'text-body-2 mt-3' : 'text-caption mb-2 mt-2'"
+            >
               <div class="d-flex justify-space-between">
                 <span class="text-medium-emphasis">Solo</span>
                 <span class="font-weight-medium">
@@ -323,8 +338,36 @@ watch(() => props.sellableOnly, value => {
                 </span>
               </div>
             </div>
+            <div
+              v-else
+              :class="compact ? 'text-body-2 mt-3' : 'text-caption mb-2 mt-2'"
+            >
+              <div class="d-flex justify-space-between">
+                <span class="text-medium-emphasis">Precio combo</span>
+                <span class="font-weight-medium">
+                  {{ priceLabel(product, 'CON_ACOMPANANTE') || 'Sin precio' }}
+                </span>
+              </div>
+            </div>
 
-            <div class="d-flex gap-2 mt-2">
+            <div
+              v-if="product.requires_allocation"
+              class="mt-2"
+            >
+              <VBtn
+                class="w-100"
+                :size="compact ? 'large' : 'small'"
+                color="primary"
+                :disabled="!priceFor(product, 'CON_ACOMPANANTE')"
+                @click="onPickCombo(product)"
+              >
+                Agregar combo
+              </VBtn>
+            </div>
+            <div
+              v-else
+              class="d-flex gap-2 mt-2"
+            >
               <VBtn
                 class="flex-grow-1"
                 :size="compact ? 'large' : 'small'"
@@ -346,7 +389,7 @@ watch(() => props.sellableOnly, value => {
             </div>
 
             <VBtn
-              v-if="canConfigurePrice && (!priceFor(product, 'SOLO_CLIENTE') || !priceFor(product, 'CON_ACOMPANANTE'))"
+              v-if="!product.requires_allocation && canConfigurePrice && (!priceFor(product, 'SOLO_CLIENTE') || !priceFor(product, 'CON_ACOMPANANTE'))"
               size="small"
               variant="text"
               class="mt-1 px-0"
@@ -367,13 +410,28 @@ watch(() => props.sellableOnly, value => {
         v-for="product in products"
         :key="product.id"
         :active="Number(selectedProductId) === product.id"
-        @click="onPickProduct(product)"
+        @click="product.requires_allocation ? onPickCombo(product) : onPickProduct(product)"
       >
-        <VListItemTitle>{{ product.name }}</VListItemTitle>
+        <VListItemTitle>
+          {{ product.name }}
+          <VChip
+            v-if="product.requires_allocation"
+            size="x-small"
+            color="secondary"
+            variant="tonal"
+            class="ms-2"
+          >
+            Combo {{ product.bracelet_units_per_line }} manillas
+          </VChip>
+        </VListItemTitle>
         <VListItemSubtitle>
           {{ productCategoryLabel(product, categoryMap) }}
           <span
-            v-if="priceLabel(product, 'SOLO_CLIENTE')"
+            v-if="product.requires_allocation && priceLabel(product, 'CON_ACOMPANANTE')"
+            class="ms-1"
+          >· {{ priceLabel(product, 'CON_ACOMPANANTE') }}</span>
+          <span
+            v-else-if="priceLabel(product, 'SOLO_CLIENTE')"
             class="ms-1"
           >· {{ priceLabel(product, 'SOLO_CLIENTE') }}</span>
         </VListItemSubtitle>

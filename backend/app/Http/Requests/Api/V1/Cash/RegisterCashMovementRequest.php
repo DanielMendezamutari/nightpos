@@ -22,7 +22,7 @@ final class RegisterCashMovementRequest extends FormRequest
             'cash_movement_reason_id' => ['required', 'integer', 'min:1'],
             'notes' => ['nullable', 'string', 'max:500'],
             'description' => ['nullable', 'string', 'max:255'],
-            'payment_method' => ['nullable', 'string', Rule::in(['CASH', 'QR', 'CARD', 'OTHER'])],
+            'payment_method' => ['required', 'string', Rule::in(['CASH', 'QR', 'CARD', 'OTHER'])],
         ];
     }
 }

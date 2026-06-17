@@ -12,6 +12,7 @@ use App\Application\Auth\UseCases\ListLoginContextTenantsUseCase;
 use App\Application\Auth\UseCases\LoginWithPasswordUseCase;
 use App\Application\Auth\UseCases\LoginWithPinUseCase;
 use App\Application\Auth\UseCases\LogoutUseCase;
+use App\Application\Auth\UseCases\RefreshTokenUseCase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\LoginContextBranchesRequest;
 use App\Http\Requests\Api\V1\LoginPasswordRequest;
@@ -30,6 +31,7 @@ final class AuthController extends Controller
         private readonly ListLoginContextBranchesUseCase $listLoginContextBranches,
         private readonly GetAuthenticatedUserUseCase $getAuthenticatedUser,
         private readonly LogoutUseCase $logoutUseCase,
+        private readonly RefreshTokenUseCase $refreshTokenUseCase,
     ) {
     }
 
@@ -82,6 +84,13 @@ final class AuthController extends Controller
     public function logout(): JsonResponse
     {
         $result = $this->logoutUseCase->execute();
+
+        return $this->presenter->present($result, 200);
+    }
+
+    public function refresh(): JsonResponse
+    {
+        $result = $this->refreshTokenUseCase->execute();
 
         return $this->presenter->present($result, 200);
     }

@@ -6,14 +6,15 @@ namespace App\Application\Cash\UseCases;
 
 use App\Application\Cash\DTOs\CloseCashSessionInput;
 use App\Application\SSE\Services\OperationalEventEmitter;
+use App\Application\Cash\Services\CashSessionCloseCheckBuilder;
 use App\Application\Cash\Support\CashMapper;
 use App\Domain\Cash\Exceptions\CashDomainException;
 use App\Domain\Cash\Repositories\CashSessionRepositoryInterface;
 use App\Shared\Application\DTOs\OperationResult;
+use App\Shared\Application\Support\AuditLogRecorder;
 use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 use App\Shared\Contracts\BranchContextInterface;
 use App\Shared\Contracts\TenantContextInterface;
-use App\Shared\Application\Support\AuditLogRecorder;
 use App\Shared\Contracts\UseCaseInterface;
 
 final class CloseCashSessionUseCase implements UseCaseInterface
@@ -23,6 +24,7 @@ final class CloseCashSessionUseCase implements UseCaseInterface
         private readonly BranchContextInterface $branchContext,
         private readonly AuthenticatedStaffContextInterface $staffContext,
         private readonly CashSessionRepositoryInterface $sessions,
+        private readonly CashSessionCloseCheckBuilder $closeCheckBuilder,
         private readonly AuditLogRecorder $audit,
         private readonly OperationalEventEmitter $eventEmitter,
     ) {
@@ -50,6 +52,19 @@ final class CloseCashSessionUseCase implements UseCaseInterface
 
         if ($session === null) {
             throw CashDomainException::noOpenSession();
+        }
+
+        $shiftId = $session->officialShiftId;
+
+        if ($shiftId === null) {
+            throw CashDomainException::cannotCloseWithBlockers('La sesión de caja no tiene turno oficial asociado.');
+        }
+
+        $check = $this->closeCheckBuilder->build($tenant->id, $branch->id, $shiftId);
+
+        if (! $check['can_close']) {
+            $messages = array_map(static fn (array $b) => $b['message'], $check['blockers']);
+            throw CashDomainException::cannotCloseWithBlockers(implode(' ', $messages));
         }
 
         $closed = $this->sessions->close(

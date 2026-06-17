@@ -32,6 +32,7 @@ use App\Domain\GirlIncome\Exceptions\ShowNotFoundException;
 use App\Domain\StaffSettlement\Exceptions\StaffSettlementNotFoundException;
 use App\Domain\Shift\Exceptions\ShiftDomainException;
 use App\Domain\StaffSettlement\Exceptions\StaffSettlementDomainException;
+use App\Domain\StaffSettlement\Exceptions\SettlementCashSessionRequiredException;
 use App\Domain\Plan\Exceptions\PlanDomainException;
 use App\Domain\Plan\Exceptions\PlanNotFoundException;
 use App\Domain\Tenant\Exceptions\TenantDomainException;
@@ -96,14 +97,17 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof GirlIncomeDomainException,
                 $exception instanceof RoomDomainException,
                 $exception instanceof ShowTypeDomainException,
-                $exception instanceof StaffSettlementDomainException => 422,
+                $exception instanceof StaffSettlementDomainException,
+                $exception instanceof SettlementCashSessionRequiredException => 422,
                 default => 422,
             };
 
             return response()->json([
                 'success' => false,
                 'message' => $exception->getMessage(),
-                'data' => (object) [],
+                'data' => $exception instanceof SettlementCashSessionRequiredException && config('app.debug')
+                    ? (object) ['cash_session_debug' => $exception->debugContext]
+                    : (object) [],
                 'errors' => (object) [],
             ], $status);
         });

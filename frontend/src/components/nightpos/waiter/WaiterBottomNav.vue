@@ -2,16 +2,14 @@
 const route = useRoute()
 
 const tabs = [
-  { title: 'Inicio', icon: 'ri-home-4-line', to: 'nightpos-waiter' },
+  { title: 'Mesas', icon: 'ri-layout-grid-line', to: 'nightpos-waiter' },
   { title: 'Comandas', icon: 'ri-restaurant-line', to: 'nightpos-waiter-orders' },
-  { title: 'Nueva', icon: 'ri-add-circle-line', to: 'nightpos-waiter-orders-new' },
 ]
 
 const isActive = name => route.name === name
 </script>
 
 <template>
-  <!-- Sin VBottomNavigation: layout blank no registra slot "bottom-navigation" en Vuetify -->
   <VSheet
     class="waiter-bottom-nav d-flex"
     elevation="8"

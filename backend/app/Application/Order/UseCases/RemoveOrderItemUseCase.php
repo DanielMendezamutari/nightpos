@@ -6,7 +6,9 @@ namespace App\Application\Order\UseCases;
 
 use App\Application\Order\DTOs\RemoveOrderItemInput;
 use App\Application\Order\Services\OrderAccessGuard;
-use App\Application\Order\Support\OrderMapper;
+use App\Application\Order\Services\OrderPresentationService;
+use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Domain\Order\Exceptions\OrderDomainException;
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
 use App\Domain\Order\ValueObjects\OrderStatus;
@@ -24,6 +26,8 @@ final class RemoveOrderItemUseCase implements UseCaseInterface
         private readonly OrderRepositoryInterface $orders,
         private readonly OrderAccessGuard $accessGuard,
         private readonly AuditLogRecorder $audit,
+        private readonly OperationalEventEmitter $eventEmitter,
+        private readonly OrderPresentationService $presentation,
     ) {
     }
 
@@ -66,8 +70,20 @@ final class RemoveOrderItemUseCase implements UseCaseInterface
             'product_name' => $item->productName,
         ]);
 
+        $this->eventEmitter->emit(
+            $tenant->id,
+            $branch->id,
+            'order.updated',
+            OrderOperationalEventPayload::build(
+                orderId: $order->id,
+                status: $updated?->status ?? $order->status,
+                source: 'remove_order_item',
+                summary: 'Ítem eliminado de la comanda',
+            )
+        );
+
         return OperationResult::ok('Ítem eliminado de la comanda.', [
-            'order' => OrderMapper::order($updated),
+            'order' => $this->presentation->presentOrder($updated, $tenant->id),
         ]);
     }
 }

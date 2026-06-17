@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
 use App\Infrastructure\Persistence\Eloquent\Models\ProductModel;
 use App\Infrastructure\Persistence\Eloquent\Models\ProductPriceModel;
 use App\Infrastructure\Persistence\Eloquent\Models\RoomServiceModel;
@@ -186,18 +187,26 @@ it('returns clear error when product has no price for sale mode', function () {
 });
 
 it('returns pending settlement sources including active room services', function () {
+    OfficialShiftModel::query()->where('status', 'OPEN')->update([
+        'status' => 'CLOSED',
+        'closed_at' => now(),
+    ]);
+
     $girlId = UserModel::query()
         ->whereHas('staffProfile', fn ($q) => $q->where('staff_role', 'GIRL'))
         ->value('id');
 
-    nightposOpenCashSession(phaseBAdminToken());
+    $cashier = phaseBCashierToken();
+    test()->postJson('/api/v1/cash/session/open', [
+        'opening_amount' => 0,
+    ], nightposOperationalHeaders($cashier))->assertCreated();
 
     test()->postJson('/api/v1/room-services', nightposRoomServicePayload([
         'girl_user_id' => $girlId,
         'room_label' => 'VIP-1',
         'total_amount' => 100,
         'duration_minutes' => 60,
-    ]), nightposOperationalHeaders(phaseBAdminToken()))->assertCreated();
+    ]), nightposOperationalHeaders($cashier))->assertCreated();
 
     $response = test()->getJson('/api/v1/settlements/current-shift/pending-sources', nightposOperationalHeaders(phaseBCashierToken()))
         ->assertOk();

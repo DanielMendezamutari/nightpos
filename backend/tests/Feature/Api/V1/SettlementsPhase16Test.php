@@ -191,7 +191,7 @@ it('generates full girl settlement with consumption bracelet room and show', fun
     expect($items)->toContain('GIRL_CONSUMPTION', 'GIRL_BRACELET', 'GIRL_ROOM');
 });
 
-it('does not modify paid settlement on regenerate', function () {
+it('does not modify paid settlement on regenerate but creates new pending settlement for new sources', function () {
     $admin = nightposLoginPassword('admin.demo', 'AdminDemo123!');
     $cashier = nightposLoginPin('1234');
     $waiter = nightposLoginPin('5678');
@@ -202,7 +202,7 @@ it('does not modify paid settlement on regenerate', function () {
 
     $id = (int) StaffSettlementModel::query()->value('id');
 
-    test()->postJson("/api/v1/settlements/{$id}/mark-paid", [], nightposOperationalHeaders($admin))->assertOk();
+    test()->postJson("/api/v1/settlements/{$id}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))->assertOk();
 
     test()->postJson('/api/v1/bracelets', [
         'girl_user_id' => phase16GirlId(),
@@ -212,9 +212,20 @@ it('does not modify paid settlement on regenerate', function () {
     ], nightposOperationalHeaders($admin));
     phase16Generate($admin);
 
-    expect(StaffSettlementModel::query()->find($id)->status)->toBe('PAID')
-        ->and(StaffSettlementModel::query()->find($id)->total_amount)->toBe('2.50')
-        ->and(StaffSettlementItemModel::query()->where('staff_settlement_id', $id)->count())->toBe(1);
+    $paid = StaffSettlementModel::query()->find($id);
+    $pending = StaffSettlementModel::query()
+        ->where('staff_user_id', phase16GirlId())
+        ->where('settlement_type', 'GIRL')
+        ->where('status', 'PENDING')
+        ->first();
+
+    expect($paid->status)->toBe('PAID')
+        ->and($paid->total_amount)->toBe('2.50')
+        ->and(StaffSettlementItemModel::query()->where('staff_settlement_id', $id)->count())->toBe(1)
+        ->and($pending)->not->toBeNull()
+        ->and($pending->id)->not->toBe($id)
+        ->and((float) $pending->total_amount)->toBe(99.0)
+        ->and(StaffSettlementModel::query()->where('staff_user_id', phase16GirlId())->where('settlement_type', 'GIRL')->count())->toBe(1);
 });
 
 it('waiter only sees own settlement on current shift', function () {
@@ -285,13 +296,28 @@ it('shows settlements after shift is closed', function () {
     phase16Generate($admin);
 
     $shiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
-    test()->postJson('/api/v1/cash/session/close', ['declared_closing_amount' => 100], nightposOperationalHeaders($cashier));
+
+    \App\Infrastructure\Persistence\Eloquent\Models\OrderModel::query()
+        ->where('official_shift_id', $shiftId)
+        ->whereIn('status', ['OPEN', 'SENT_TO_BAR'])
+        ->update(['status' => 'CANCELLED', 'cancelled_at' => now()]);
+
+    $settlementId = (int) StaffSettlementModel::query()->where('official_shift_id', $shiftId)->value('id');
+    if ($settlementId) {
+        test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($cashier))->assertOk();
+    }
+
+    test()->postJson('/api/v1/cash/session/close', ['declared_closing_amount' => 100], nightposOperationalHeaders($cashier))->assertOk();
     test()->postJson("/api/v1/shifts/{$shiftId}/close", ['counted_cash' => 100], nightposOperationalHeaders($admin));
 
     test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders($admin))
         ->assertOk()
-        ->assertJsonPath('data.shift.id', $shiftId)
-        ->assertJsonPath('data.summary.total_waiters', '2.50');
+        ->assertJsonPath('data.shift', null)
+        ->assertJsonPath('data.summary.total_waiters', '0.00');
+
+    test()->getJson("/api/v1/settlements/history?official_shift_id={$shiftId}", nightposOperationalHeaders($admin))
+        ->assertOk()
+        ->assertJsonPath('data.settlements.0.total_amount', '2.50');
 });
 
 it('history filters by settlement type', function () {

@@ -2,6 +2,7 @@ export const SETTINGS_SECTION_TABS = [
   { title: 'Métodos de pago', value: 'payments', to: 'nightpos-settings-payments', icon: 'ri-bank-card-line' },
   { title: 'Motivos de caja', value: 'cash-reasons', to: 'nightpos-settings-cash-reasons', icon: 'ri-exchange-funds-line' },
   { title: 'Ambientes', value: 'areas', to: 'nightpos-settings-service-areas', icon: 'ri-layout-grid-line' },
+  { title: 'Mesas', value: 'tables', to: 'nightpos-settings-service-tables', icon: 'ri-table-line' },
   { title: 'Tipos habitación', value: 'room-types', to: 'nightpos-settings-room-types', icon: 'ri-hotel-bed-line' },
   { title: 'Checklist 1ª noche', value: 'checklist', to: 'nightpos-settings-first-night-checklist', icon: 'ri-checkbox-multiple-line' },
 ]

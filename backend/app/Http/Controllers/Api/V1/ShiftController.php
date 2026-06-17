@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Application\Shift\DTOs\CloseOfficialShiftInput;
 use App\Application\Shift\DTOs\OpenOfficialShiftInput;
+use App\Application\Reports\UseCases\GetShiftClosureCheckUseCase;
 use App\Application\Shift\UseCases\CloseOfficialShiftUseCase;
 use App\Application\Shift\UseCases\GetCurrentOfficialShiftUseCase;
 use App\Application\Shift\UseCases\GetOfficialShiftSummaryUseCase;
@@ -28,12 +29,18 @@ final class ShiftController extends Controller
         private readonly ListOfficialShiftsUseCase $listShifts,
         private readonly GetOfficialShiftUseCase $getShift,
         private readonly GetOfficialShiftSummaryUseCase $getSummary,
+        private readonly GetShiftClosureCheckUseCase $getCloseCheck,
     ) {
     }
 
     public function current(): JsonResponse
     {
         return $this->presenter->present($this->getCurrent->execute());
+    }
+
+    public function closeCheck(): JsonResponse
+    {
+        return $this->presenter->present($this->getCloseCheck->execute());
     }
 
     public function index(): JsonResponse

@@ -1,156 +1,139 @@
 <script setup>
 import WaiterBottomNav from '@/components/nightpos/waiter/WaiterBottomNav.vue'
-import WaiterKpiCard from '@/components/nightpos/waiter/WaiterKpiCard.vue'
 import WaiterMobileHeader from '@/components/nightpos/waiter/WaiterMobileHeader.vue'
-import WaiterOrderActions from '@/components/nightpos/waiter/WaiterOrderActions.vue'
-import WaiterOrderCard from '@/components/nightpos/waiter/WaiterOrderCard.vue'
-import { fetchWaiterDashboard } from '@/api/waiter'
-import { useNightPosNotify } from '@/composables/useNightPosNotify'
-import { getApiErrorMessage } from '@/services/http'
+import WaiterTablesGrid from '@/components/nightpos/waiter/WaiterTablesGrid.vue'
+import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
+import { useWaiterTables } from '@/composables/useWaiterTables'
 
 definePage({
   meta: {
     layout: 'blank',
-    permission: 'waiter.dashboard',
+    permission: 'waiter.my_tables',
   },
 })
 
-const router = useRouter()
-const { notify } = useNightPosNotify()
-const loading = ref(true)
-const dashboard = ref({ cards: {}, recent_orders: [] })
+const {
+  loading,
+  openingId,
+  summary,
+  groupedByArea,
+  load,
+  tapTable,
+  sseConnected,
+  sseReconnecting,
+} = useWaiterTables()
 
-const kpiCards = computed(() => [
-  {
-    key: 'new',
-    title: 'Nueva comanda',
-    subtitle: 'Abrir mesa',
-    value: '',
-    icon: 'ri-add-circle-line',
-    color: 'primary',
-    highlight: true,
-    to: { name: 'nightpos-waiter-orders-new' },
-  },
-  {
-    key: 'open',
-    title: 'Abiertas',
-    subtitle: 'Sin enviar',
-    value: dashboard.value.cards?.open_orders ?? 0,
-    icon: 'ri-file-list-3-line',
-    color: 'info',
-    scope: 'open',
-  },
-  {
-    key: 'bar',
-    title: 'En barra',
-    subtitle: 'Preparación',
-    value: dashboard.value.cards?.sent_to_bar ?? 0,
-    icon: 'ri-goblet-line',
-    color: 'warning',
-    scope: 'sent_to_bar',
-  },
-  ...(Number(dashboard.value.cards?.pending_charge ?? 0) > 0
-    ? [{
-        key: 'charge',
-        title: 'Pendientes cobro',
-        subtitle: 'Listas en barra',
-        value: dashboard.value.cards.pending_charge,
-        icon: 'ri-money-dollar-circle-line',
-        color: 'success',
-        scope: 'pending_charge',
-      }]
-    : []),
-])
-
-const load = async () => {
-  loading.value = true
-  try {
-    dashboard.value = await fetchWaiterDashboard()
-  }
-  catch (error) {
-    notify(getApiErrorMessage(error), 'error')
-  }
-  finally {
-    loading.value = false
-  }
-}
-
-const onKpiClick = card => {
-  if (card.to)
-    router.push(card.to)
-  else if (card.scope)
-    router.push({ name: 'nightpos-waiter-orders', query: { scope: card.scope } })
-}
-
-onMounted(load)
+const hasTables = computed(() => summary.value.total > 0)
 </script>
 
 <template>
   <div class="waiter-shell">
-    <WaiterMobileHeader />
+    <WaiterMobileHeader title="Mis mesas" />
 
-    <VContainer class="py-4 px-4">
-      <VProgressLinear
-        v-if="loading"
-        indeterminate
-        class="mb-4"
+    <VContainer class="py-3 px-4">
+      <NightPosSseBanner
+        :connected="sseConnected"
+        :reconnecting="sseReconnecting"
       />
 
-      <div class="waiter-kpi-grid mb-6">
-        <WaiterKpiCard
-          v-for="card in kpiCards"
-          :key="card.key"
-          :title="card.title"
-          :subtitle="card.subtitle"
-          :value="card.value"
-          :icon="card.icon"
-          :color="card.color"
-          :highlight="card.highlight"
-          @click="onKpiClick(card)"
+      <div
+        v-if="hasTables && !loading"
+        class="waiter-summary mb-4"
+      >
+        <VChip
+          color="success"
+          variant="tonal"
+          size="small"
+          prepend-icon="ri-checkbox-blank-circle-line"
+        >
+          {{ summary.free }} libre{{ summary.free === 1 ? '' : 's' }}
+        </VChip>
+        <VChip
+          color="primary"
+          variant="tonal"
+          size="small"
+          prepend-icon="ri-restaurant-2-line"
+        >
+          {{ summary.occupied }} ocupada{{ summary.occupied === 1 ? '' : 's' }}
+        </VChip>
+        <VBtn
+          icon
+          variant="text"
+          size="small"
+          aria-label="Actualizar mesas"
+          :loading="loading"
+          @click="load"
+        >
+          <VIcon icon="ri-refresh-line" />
+        </VBtn>
+      </div>
+
+      <div
+        v-if="loading && !hasTables"
+        class="waiter-tables-skeleton"
+      >
+        <VSkeletonLoader
+          v-for="n in 4"
+          :key="n"
+          type="image"
+          class="waiter-tables-skeleton__item mb-3"
         />
       </div>
 
-      <h2 class="text-subtitle-1 font-weight-bold mb-3">
-        Recientes
-      </h2>
+      <WaiterTablesGrid
+        v-else-if="hasTables"
+        :groups="groupedByArea"
+        :opening-id="openingId"
+        @tap="tapTable"
+      />
 
-      <VAlert
-        v-if="!loading && !dashboard.recent_orders?.length"
-        type="info"
+      <VCard
+        v-else-if="!loading"
         variant="tonal"
+        color="info"
+        class="mb-6"
       >
-        Abre una comanda para empezar.
-      </VAlert>
-
-      <WaiterOrderCard
-        v-for="order in dashboard.recent_orders"
-        :key="order.id"
-        :order="order"
-      >
-        <WaiterOrderActions :order="order" />
-      </WaiterOrderCard>
+        <VCardText class="text-center py-8">
+          <VIcon
+            icon="ri-layout-grid-line"
+            size="48"
+            class="mb-3 text-medium-emphasis"
+          />
+          <div class="text-h6 font-weight-bold mb-2">
+            No tienes mesas asignadas
+          </div>
+          <p class="text-body-2 text-medium-emphasis mb-4">
+            Pide a la cajera o administradora que te asigne tus mesas para este turno.
+          </p>
+          <VBtn
+            variant="outlined"
+            color="primary"
+            prepend-icon="ri-refresh-line"
+            :loading="loading"
+            @click="load"
+          >
+            Actualizar
+          </VBtn>
+        </VCardText>
+      </VCard>
     </VContainer>
 
     <WaiterBottomNav />
-</div>
+  </div>
 </template>
 
 <style scoped lang="scss">
 @use '@styles/waiter-mobile';
 
-.waiter-kpi-grid {
-  display: grid;
-  gap: 12px;
-  grid-template-columns: 1fr;
+.waiter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-@media (min-width: 400px) {
-  .waiter-kpi-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .waiter-kpi-grid > :first-child {
-    grid-column: 1 / -1;
-  }
+.waiter-tables-skeleton__item {
+  min-height: 112px;
+  border-radius: 16px;
 }
 </style>

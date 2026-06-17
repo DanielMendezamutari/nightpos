@@ -97,6 +97,8 @@ final class ProductController extends Controller
             unit: $validated['unit'] ?? 'unit',
             trackInventory: (bool) ($validated['track_inventory'] ?? false),
             status: $validated['status'] ?? 'active',
+            settlementBehavior: $validated['settlement_behavior'] ?? 'GIRL_LINE',
+            braceletUnitsPerLine: (int) ($validated['bracelet_units_per_line'] ?? 1),
         ));
 
         return $this->presenter->present($result, 201);
@@ -113,6 +115,12 @@ final class ProductController extends Controller
             companionPrice: isset($validated['companion_price']) ? (string) $validated['companion_price'] : null,
             girlAmount: isset($validated['girl_amount']) ? (string) $validated['girl_amount'] : null,
             houseAmount: isset($validated['house_amount']) ? (string) $validated['house_amount'] : null,
+            productType: $validated['product_type'] ?? 'beverage',
+            unit: $validated['unit'] ?? 'unit',
+            status: $validated['status'] ?? 'active',
+            settlementBehavior: $validated['settlement_behavior'] ?? null,
+            braceletUnitsPerLine: (int) ($validated['bracelet_units_per_line'] ?? 1),
+            sku: isset($validated['sku']) ? trim((string) $validated['sku']) : null,
         ));
 
         return $this->presenter->present($result, 201);
@@ -134,6 +142,8 @@ final class ProductController extends Controller
             unit: $validated['unit'] ?? 'unit',
             trackInventory: (bool) ($validated['track_inventory'] ?? false),
             status: $validated['status'] ?? 'active',
+            settlementBehavior: $validated['settlement_behavior'] ?? 'GIRL_LINE',
+            braceletUnitsPerLine: (int) ($validated['bracelet_units_per_line'] ?? 1),
         ));
 
         return $this->presenter->present($result);

@@ -55,13 +55,14 @@ it('uses catalog reason on manual cash movement', function () {
 
     $reason = CashMovementReasonModel::query()
         ->where('type', 'EXPENSE')
-        ->where('name', 'Taxi')
+        ->where('name', 'Pago taxi')
         ->first();
 
     $response = test()->postJson('/api/v1/cash/movements', [
         'movement_type' => 'EXPENSE',
         'amount' => 25,
         'cash_movement_reason_id' => $reason->id,
+        'payment_method' => 'CASH',
         'notes' => 'Ida al banco',
     ], phaseC3Headers($token))->assertCreated();
 

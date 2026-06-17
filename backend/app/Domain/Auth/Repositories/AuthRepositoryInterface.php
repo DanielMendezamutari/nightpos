@@ -13,5 +13,7 @@ interface AuthRepositoryInterface extends RepositoryInterface
 {
     public function issueTokenForUserId(int $userId): string;
 
+    public function refreshCurrentToken(): string;
+
     public function invalidateCurrentToken(): void;
 }

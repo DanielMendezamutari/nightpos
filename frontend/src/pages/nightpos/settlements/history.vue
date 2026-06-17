@@ -2,7 +2,7 @@
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
 import { fetchSettlementHistory } from '@/api/settlements'
-import { fetchShifts } from '@/api/shifts'
+import { fetchShifts, fetchCurrentShift } from '@/api/shifts'
 import { useOnContextChange } from '@/composables/useOnContextChange'
 import { useFilteredSettlementTabs } from '@/composables/useSettlementSectionTabs'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
@@ -17,6 +17,7 @@ const router = useRouter()
 const loading = ref(true)
 const settlements = ref([])
 const shifts = ref([])
+const currentShift = ref(null)
 
 const filters = ref({
   date_from: '',
@@ -45,6 +46,7 @@ const headers = [
   { title: 'Turno', key: 'shift_name' },
   { title: 'Personal', key: 'staff_name' },
   { title: 'Tipo', key: 'settlement_type' },
+  { title: 'Corte', key: 'cut_label' },
   { title: 'Total', key: 'total_amount' },
   { title: 'Estado', key: 'status' },
   { title: 'Pagado por', key: 'paid_by_name' },
@@ -92,7 +94,7 @@ const resetFilters = () => {
   filters.value = {
     date_from: '',
     date_to: '',
-    official_shift_id: null,
+    official_shift_id: currentShift.value?.id ?? null,
     staff_user_id: '',
     settlement_type: null,
     status: null,
@@ -102,10 +104,17 @@ const resetFilters = () => {
 
 onMounted(async () => {
   try {
-    shifts.value = await fetchShifts()
+    const [shiftList, shift] = await Promise.allSettled([fetchShifts(), fetchCurrentShift()])
+    shifts.value = shiftList.status === 'fulfilled' ? (shiftList.value ?? []) : []
+    currentShift.value = shift.status === 'fulfilled' ? (shift.value ?? null) : null
   }
   catch {
     shifts.value = []
+    currentShift.value = null
+  }
+
+  if (currentShift.value?.id) {
+    filters.value.official_shift_id = currentShift.value.id
   }
 
   await load()
@@ -118,7 +127,7 @@ useOnContextChange(load)
   <div>
     <NightPosPageHeader
       title="Historial de liquidaciones"
-      subtitle="Liquidaciones generadas en turnos anteriores."
+      subtitle="Liquidaciones filtradas por turno. Por defecto se muestra el turno activo."
       :breadcrumbs="[
         { title: 'NightPOS', disabled: true },
         { title: 'Finanzas', disabled: true },
@@ -127,6 +136,15 @@ useOnContextChange(load)
       ]"
     />
     <NightPosSectionTabs :tabs="settlementTabs" />
+
+    <VAlert
+      v-if="currentShift"
+      type="info"
+      variant="tonal"
+      density="compact"
+      class="mb-3"
+      :text="`Turno activo: ${currentShift.name} — ${currentShift.shift_type === 'NIGHT' ? 'Noche' : 'Día'} · ${currentShift.business_date}. Mostrando liquidaciones de este turno por defecto. Usa los filtros para ver otros turnos.`"
+    />
 
     <VCard class="mb-4">
       <VCardText>

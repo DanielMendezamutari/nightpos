@@ -104,7 +104,7 @@ it('paying cleaning settlement requires open cash session for current user', fun
 
     CashSessionModel::query()->where('status', 'OPEN')->update(['status' => 'CLOSED', 'closed_at' => now()]);
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($admin))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))
         ->assertStatus(422)
         ->assertJsonPath('message', 'Debe abrir caja para pagar esta liquidación.');
 });
@@ -118,7 +118,7 @@ it('paying cleaning settlement with open cash creates expense', function () {
 
     $before = CashMovementModel::query()->where('movement_type', 'EXPENSE')->count();
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($admin))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))
         ->assertOk();
 
     expect(CashMovementModel::query()->where('movement_type', 'EXPENSE')->count())->toBe($before + 1);
@@ -149,7 +149,7 @@ it('expected_cash decreases after paying cleaning settlement', function () {
         ->assertOk()
         ->json('data.session.financial_summary.expected_cash');
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($admin))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))
         ->assertOk();
 
     $after = test()->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($admin))
@@ -166,10 +166,10 @@ it('cannot pay cleaning settlement twice', function () {
     CashSessionModel::query()->where('status', 'OPEN')->update(['status' => 'CLOSED', 'closed_at' => now()]);
     nightposOpenCashSession($admin);
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($admin))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))
         ->assertOk();
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($admin))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))
         ->assertStatus(422);
 });
 
@@ -177,7 +177,7 @@ it('current shift settlements includes pending cleaning total', function () {
     $admin = settlementsCashUiAdminToken();
     settlementsCashUiCreateCleaningSettlement($admin);
 
-    $response = test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders($admin))
+    $response = test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders(settlementsCashUiAdminToken()))
         ->assertOk();
 
     $cleaning = $response->json('data.cleaning');
@@ -197,7 +197,7 @@ it('cash session expenses include cleaning settlement payment', function () {
     CashSessionModel::query()->where('status', 'OPEN')->update(['status' => 'CLOSED', 'closed_at' => now()]);
     nightposOpenCashSession($admin);
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($admin))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))
         ->assertOk();
 
     $movements = test()->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($admin))

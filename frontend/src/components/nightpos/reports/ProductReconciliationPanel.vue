@@ -113,6 +113,7 @@ const fmtMoney = v => `${Number(v ?? 0).toFixed(2)} BOB`
           <tr>
             <th>Producto</th>
             <th class="text-center">Vendido</th>
+            <th class="text-center">Manillas</th>
             <th class="text-center">De comanda</th>
             <th class="text-center">Venta directa</th>
             <th class="text-end">Total</th>
@@ -122,6 +123,7 @@ const fmtMoney = v => `${Number(v ?? 0).toFixed(2)} BOB`
           <tr v-for="row in sold" :key="row.product_id">
             <td>{{ row.product_name }}</td>
             <td class="text-center">{{ row.quantity_sold }}</td>
+            <td class="text-center">{{ row.bracelet_units_sold || '—' }}</td>
             <td class="text-center">{{ row.order_sale_quantity }}</td>
             <td class="text-center">{{ row.direct_sale_quantity }}</td>
             <td class="text-end">{{ fmtMoney(row.total_amount) }}</td>

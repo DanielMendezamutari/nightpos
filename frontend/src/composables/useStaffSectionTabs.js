@@ -1,6 +1,7 @@
 export const STAFF_SECTION_TABS = [
   { title: 'Todos', value: 'all', to: 'nightpos-users', icon: 'ri-team-line' },
   { title: 'Garzones', value: 'waiters', to: 'nightpos-staff-waiters', icon: 'ri-walk-line' },
+  { title: 'Asignar mesas', value: 'assignments', to: 'nightpos-staff-waiter-assignments', icon: 'ri-table-line' },
   { title: 'Cajeras', value: 'cashiers', to: 'nightpos-staff-cashiers', icon: 'ri-cash-line' },
   { title: 'Chicas', value: 'girls', to: 'nightpos-staff-girls', icon: 'ri-user-heart-line' },
   { title: 'Roles', value: 'roles', to: 'nightpos-staff-roles', icon: 'ri-shield-user-line' },

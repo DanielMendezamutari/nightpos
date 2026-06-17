@@ -44,6 +44,23 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
         return $model ? $this->mapSession($model) : null;
     }
 
+    public function listOpenSessionsForBranch(int $tenantId, int $branchId): array
+    {
+        return CashSessionModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('status', CashSessionStatus::OPEN)
+            ->orderBy('id')
+            ->get(['id', 'opened_by_user_id', 'status', 'official_shift_id'])
+            ->map(static fn (CashSessionModel $model) => [
+                'id' => (int) $model->id,
+                'opened_by_user_id' => (int) $model->opened_by_user_id,
+                'status' => (string) $model->status,
+                'official_shift_id' => $model->official_shift_id !== null ? (int) $model->official_shift_id : null,
+            ])
+            ->all();
+    }
+
     public function open(
         int $tenantId,
         int $branchId,
@@ -117,10 +134,11 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
             throw new CashSessionNotFoundException();
         }
 
-        $totals = $this->sumMovements($sessionId);
+        $byMethod = $this->sumMovementsByMethod($sessionId);
+        $cash = $byMethod['CASH'];
         $expected = (float) $model->opening_amount
-            + (float) $totals['income']
-            - (float) $totals['expense'];
+            + (float) $cash['income']
+            - (float) $cash['expense'];
         $declared = (float) $declaredClosingAmount;
         $difference = round($declared - $expected, 2);
 
@@ -161,6 +179,7 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
             ->where('cash_session_id', $cashSessionId)
             ->where('movement_type', CashMovementType::INCOME)
             ->where('description', 'not like', 'Cobro comanda%')
+            ->where('description', 'not like', 'Venta directa%')
             ->sum('amount');
 
         $expense = (float) CashMovementModel::query()
@@ -172,6 +191,33 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
             'income' => number_format($income, 2, '.', ''),
             'expense' => number_format($expense, 2, '.', ''),
         ];
+    }
+
+    public function sumMovementsByMethod(int $cashSessionId): array
+    {
+        $methods = ['CASH', 'QR', 'CARD', 'OTHER'];
+        $result = [];
+
+        foreach ($methods as $method) {
+            $income = (float) CashMovementModel::query()
+                ->where('cash_session_id', $cashSessionId)
+                ->where('movement_type', CashMovementType::INCOME)
+                ->where('payment_method', $method)
+                ->sum('amount');
+
+            $expense = (float) CashMovementModel::query()
+                ->where('cash_session_id', $cashSessionId)
+                ->where('movement_type', CashMovementType::EXPENSE)
+                ->where('payment_method', $method)
+                ->sum('amount');
+
+            $result[$method] = [
+                'income' => number_format($income, 2, '.', ''),
+                'expense' => number_format($expense, 2, '.', ''),
+            ];
+        }
+
+        return $result;
     }
 
     public function listForAdmin(

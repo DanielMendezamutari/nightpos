@@ -37,4 +37,14 @@ final class StaffSettlementDomainException extends DomainException
     {
         return new self('Debe abrir caja para pagar esta liquidación.');
     }
+
+    public static function expenseReasonRequired(): self
+    {
+        return new self('No hay motivo de egreso configurado para registrar el pago en caja.');
+    }
+
+    public static function paymentMethodRequired(): self
+    {
+        return new self('Debe indicar el método de pago para registrar la liquidación.');
+    }
 }

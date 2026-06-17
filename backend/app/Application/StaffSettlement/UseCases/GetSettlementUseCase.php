@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\StaffSettlement\UseCases;
 
+use App\Application\Reports\Services\ComboBraceletReportingService;
 use App\Application\StaffSettlement\Services\SettlementAccessPolicy;
 use App\Application\StaffSettlement\Support\SettlementMapper;
 use App\Domain\Auth\Exceptions\PermissionDeniedException;
@@ -24,6 +25,7 @@ final class GetSettlementUseCase implements UseCaseInterface
         private readonly AuthenticatedStaffContextInterface $staffContext,
         private readonly StaffSettlementRepositoryInterface $settlements,
         private readonly SettlementAccessPolicy $accessPolicy,
+        private readonly ComboBraceletReportingService $comboReporting,
     ) {
     }
 
@@ -55,7 +57,9 @@ final class GetSettlementUseCase implements UseCaseInterface
         return OperationResult::ok('Detalle de liquidación.', [
             'settlement' => SettlementMapper::settlement($detail['settlement']),
             'items' => array_map(
-                SettlementMapper::item(...),
+                fn (array $row) => SettlementMapper::item(
+                    $this->comboReporting->enrichSettlementItem($row),
+                ),
                 $detail['items'],
             ),
         ]);

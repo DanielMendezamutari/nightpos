@@ -10,11 +10,19 @@ namespace App\Application\Order\UseCases;
 
 
 
+use App\Application\Cash\Services\OpenCashSessionResolver;
+
 use App\Application\Order\DTOs\ListOrdersInput;
+
+use App\Application\Order\Services\OrderItemReadinessChecker;
+
+use App\Application\Order\Support\OrderChargeQueueSorter;
 
 use App\Application\Order\Support\OrderListScopeResolver;
 
 use App\Application\Order\Support\OrderMapper;
+
+use App\Application\Order\Support\OrderWaitingMinutesCalculator;
 
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
 
@@ -23,6 +31,8 @@ use App\Domain\Shift\Repositories\OfficialShiftRepositoryInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
 use App\Shared\Application\DTOs\OperationResult;
+
+use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 
 use App\Shared\Contracts\BranchContextInterface;
 
@@ -42,15 +52,19 @@ final class ListOrdersUseCase implements UseCaseInterface
 
         private readonly BranchContextInterface $branchContext,
 
+        private readonly AuthenticatedStaffContextInterface $staffContext,
+
         private readonly OrderRepositoryInterface $orders,
 
         private readonly OfficialShiftRepositoryInterface $shifts,
 
+        private readonly OpenCashSessionResolver $cashSessionResolver,
+
         private readonly OrderListScopeResolver $scopeResolver,
 
-    ) {
+        private readonly OrderItemReadinessChecker $readinessChecker,
 
-    }
+    ) {}
 
 
 
@@ -82,6 +96,12 @@ final class ListOrdersUseCase implements UseCaseInterface
 
         $shiftId = null;
 
+        $cashSessionId = null;
+
+        $cashierUserId = null;
+
+        $isCashierChargeable = $scope === 'cashier_chargeable';
+
 
 
         if ($scope !== null && $scope !== '') {
@@ -98,15 +118,77 @@ final class ListOrdersUseCase implements UseCaseInterface
 
 
 
-        if ($input instanceof ListOrdersInput && $input->currentShiftOnly) {
+        $cashierScoped = $input instanceof ListOrdersInput && $input->cashierScoped;
+
+        $currentShiftOnly = $input instanceof ListOrdersInput && $input->currentShiftOnly;
+
+        $currentCashSessionOnly = $input instanceof ListOrdersInput && $input->currentCashSessionOnly;
+
+
+
+        if ($cashierScoped || $currentShiftOnly) {
 
             $shiftId = $this->shifts->findOpenForBranch($tenant->id, $branch->id)?->id;
+
+
+
+            if ($shiftId === null) {
+
+                return OperationResult::ok('Listado de comandas.', ['orders' => []]);
+
+            }
 
         }
 
 
 
-        $items = $this->orders->listForBranch($tenant->id, $branch->id, $status, $shiftId, $statuses);
+        if ($cashierScoped && $currentCashSessionOnly) {
+
+            $userId = $this->staffContext->userId();
+
+            $session = $userId !== null
+
+                ? $this->cashSessionResolver->findOpenForCurrentUser($tenant->id, $branch->id, $userId)
+
+                : null;
+
+
+
+            if ($session === null) {
+
+                return OperationResult::ok('Listado de comandas.', ['orders' => []]);
+
+            }
+
+
+
+            $cashSessionId = $session->id;
+
+            $cashierUserId = $userId;
+
+        }
+
+
+
+        $items = $this->orders->listForBranch(
+
+            $tenant->id,
+
+            $branch->id,
+
+            $status,
+
+            $shiftId,
+
+            $statuses,
+
+            $cashSessionId,
+
+            $cashierUserId,
+
+            $isCashierChargeable,
+
+        );
 
 
 
@@ -126,6 +208,8 @@ final class ListOrdersUseCase implements UseCaseInterface
 
         ))));
 
+
+
         $waiterNames = $waiterIds !== []
 
             ? UserModel::query()->whereIn('id', $waiterIds)->pluck('name', 'id')->all()
@@ -134,19 +218,39 @@ final class ListOrdersUseCase implements UseCaseInterface
 
 
 
-        $data = array_map(
+        $data = array_map(function ($order) use ($waiterNames, $tenant, $isCashierChargeable) {
 
-            static fn ($order) => OrderMapper::listBrief(
+            $waiterName = $order->waiterUserId !== null ? ($waiterNames[$order->waiterUserId] ?? null) : null;
 
-                $order,
+            $operational = [];
 
-                $order->waiterUserId !== null ? ($waiterNames[$order->waiterUserId] ?? null) : null,
 
-            ),
 
-            $items,
+            if ($isCashierChargeable) {
 
-        );
+                $operational = array_merge(
+
+                    ['waiting_minutes' => OrderWaitingMinutesCalculator::fromOrder($order)],
+
+                    $this->readinessChecker->assessOrder($tenant->id, $order),
+
+                );
+
+            }
+
+
+
+            return OrderMapper::listBrief($order, $waiterName, $operational);
+
+        }, $items);
+
+
+
+        if ($isCashierChargeable) {
+
+            $data = OrderChargeQueueSorter::sort($data);
+
+        }
 
 
 
@@ -155,4 +259,5 @@ final class ListOrdersUseCase implements UseCaseInterface
     }
 
 }
+
 

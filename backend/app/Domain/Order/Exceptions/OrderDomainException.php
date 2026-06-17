@@ -82,4 +82,42 @@ final class OrderDomainException extends DomainException
     {
         return new self('Debe indicar el motivo para cambiar esta línea enviada a barra.');
     }
+
+    public static function allocationsIncomplete(int $required, int $assigned): self
+    {
+        if ($assigned < $required) {
+            $missing = $required - $assigned;
+
+            return new self(sprintf('Faltan %d manilla(s) por asignar (%d / %d).', $missing, $assigned, $required));
+        }
+
+        $extra = $assigned - $required;
+
+        return new self(sprintf('Sobran %d manilla(s) asignadas (%d / %d).', $extra, $assigned, $required));
+    }
+
+    public static function allocationNotAllowed(): self
+    {
+        return new self('Este ítem no requiere reparto de manillas.');
+    }
+
+    public static function girlNotAllowedWithAllocation(): self
+    {
+        return new self('Los combos con reparto de manillas no usan una sola chica en la línea.');
+    }
+
+    public static function tableNotAssigned(): self
+    {
+        return new self('Esta mesa no está asignada a usted.');
+    }
+
+    public static function tableOccupied(): self
+    {
+        return new self('La mesa ya tiene una comanda activa.');
+    }
+
+    public static function serviceTableInactive(): self
+    {
+        return new self('La mesa no está disponible.');
+    }
 }

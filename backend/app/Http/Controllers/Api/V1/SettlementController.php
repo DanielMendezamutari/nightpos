@@ -30,14 +30,18 @@ final class SettlementController extends Controller
     ) {
     }
 
-    public function pendingSources(): JsonResponse
+    public function pendingSources(Request $request): JsonResponse
     {
-        return $this->presenter->present($this->pendingSources->execute());
+        return $this->presenter->present($this->pendingSources->execute(
+            (object) ['scope' => $request->query('scope')],
+        ));
     }
 
-    public function currentShift(): JsonResponse
+    public function currentShift(Request $request): JsonResponse
     {
-        return $this->presenter->present($this->getCurrent->execute());
+        return $this->presenter->present($this->getCurrent->execute(
+            (object) ['scope' => $request->query('scope')],
+        ));
     }
 
     public function generateCurrentShift(): JsonResponse
@@ -56,6 +60,7 @@ final class SettlementController extends Controller
 
         return $this->presenter->present($this->markPaid->execute((object) [
             'settlementId' => $id,
+            'paymentMethod' => $validated['payment_method'],
             'notes' => $validated['notes'] ?? null,
         ]));
     }

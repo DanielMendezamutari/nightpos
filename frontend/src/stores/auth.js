@@ -9,6 +9,8 @@ const TENANT_SLUG_COOKIE = 'tenantSlug'
 const BRANCH_CODE_COOKIE = 'branchCode'
 const TENANT_NAME_COOKIE = 'tenantName'
 const BRANCH_NAME_COOKIE = 'branchName'
+/** Alineado con JWT_REFRESH_TTL (14 días) para permitir renovación silenciosa. */
+const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 14
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -66,8 +68,8 @@ export const useAuthStore = defineStore('auth', {
       this.token = token
       this.user = user
 
-      const tokenCookie = useCookie(TOKEN_COOKIE, { maxAge: 60 * 60 * 12 })
-      const userCookie = useCookie(USER_COOKIE, { maxAge: 60 * 60 * 12 })
+      const tokenCookie = useCookie(TOKEN_COOKIE, { maxAge: SESSION_COOKIE_MAX_AGE })
+      const userCookie = useCookie(USER_COOKIE, { maxAge: SESSION_COOKIE_MAX_AGE })
 
       tokenCookie.value = token
       userCookie.value = user
@@ -97,6 +99,11 @@ export const useAuthStore = defineStore('auth', {
       }
 
       this.syncAbilitiesFromUser(user)
+    },
+
+    persistToken(token) {
+      this.token = token
+      useCookie(TOKEN_COOKIE, { maxAge: SESSION_COOKIE_MAX_AGE }).value = token
     },
 
     clearAuthOnly() {
@@ -207,10 +214,20 @@ export const useAuthStore = defineStore('auth', {
       const data = unwrapNightPosResponse(response)
 
       this.user = data.user
-      useCookie(USER_COOKIE).value = data.user
+      useCookie(USER_COOKIE, { maxAge: SESSION_COOKIE_MAX_AGE }).value = data.user
       this.syncAbilitiesFromUser(data.user)
 
       return data.user
+    },
+
+    async refreshSession() {
+      const response = await api.post('/auth/refresh', null, { _skipAuthRefresh: true })
+      const data = unwrapNightPosResponse(response)
+
+      if (data?.token)
+        this.persistToken(data.token)
+
+      return data?.token ?? null
     },
 
     async logout() {

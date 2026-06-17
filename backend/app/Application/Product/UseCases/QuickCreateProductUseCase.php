@@ -7,12 +7,14 @@ namespace App\Application\Product\UseCases;
 use App\Application\Product\DTOs\QuickCreateProductInput;
 use App\Application\Product\Support\BranchScopeResolver;
 use App\Application\Product\Support\ProductMapper;
+use App\Application\Product\Support\ProductSettlementNormalizer;
 use App\Domain\Product\Exceptions\ProductDomainException;
 use App\Domain\Product\Repositories\ProductCategoryRepositoryInterface;
 use App\Domain\Product\Repositories\ProductPriceRepositoryInterface;
 use App\Domain\Product\Repositories\ProductRepositoryInterface;
 use App\Domain\Product\Services\ProductPriceValidator;
 use App\Domain\Product\ValueObjects\SaleMode;
+use App\Domain\Product\ValueObjects\SettlementBehavior;
 use App\Shared\Application\DTOs\OperationResult;
 use App\Shared\Contracts\BranchContextInterface;
 use App\Shared\Contracts\TenantContextInterface;
@@ -28,6 +30,7 @@ final class QuickCreateProductUseCase implements UseCaseInterface
         private readonly ProductCategoryRepositoryInterface $categories,
         private readonly ProductPriceRepositoryInterface $prices,
         private readonly ProductPriceValidator $priceValidator,
+        private readonly ProductSettlementNormalizer $settlementNormalizer,
     ) {
     }
 
@@ -78,19 +81,28 @@ final class QuickCreateProductUseCase implements UseCaseInterface
             );
         }
 
-        $result = DB::transaction(function () use ($tenant, $branchId, $input, $name, $soloMode, $hasCompanion, $companionPrice) {
+        $settlement = $this->settlementNormalizer->normalize(
+            $input->settlementBehavior ?? SettlementBehavior::GIRL_LINE,
+            $input->braceletUnitsPerLine,
+        );
+
+        $result = DB::transaction(function () use ($tenant, $branchId, $input, $name, $soloMode, $hasCompanion, $companionPrice, $settlement) {
             $product = $this->products->create(
                 tenantId: $tenant->id,
                 branchId: null,
                 categoryId: $input->categoryId,
                 name: $name,
-                sku: null,
+                sku: $input->sku !== null && $input->sku !== '' ? $input->sku : null,
                 barcode: null,
                 description: null,
-                productType: 'beverage',
-                unit: 'unit',
+                productType: $input->productType,
+                unit: $input->unit,
                 trackInventory: false,
-                status: 'active',
+                status: $input->status,
+                settlementBehavior: $settlement['settlement_behavior'],
+                braceletUnitsPerLine: $settlement['bracelet_units_per_line'],
+                requiresAllocation: $settlement['requires_allocation'],
+                allocationType: $settlement['allocation_type'],
             );
 
             $soloPrice = $this->prices->create(

@@ -8,6 +8,8 @@ use App\Application\GirlIncome\Services\GirlStaffValidator;
 use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Application\Order\DTOs\CreateOrderInput;
 use App\Application\Order\Support\OrderMapper;
+use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Domain\Order\ValueObjects\OrderStatus;
 use App\Application\Shift\UseCases\EnsureOperationalShiftUseCase;
 use App\Domain\Order\Exceptions\OrderDomainException;
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
@@ -90,6 +92,7 @@ final class CreateOrderUseCase implements UseCaseInterface
             orderNumber: $this->orders->nextOrderNumber($branch->id),
             tableLabel: $tableLabel,
             serviceAreaId: $serviceAreaId > 0 ? $serviceAreaId : null,
+            serviceTableId: null,
             waiterUserId: $waiterId,
             openedByUserId: $userId,
             notes: $input->notes,
@@ -99,11 +102,12 @@ final class CreateOrderUseCase implements UseCaseInterface
             $tenant->id,
             $branch->id,
             'order.created',
-            [
-                'entity'  => ['type' => 'order', 'id' => $order->id],
-                'summary' => 'Nueva comanda: ' . $order->tableLabel,
-                'refresh' => ['orders'],
-            ]
+            OrderOperationalEventPayload::build(
+                orderId: $order->id,
+                status: OrderStatus::OPEN,
+                source: 'create_order',
+                summary: 'Nueva comanda: ' . $order->tableLabel,
+            )
         );
 
         return OperationResult::ok('Comanda abierta correctamente.', [

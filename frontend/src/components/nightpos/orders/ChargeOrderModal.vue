@@ -7,6 +7,8 @@ import MixedPaymentForm from '@/components/nightpos/payments/MixedPaymentForm.vu
 import { formatMoney } from '@/composables/useOrderHelpers'
 
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
+import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import { useDialogKeyboardShortcuts } from '@/composables/useDialogKeyboardShortcuts'
 
 
 
@@ -29,6 +31,7 @@ const emit = defineEmits(['update:modelValue', 'confirm', 'cash-opened'])
 
 
 const { can } = useNightPosPermissions()
+const { notify } = useNightPosNotify()
 
 
 
@@ -42,7 +45,7 @@ const orderTotal = computed(() => Number(props.order?.total ?? 0))
 
 
 
-const canChargeNow = computed(() => props.cashSessionOpen)
+const canChargeNow = computed(() => props.cashSessionOpen && !props.loading)
 
 
 
@@ -70,11 +73,29 @@ const onCashOpened = () => {
 
 const confirm = () => {
 
+  if (!canChargeNow.value)
+
+    return
+
+
+
+  const paymentCheck = paymentFormRef.value?.validate()
+
+  if (!paymentCheck?.valid) {
+
+    notify(paymentCheck?.message ?? 'Revise los montos de pago.', 'warning')
+
+    return
+
+  }
+
+
+
   const payload = paymentFormRef.value?.toPayload()
 
 
 
-  if (!payload)
+  if (!payload?.payments?.length)
 
     return
 
@@ -96,6 +117,14 @@ const confirm = () => {
 
 }
 
+useDialogKeyboardShortcuts({
+  active: toRef(props, 'modelValue'),
+  onConfirm: confirm,
+  onCancel: close,
+  canConfirm: () => canChargeNow.value,
+  loading: toRef(props, 'loading'),
+})
+
 </script>
 
 
@@ -116,125 +145,139 @@ const confirm = () => {
 
     <VCard>
 
-      <VCardTitle>Cobrar comanda</VCardTitle>
-
-      <VCardText>
-
-        <VAlert
-
-          v-if="!canChargeNow"
-
-          type="warning"
-
-          variant="tonal"
-
-          class="mb-4"
-
+      <VCardTitle class="d-flex flex-column align-start gap-1 pb-2">
+        <span>Cobrar comanda</span>
+        <span
+          v-if="order?.table_label"
+          class="text-body-1 font-weight-medium"
         >
+          {{ order.table_label }}
+          <span
+            v-if="order?.order_number"
+            class="text-medium-emphasis"
+          >
+            · {{ order.order_number }}
+          </span>
+        </span>
+      </VCardTitle>
 
-          <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between gap-2">
+      <VForm @submit.prevent="confirm">
 
-            <span>No hay caja abierta. Abra caja para cobrar esta comanda.</span>
+        <VCardText>
 
-            <VBtn
+          <VAlert
 
-              v-if="can('cash.access')"
+            v-if="!cashSessionOpen"
 
-              color="primary"
+            type="warning"
 
-              size="small"
+            variant="tonal"
 
-              variant="tonal"
+            class="mb-4"
 
-              @click="showOpenCash = true"
+          >
 
-            >
+            <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between gap-2">
 
-              Abrir caja ahora
+              <span>No hay caja abierta. Abra caja para cobrar esta comanda.</span>
 
-            </VBtn>
+              <VBtn
 
-          </div>
+                v-if="can('cash.access')"
 
-        </VAlert>
+                color="primary"
 
+                size="small"
 
+                variant="tonal"
 
-        <VAlert
-          v-if="order?.status === 'OPEN'"
-          type="warning"
-          variant="tonal"
-          density="compact"
-          class="mb-4"
-        >
-          Esta comanda aún no fue enviada a barra. Puede cobrarla de todas formas.
-        </VAlert>
+                @click="showOpenCash = true"
 
-        <VAlert
+              >
 
-          type="info"
+                Abrir caja ahora
 
-          variant="tonal"
+              </VBtn>
 
-          class="mb-4"
+            </div>
 
-        >
-
-          Total a cobrar:
-
-          <strong>{{ formatMoney(order?.total, order?.currency) }}</strong>
-
-        </VAlert>
+          </VAlert>
 
 
 
-        <MixedPaymentForm
+          <VAlert
+            v-if="order?.status === 'OPEN'"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="mb-4"
+          >
+            Esta comanda aún no fue enviada a barra. Puede cobrarla de todas formas.
+          </VAlert>
 
-          ref="paymentFormRef"
+          <VAlert
 
-          :total="orderTotal"
+            type="info"
 
-          :currency="order?.currency ?? 'BOB'"
+            variant="tonal"
 
-          :disabled="!canChargeNow"
+            class="mb-4"
 
-          variant="selector"
+          >
 
-        />
+            Total a cobrar:
 
-      </VCardText>
+            <strong>{{ formatMoney(order?.total, order?.currency) }}</strong>
 
-      <VCardActions>
+          </VAlert>
 
-        <VBtn
 
-          variant="text"
 
-          @click="close"
+          <MixedPaymentForm
+            ref="paymentFormRef"
+            :total="orderTotal"
+            :currency="order?.currency ?? 'BOB'"
+            :disabled="!cashSessionOpen"
+            show-quick-buttons
+          />
 
-        >
+        </VCardText>
 
-          Cancelar
+        <VCardActions>
 
-        </VBtn>
+          <VBtn
 
-        <VBtn
+            variant="text"
 
-          color="success"
+            type="button"
 
-          :loading="loading"
+            @click="close"
 
-          :disabled="!canChargeNow"
+          >
 
-          @click="confirm"
+            Cancelar
 
-        >
+          </VBtn>
 
-          Confirmar cobro
+          <VBtn
 
-        </VBtn>
+            color="success"
 
-      </VCardActions>
+            type="submit"
+
+            :loading="loading"
+
+            :disabled="!cashSessionOpen"
+
+          >
+
+            Confirmar cobro
+
+          </VBtn>
+
+        </VCardActions>
+
+      </VForm>
 
     </VCard>
 
@@ -251,4 +294,3 @@ const confirm = () => {
   />
 
 </template>
-

@@ -3,6 +3,8 @@ import navItems from '@/navigation/horizontal'
 import { themeConfig } from '@themeConfig'
 
 // Components
+import { useNightPosShell } from '@/composables/useNightPosShell'
+import { useOperationalSseHost } from '@/composables/useOperationalSseHost'
 import Footer from '@/layouts/components/Footer.vue'
 import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
 import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
@@ -27,6 +29,10 @@ watch([
     refLoadingIndicator.value.resolveHandle()
 }, { immediate: true })
 // !SECTION
+const { showNightPosChrome } = useNightPosShell()
+
+if (showNightPosChrome.value)
+  useOperationalSseHost()
 </script>
 
 <template>

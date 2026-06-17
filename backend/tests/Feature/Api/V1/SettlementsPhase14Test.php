@@ -172,7 +172,7 @@ it('marks settlement as paid', function () {
 
     $id = (int) StaffSettlementModel::query()->value('id');
 
-    test()->postJson("/api/v1/settlements/{$id}/mark-paid", ['notes' => 'Efectivo'], nightposOperationalHeaders($admin))
+    test()->postJson("/api/v1/settlements/{$id}/mark-paid", ['payment_method' => 'CASH', 'notes' => 'Efectivo'], nightposOperationalHeaders($admin))
         ->assertOk()
         ->assertJsonPath('data.settlement.status', 'PAID');
 
@@ -199,7 +199,7 @@ it('denies cashier without pay permission from marking paid', function () {
 
     $cashierFresh = nightposLoginPin('1234');
 
-    test()->postJson("/api/v1/settlements/{$id}/mark-paid", [], nightposOperationalHeaders($cashierFresh))
+    test()->postJson("/api/v1/settlements/{$id}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($cashierFresh))
         ->assertForbidden();
 });
 
@@ -264,6 +264,7 @@ it('keeps settlement snapshot after shift is closed', function () {
     $totalBefore = StaffSettlementModel::query()->find($settlementId)->total_amount;
 
     $shiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+    nightposPrepareCashSessionClose($cashier, $admin);
     test()->postJson('/api/v1/cash/session/close', ['declared_closing_amount' => 100], nightposOperationalHeaders($cashier))->assertOk();
     test()->postJson("/api/v1/shifts/{$shiftId}/close", ['counted_cash' => 100], nightposOperationalHeaders($admin))->assertOk();
 

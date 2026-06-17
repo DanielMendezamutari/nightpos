@@ -172,12 +172,21 @@ final class NightPosSeeder extends Seeder
         }
 
         foreach ([
+            ['type' => 'INCOME', 'name' => 'Ingreso manual'],
+            ['type' => 'INCOME', 'name' => 'Ajuste positivo'],
+            ['type' => 'INCOME', 'name' => 'Otro ingreso'],
+            ['type' => 'EXPENSE', 'name' => 'Compra insumos'],
+            ['type' => 'EXPENSE', 'name' => 'Pago taxi'],
             ['type' => 'EXPENSE', 'name' => 'Limpieza'],
-            ['type' => 'EXPENSE', 'name' => 'Taxi'],
+            ['type' => 'EXPENSE', 'name' => 'Pago personal'],
+            ['type' => 'EXPENSE', 'name' => 'Pago cajera'],
+            ['type' => 'EXPENSE', 'name' => 'Adelanto personal'],
+            ['type' => 'EXPENSE', 'name' => 'Ajuste negativo'],
+            ['type' => 'EXPENSE', 'name' => 'Otro egreso'],
+            ['type' => 'BOTH', 'name' => 'Corrección caja'],
             ['type' => 'EXPENSE', 'name' => 'Compra hielo'],
             ['type' => 'EXPENSE', 'name' => 'Compra comida'],
             ['type' => 'EXPENSE', 'name' => 'Multa'],
-            ['type' => 'INCOME', 'name' => 'Otros'],
         ] as $reason) {
             CashMovementReasonModel::query()->firstOrCreate(
                 [

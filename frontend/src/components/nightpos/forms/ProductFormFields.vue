@@ -13,6 +13,14 @@ const PRODUCT_TYPES = [
   { title: 'Servicio', value: 'service' },
   { title: 'Comida', value: 'food' },
 ]
+
+const SETTLEMENT_BEHAVIORS = [
+  { title: 'Línea simple (1 chica)', value: 'GIRL_LINE' },
+  { title: 'Combo con reparto de manillas', value: 'GIRL_BRACELET_ALLOCATION' },
+  { title: 'Sin liquidación chica', value: 'NONE' },
+]
+
+const showBraceletUnits = computed(() => form.value.settlement_behavior === 'GIRL_BRACELET_ALLOCATION')
 </script>
 
 <template>
@@ -78,7 +86,31 @@ const PRODUCT_TYPES = [
       <VTextField
         v-model="form.unit"
         label="Unidad"
-        hint="unit, botella, etc."
+        hint="unit, botella, combo, etc."
+        persistent-hint
+      />
+    </VCol>
+    <VCol
+      cols="12"
+      md="6"
+    >
+      <VSelect
+        v-model="form.settlement_behavior"
+        label="Comportamiento liquidación"
+        :items="SETTLEMENT_BEHAVIORS"
+      />
+    </VCol>
+    <VCol
+      v-if="showBraceletUnits"
+      cols="12"
+      md="6"
+    >
+      <VTextField
+        v-model.number="form.bracelet_units_per_line"
+        type="number"
+        min="1"
+        label="Manillas por combo"
+        hint="Ej: 6 para combo de 6 cervezas"
         persistent-hint
       />
     </VCol>

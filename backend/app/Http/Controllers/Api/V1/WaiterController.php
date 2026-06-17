@@ -7,7 +7,9 @@ namespace App\Http\Controllers\Api\V1;
 use App\Application\Settings\UseCases\ListServiceAreasUseCase;
 use App\Application\Staff\UseCases\ListOperationalGirlsUseCase;
 use App\Application\Waiter\UseCases\GetWaiterDashboardUseCase;
+use App\Application\Waiter\UseCases\GetWaiterMyTablesUseCase;
 use App\Application\Waiter\UseCases\ListWaiterOrdersUseCase;
+use App\Application\Waiter\UseCases\OpenWaiterTableUseCase;
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Presentation\Http\Contracts\ApiResponsePresenterInterface;
 use Illuminate\Http\JsonResponse;
@@ -20,6 +22,8 @@ final class WaiterController extends Controller
         private readonly ListWaiterOrdersUseCase $listOrders,
         private readonly ListServiceAreasUseCase $listServiceAreas,
         private readonly ListOperationalGirlsUseCase $listGirls,
+        private readonly GetWaiterMyTablesUseCase $myTables,
+        private readonly OpenWaiterTableUseCase $openTableUseCase,
     ) {
     }
 
@@ -48,5 +52,21 @@ final class WaiterController extends Controller
     public function girls(): JsonResponse
     {
         return $this->presenter->present($this->listGirls->execute());
+    }
+
+    public function myTables(): JsonResponse
+    {
+        return $this->presenter->present($this->myTables->execute());
+    }
+
+    public function openTable(int $tableId): JsonResponse
+    {
+        $result = $this->openTableUseCase->execute((object) [
+            'tableId' => $tableId,
+        ]);
+
+        $created = (bool) ($result->data['created'] ?? false);
+
+        return $this->presenter->present($result, $created ? 201 : 200);
     }
 }

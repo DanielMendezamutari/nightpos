@@ -20,6 +20,7 @@ final class OrderModel extends Model
         'status',
         'table_label',
         'service_area_id',
+        'service_table_id',
         'waiter_user_id',
         'opened_by_user_id',
         'notes',
@@ -48,5 +49,10 @@ final class OrderModel extends Model
     public function waiter(): BelongsTo
     {
         return $this->belongsTo(UserModel::class, 'waiter_user_id');
+    }
+
+    public function serviceTable(): BelongsTo
+    {
+        return $this->belongsTo(ServiceTableModel::class, 'service_table_id');
     }
 }

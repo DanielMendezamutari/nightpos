@@ -9,9 +9,9 @@ declare global {
   const BRANCH_CODE_COOKIE: typeof import('./src/stores/context.js')['BRANCH_CODE_COOKIE']
   const BRANCH_NAME_COOKIE: typeof import('./src/stores/context.js')['BRANCH_NAME_COOKIE']
   const CASHIER_ORDER_TABS: typeof import('./src/composables/useOrderListTabs.js')['CASHIER_ORDER_TABS']
+  const CASHIER_SHELL_TABS: typeof import('./src/utils/cashierShellNav.js')['CASHIER_SHELL_TABS']
   const CASH_SESSION_SECTION_TABS: typeof import('./src/composables/useCashSessionSectionTabs.js')['CASH_SESSION_SECTION_TABS']
   const CATALOG_SECTION_TABS: typeof import('./src/composables/useStaffSectionTabs.js')['CATALOG_SECTION_TABS']
-  const COOKIE_MAX_AGE_1_YEAR: typeof import('./src/utils/constants.js')['COOKIE_MAX_AGE_1_YEAR']
   const EffectScope: typeof import('vue')['EffectScope']
   const ORDER_EMPTY_MESSAGES: typeof import('./src/composables/useOrderListTabs.js')['ORDER_EMPTY_MESSAGES']
   const ORDER_LIST_TABS: typeof import('./src/composables/useOrderListTabs.js')['ORDER_LIST_TABS']
@@ -38,14 +38,18 @@ declare global {
   const alphaValidator: typeof import('./src/@core/utils/validators.js')['alphaValidator']
   const appendGirlToSelectList: typeof import('./src/composables/useOperationalGirls.js')['appendGirlToSelectList']
   const appendWaiterToSelectList: typeof import('./src/composables/useOperationalWaiters.js')['appendWaiterToSelectList']
+  const assignedUnitsFromMap: typeof import('./src/composables/useComboAllocation.js')['assignedUnitsFromMap']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const avatarText: typeof import('./src/@core/utils/formatters.js')['avatarText']
   const betweenValidator: typeof import('./src/@core/utils/validators.js')['betweenValidator']
+  const buildAllocationPayload: typeof import('./src/composables/useComboAllocation.js')['buildAllocationPayload']
   const buildUserPayload: typeof import('./src/composables/useUserAdminForm.js')['buildUserPayload']
   const buildWaiterCreateOrderPayload: typeof import('./src/utils/waiterOrderPayload.js')['buildWaiterCreateOrderPayload']
   const canModifyOrder: typeof import('./src/composables/useOrderHelpers.js')['canModifyOrder']
+  const cashierOrderOperationalChips: typeof import('./src/composables/useCashierOrderQueue.js')['cashierOrderOperationalChips']
   const clearAuthCookies: typeof import('./src/utils/authSession.js')['clearAuthCookies']
+  const comboRequiredUnits: typeof import('./src/composables/useComboAllocation.js')['comboRequiredUnits']
   const computed: typeof import('vue')['computed']
   const computedAsync: typeof import('@vueuse/core')['computedAsync']
   const computedEager: typeof import('@vueuse/core')['computedEager']
@@ -56,6 +60,7 @@ declare global {
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
   const countBlockingOverlays: typeof import('./src/utils/overlaySafety.js')['countBlockingOverlays']
   const createApp: typeof import('vue')['createApp']
+  const createDefaultProductForm: typeof import('./src/composables/useProductForm.js')['createDefaultProductForm']
   const createEventHook: typeof import('@vueuse/core')['createEventHook']
   const createGenericProjection: typeof import('@vueuse/math')['createGenericProjection']
   const createGlobalState: typeof import('@vueuse/core')['createGlobalState']
@@ -82,12 +87,17 @@ declare global {
   const emailValidator: typeof import('./src/@core/utils/validators.js')['emailValidator']
   const emptyUserForm: typeof import('./src/composables/useUserAdminForm.js')['emptyUserForm']
   const extendRef: typeof import('@vueuse/core')['extendRef']
+  const formPricePayloads: typeof import('./src/composables/useProductForm.js')['formPricePayloads']
+  const formToQuickCreatePayload: typeof import('./src/composables/useProductForm.js')['formToQuickCreatePayload']
+  const formToUpdatePayload: typeof import('./src/composables/useProductForm.js')['formToUpdatePayload']
+  const formatAllocationSummary: typeof import('./src/composables/useOrderHelpers.js')['formatAllocationSummary']
+  const formatCompanionBraceletLine: typeof import('./src/composables/useOrderHelpers.js')['formatCompanionBraceletLine']
   const formatDate: typeof import('./src/@core/utils/formatters.js')['formatDate']
   const formatDateToMonthShort: typeof import('./src/@core/utils/formatters.js')['formatDateToMonthShort']
-  const formatMoney: typeof import('./src/composables/useOrderHelpers.js')['formatMoney']
   const formatProductType: typeof import('./src/composables/useProductLabels.js')['formatProductType']
   const formatSaleMode: typeof import('./src/composables/useProductLabels.js')['formatSaleMode']
   const formatStatus: typeof import('./src/composables/useProductLabels.js')['formatStatus']
+  const formatWaitingMinutes: typeof import('./src/composables/useCashierOrderQueue.js')['formatWaitingMinutes']
   const getActivePinia: typeof import('pinia')['getActivePinia']
   const getCurrentInstance: typeof import('vue')['getCurrentInstance']
   const getCurrentScope: typeof import('vue')['getCurrentScope']
@@ -97,9 +107,15 @@ declare global {
   const h: typeof import('vue')['h']
   const hasWaiterTableReference: typeof import('./src/utils/waiterOrderPayload.js')['hasWaiterTableReference']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
+  const initialUnitsMap: typeof import('./src/composables/useComboAllocation.js')['initialUnitsMap']
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
   const integerValidator: typeof import('./src/@core/utils/validators.js')['integerValidator']
+  const isBasicCashierStaff: typeof import('./src/utils/cashierRouting.js')['isBasicCashierStaff']
+  const isCashierShellAllowedPath: typeof import('./src/utils/cashierRouting.js')['isCashierShellAllowedPath']
+  const isCashierShellRoute: typeof import('./src/utils/cashierRouting.js')['isCashierShellRoute']
+  const isCashierShellStaff: typeof import('./src/utils/cashierRouting.js')['isCashierShellStaff']
+  const isCashierShellTabVisible: typeof import('./src/utils/cashierShellNav.js')['isCashierShellTabVisible']
   const isCleaningStaff: typeof import('./src/utils/resolveHomeRoute.js')['isCleaningStaff']
   const isDefined: typeof import('@vueuse/core')['isDefined']
   const isEmpty: typeof import('./src/@core/utils/helpers.js')['isEmpty']
@@ -122,6 +138,7 @@ declare global {
   const isValidAuthUser: typeof import('./src/utils/authSession.js')['isValidAuthUser']
   const isWaiterOnlyRoute: typeof import('./src/utils/waiterRouting.js')['isWaiterOnlyRoute']
   const isWaiterStaff: typeof import('./src/utils/waiterRouting.js')['isWaiterStaff']
+  const itemsNeedingAllocation: typeof import('./src/composables/useOrderHelpers.js')['itemsNeedingAllocation']
   const itemsNeedingGirl: typeof import('./src/composables/useOrderHelpers.js')['itemsNeedingGirl']
   const kFormatter: typeof import('./src/@core/utils/formatters.js')['kFormatter']
   const lengthValidator: typeof import('./src/@core/utils/validators.js')['lengthValidator']
@@ -140,6 +157,7 @@ declare global {
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
   const nextTick: typeof import('vue')['nextTick']
+  const normalizeOperationalGirls: typeof import('./src/composables/useComboAllocation.js')['normalizeOperationalGirls']
   const onActivated: typeof import('vue')['onActivated']
   const onBeforeMount: typeof import('vue')['onBeforeMount']
   const onBeforeRouteLeave: typeof import('vue-router/auto')['onBeforeRouteLeave']
@@ -163,7 +181,6 @@ declare global {
   const orderItemStatusLabel: typeof import('./src/composables/useOrderHelpers.js')['orderItemStatusLabel']
   const orderStatusColor: typeof import('./src/composables/useOrderHelpers.js')['orderStatusColor']
   const orderStatusLabel: typeof import('./src/composables/useOrderHelpers.js')['orderStatusLabel']
-  const paginationMeta: typeof import('./src/utils/paginationMeta.js')['paginationMeta']
   const passwordValidator: typeof import('./src/@core/utils/validators.js')['passwordValidator']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
   const prefixWithPlus: typeof import('./src/@core/utils/formatters.js')['prefixWithPlus']
@@ -171,6 +188,8 @@ declare global {
   const productActivePrice: typeof import('./src/composables/useProductLabels.js')['productActivePrice']
   const productCategoryLabel: typeof import('./src/composables/useProductLabels.js')['productCategoryLabel']
   const productHasActivePricing: typeof import('./src/composables/useProductSaleModeLabels.js')['productHasActivePricing']
+  const productPreviewLabel: typeof import('./src/composables/useProductForm.js')['productPreviewLabel']
+  const productToForm: typeof import('./src/composables/useProductForm.js')['productToForm']
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
   const reactify: typeof import('@vueuse/core')['reactify']
@@ -193,6 +212,7 @@ declare global {
   const regexValidator: typeof import('./src/@core/utils/validators.js')['regexValidator']
   const registerPlugins: typeof import('./src/@core/utils/plugins.js')['registerPlugins']
   const requiredValidator: typeof import('./src/@core/utils/validators.js')['requiredValidator']
+  const resolveCashierShellRedirect: typeof import('./src/utils/cashierRouting.js')['resolveCashierShellRedirect']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveHomeRoute: typeof import('./src/utils/waiterRouting.js')['resolveHomeRoute']
   const resolveHomeRouteName: typeof import('./src/utils/waiterRouting.js')['resolveHomeRouteName']
@@ -209,6 +229,7 @@ declare global {
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
+  const shouldShowCompanionBraceletLine: typeof import('./src/composables/useOrderHelpers.js')['shouldShowCompanionBraceletLine']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
@@ -226,6 +247,7 @@ declare global {
   const tryOnMounted: typeof import('@vueuse/core')['tryOnMounted']
   const tryOnScopeDispose: typeof import('@vueuse/core')['tryOnScopeDispose']
   const tryOnUnmounted: typeof import('@vueuse/core')['tryOnUnmounted']
+  const unitsMapToRows: typeof import('./src/composables/useComboAllocation.js')['unitsMapToRows']
   const unref: typeof import('vue')['unref']
   const unrefElement: typeof import('@vueuse/core')['unrefElement']
   const until: typeof import('@vueuse/core')['until']
@@ -261,6 +283,10 @@ declare global {
   const useBroadcastChannel: typeof import('@vueuse/core')['useBroadcastChannel']
   const useBrowserLocation: typeof import('@vueuse/core')['useBrowserLocation']
   const useCached: typeof import('@vueuse/core')['useCached']
+  const useCashierAccount: typeof import('./src/composables/useCashierAccount.js')['useCashierAccount']
+  const useCashierMoreMenu: typeof import('./src/composables/useCashierMoreMenu.js')['useCashierMoreMenu']
+  const useCashierShell: typeof import('./src/composables/useCashierShell.js')['useCashierShell']
+  const useCashierShellTabs: typeof import('./src/utils/cashierShellNav.js')['useCashierShellTabs']
   const useCeil: typeof import('@vueuse/math')['useCeil']
   const useClamp: typeof import('@vueuse/math')['useClamp']
   const useClipboard: typeof import('@vueuse/core')['useClipboard']
@@ -286,6 +312,7 @@ declare global {
   const useDeviceOrientation: typeof import('@vueuse/core')['useDeviceOrientation']
   const useDevicePixelRatio: typeof import('@vueuse/core')['useDevicePixelRatio']
   const useDevicesList: typeof import('@vueuse/core')['useDevicesList']
+  const useDialogKeyboardShortcuts: typeof import('./src/composables/useDialogKeyboardShortcuts.js')['useDialogKeyboardShortcuts']
   const useDisplayMedia: typeof import('@vueuse/core')['useDisplayMedia']
   const useDocumentVisibility: typeof import('@vueuse/core')['useDocumentVisibility']
   const useDraggable: typeof import('@vueuse/core')['useDraggable']
@@ -355,7 +382,10 @@ declare global {
   const useOnContextChange: typeof import('./src/composables/useOnContextChange.js')['useOnContextChange']
   const useOnline: typeof import('@vueuse/core')['useOnline']
   const useOperationalEvents: typeof import('./src/composables/useOperationalEvents.js')['useOperationalEvents']
+  const useOperationalPollingFallback: typeof import('./src/composables/useOperationalPollingFallback.js')['useOperationalPollingFallback']
+  const useOperationalSseHost: typeof import('./src/composables/useOperationalSseHost.js')['useOperationalSseHost']
   const useOperationalStore: typeof import('./src/stores/operational.js')['useOperationalStore']
+  const useOrderOperationalEvents: typeof import('./src/composables/useOrderOperationalEvents.js')['useOrderOperationalEvents']
   const useOrderProductShortcuts: typeof import('./src/composables/useOrderProductShortcuts.js')['useOrderProductShortcuts']
   const usePageLeave: typeof import('@vueuse/core')['usePageLeave']
   const useParallax: typeof import('@vueuse/core')['useParallax']
@@ -392,6 +422,7 @@ declare global {
   const useScrollLock: typeof import('@vueuse/core')['useScrollLock']
   const useServiceCashSession: typeof import('./src/composables/useServiceCashSession.js')['useServiceCashSession']
   const useSessionStorage: typeof import('@vueuse/core')['useSessionStorage']
+  const useSettlementPayment: typeof import('./src/composables/useSettlementPayment.js')['useSettlementPayment']
   const useSettlementPendingSources: typeof import('./src/composables/useSettlementPendingSources.js')['useSettlementPendingSources']
   const useShare: typeof import('@vueuse/core')['useShare']
   const useShowMaterializeCustomizer: typeof import('./src/composables/useShowMaterializeCustomizer.js')['useShowMaterializeCustomizer']
@@ -400,7 +431,6 @@ declare global {
   const useSorted: typeof import('@vueuse/core')['useSorted']
   const useSpeechRecognition: typeof import('@vueuse/core')['useSpeechRecognition']
   const useSpeechSynthesis: typeof import('@vueuse/core')['useSpeechSynthesis']
-  const useSseStatus: typeof import('./src/composables/useSseStatus.js')['useSseStatus']
   const useStepper: typeof import('@vueuse/core')['useStepper']
   const useStorageAsync: typeof import('@vueuse/core')['useStorageAsync']
   const useStyleTag: typeof import('@vueuse/core')['useStyleTag']
@@ -432,6 +462,7 @@ declare global {
   const useVModels: typeof import('@vueuse/core')['useVModels']
   const useVibrate: typeof import('@vueuse/core')['useVibrate']
   const useVirtualList: typeof import('@vueuse/core')['useVirtualList']
+  const useWaiterTables: typeof import('./src/composables/useWaiterTables.js')['useWaiterTables']
   const useWakeLock: typeof import('@vueuse/core')['useWakeLock']
   const useWebNotification: typeof import('@vueuse/core')['useWebNotification']
   const useWebSocket: typeof import('@vueuse/core')['useWebSocket']
@@ -474,6 +505,7 @@ declare module 'vue' {
     readonly BRANCH_CODE_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['BRANCH_CODE_COOKIE']>
     readonly BRANCH_NAME_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['BRANCH_NAME_COOKIE']>
     readonly CASHIER_ORDER_TABS: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['CASHIER_ORDER_TABS']>
+    readonly CASHIER_SHELL_TABS: UnwrapRef<typeof import('./src/utils/cashierShellNav.js')['CASHIER_SHELL_TABS']>
     readonly CASH_SESSION_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useCashSessionSectionTabs.js')['CASH_SESSION_SECTION_TABS']>
     readonly CATALOG_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useStaffSectionTabs.js')['CATALOG_SECTION_TABS']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
@@ -503,14 +535,18 @@ declare module 'vue' {
     readonly alphaValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['alphaValidator']>
     readonly appendGirlToSelectList: UnwrapRef<typeof import('./src/composables/useOperationalGirls.js')['appendGirlToSelectList']>
     readonly appendWaiterToSelectList: UnwrapRef<typeof import('./src/composables/useOperationalWaiters.js')['appendWaiterToSelectList']>
+    readonly assignedUnitsFromMap: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['assignedUnitsFromMap']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly avatarText: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['betweenValidator']>
+    readonly buildAllocationPayload: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['buildAllocationPayload']>
     readonly buildUserPayload: UnwrapRef<typeof import('./src/composables/useUserAdminForm.js')['buildUserPayload']>
     readonly buildWaiterCreateOrderPayload: UnwrapRef<typeof import('./src/utils/waiterOrderPayload.js')['buildWaiterCreateOrderPayload']>
     readonly canModifyOrder: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['canModifyOrder']>
+    readonly cashierOrderOperationalChips: UnwrapRef<typeof import('./src/composables/useCashierOrderQueue.js')['cashierOrderOperationalChips']>
     readonly clearAuthCookies: UnwrapRef<typeof import('./src/utils/authSession.js')['clearAuthCookies']>
+    readonly comboRequiredUnits: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['comboRequiredUnits']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -521,6 +557,7 @@ declare module 'vue' {
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly countBlockingOverlays: UnwrapRef<typeof import('./src/utils/overlaySafety.js')['countBlockingOverlays']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
+    readonly createDefaultProductForm: UnwrapRef<typeof import('./src/composables/useProductForm.js')['createDefaultProductForm']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGenericProjection: UnwrapRef<typeof import('@vueuse/math')['createGenericProjection']>
     readonly createGlobalState: UnwrapRef<typeof import('@vueuse/core')['createGlobalState']>
@@ -547,11 +584,17 @@ declare module 'vue' {
     readonly emailValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['emailValidator']>
     readonly emptyUserForm: UnwrapRef<typeof import('./src/composables/useUserAdminForm.js')['emptyUserForm']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
+    readonly formPricePayloads: UnwrapRef<typeof import('./src/composables/useProductForm.js')['formPricePayloads']>
+    readonly formToQuickCreatePayload: UnwrapRef<typeof import('./src/composables/useProductForm.js')['formToQuickCreatePayload']>
+    readonly formToUpdatePayload: UnwrapRef<typeof import('./src/composables/useProductForm.js')['formToUpdatePayload']>
+    readonly formatAllocationSummary: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['formatAllocationSummary']>
+    readonly formatCompanionBraceletLine: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['formatCompanionBraceletLine']>
     readonly formatDate: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDateToMonthShort']>
     readonly formatProductType: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatProductType']>
     readonly formatSaleMode: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatSaleMode']>
     readonly formatStatus: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatStatus']>
+    readonly formatWaitingMinutes: UnwrapRef<typeof import('./src/composables/useCashierOrderQueue.js')['formatWaitingMinutes']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
@@ -561,9 +604,15 @@ declare module 'vue' {
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hasWaiterTableReference: UnwrapRef<typeof import('./src/utils/waiterOrderPayload.js')['hasWaiterTableReference']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
+    readonly initialUnitsMap: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['initialUnitsMap']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly integerValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['integerValidator']>
+    readonly isBasicCashierStaff: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isBasicCashierStaff']>
+    readonly isCashierShellAllowedPath: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellAllowedPath']>
+    readonly isCashierShellRoute: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellRoute']>
+    readonly isCashierShellStaff: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellStaff']>
+    readonly isCashierShellTabVisible: UnwrapRef<typeof import('./src/utils/cashierShellNav.js')['isCashierShellTabVisible']>
     readonly isCleaningStaff: UnwrapRef<typeof import('./src/utils/resolveHomeRoute.js')['isCleaningStaff']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isEmpty: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isEmpty']>
@@ -590,6 +639,7 @@ declare module 'vue' {
     readonly isWaiterOnlyRoute: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['isWaiterOnlyRoute']>
     readonly isWaiterStaff: UnwrapRef<typeof import('./src/utils/resolveHomeRoute.js')['isWaiterStaff']>
     readonly isWaiterStaff: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['isWaiterStaff']>
+    readonly itemsNeedingAllocation: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['itemsNeedingAllocation']>
     readonly itemsNeedingGirl: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['itemsNeedingGirl']>
     readonly kFormatter: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['kFormatter']>
     readonly lengthValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['lengthValidator']>
@@ -608,6 +658,7 @@ declare module 'vue' {
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly normalizeOperationalGirls: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['normalizeOperationalGirls']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
     readonly onBeforeRouteLeave: UnwrapRef<typeof import('vue-router/auto')['onBeforeRouteLeave']>
@@ -639,6 +690,8 @@ declare module 'vue' {
     readonly productActivePrice: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productActivePrice']>
     readonly productCategoryLabel: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productCategoryLabel']>
     readonly productHasActivePricing: UnwrapRef<typeof import('./src/composables/useProductSaleModeLabels.js')['productHasActivePricing']>
+    readonly productPreviewLabel: UnwrapRef<typeof import('./src/composables/useProductForm.js')['productPreviewLabel']>
+    readonly productToForm: UnwrapRef<typeof import('./src/composables/useProductForm.js')['productToForm']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
@@ -661,6 +714,7 @@ declare module 'vue' {
     readonly regexValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['regexValidator']>
     readonly registerPlugins: UnwrapRef<typeof import('./src/@core/utils/plugins.js')['registerPlugins']>
     readonly requiredValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['requiredValidator']>
+    readonly resolveCashierShellRedirect: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['resolveCashierShellRedirect']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveHomeRoute: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['resolveHomeRoute']>
     readonly resolveHomeRouteName: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['resolveHomeRouteName']>
@@ -677,6 +731,7 @@ declare module 'vue' {
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
+    readonly shouldShowCompanionBraceletLine: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['shouldShowCompanionBraceletLine']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
@@ -694,6 +749,7 @@ declare module 'vue' {
     readonly tryOnMounted: UnwrapRef<typeof import('@vueuse/core')['tryOnMounted']>
     readonly tryOnScopeDispose: UnwrapRef<typeof import('@vueuse/core')['tryOnScopeDispose']>
     readonly tryOnUnmounted: UnwrapRef<typeof import('@vueuse/core')['tryOnUnmounted']>
+    readonly unitsMapToRows: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['unitsMapToRows']>
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
@@ -729,6 +785,10 @@ declare module 'vue' {
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
+    readonly useCashierAccount: UnwrapRef<typeof import('./src/composables/useCashierAccount.js')['useCashierAccount']>
+    readonly useCashierMoreMenu: UnwrapRef<typeof import('./src/composables/useCashierMoreMenu.js')['useCashierMoreMenu']>
+    readonly useCashierShell: UnwrapRef<typeof import('./src/composables/useCashierShell.js')['useCashierShell']>
+    readonly useCashierShellTabs: UnwrapRef<typeof import('./src/utils/cashierShellNav.js')['useCashierShellTabs']>
     readonly useCeil: UnwrapRef<typeof import('@vueuse/math')['useCeil']>
     readonly useClamp: UnwrapRef<typeof import('@vueuse/math')['useClamp']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
@@ -754,6 +814,7 @@ declare module 'vue' {
     readonly useDeviceOrientation: UnwrapRef<typeof import('@vueuse/core')['useDeviceOrientation']>
     readonly useDevicePixelRatio: UnwrapRef<typeof import('@vueuse/core')['useDevicePixelRatio']>
     readonly useDevicesList: UnwrapRef<typeof import('@vueuse/core')['useDevicesList']>
+    readonly useDialogKeyboardShortcuts: UnwrapRef<typeof import('./src/composables/useDialogKeyboardShortcuts.js')['useDialogKeyboardShortcuts']>
     readonly useDisplayMedia: UnwrapRef<typeof import('@vueuse/core')['useDisplayMedia']>
     readonly useDocumentVisibility: UnwrapRef<typeof import('@vueuse/core')['useDocumentVisibility']>
     readonly useDraggable: UnwrapRef<typeof import('@vueuse/core')['useDraggable']>
@@ -823,7 +884,10 @@ declare module 'vue' {
     readonly useOnContextChange: UnwrapRef<typeof import('./src/composables/useOnContextChange.js')['useOnContextChange']>
     readonly useOnline: UnwrapRef<typeof import('@vueuse/core')['useOnline']>
     readonly useOperationalEvents: UnwrapRef<typeof import('./src/composables/useOperationalEvents.js')['useOperationalEvents']>
+    readonly useOperationalPollingFallback: UnwrapRef<typeof import('./src/composables/useOperationalPollingFallback.js')['useOperationalPollingFallback']>
+    readonly useOperationalSseHost: UnwrapRef<typeof import('./src/composables/useOperationalSseHost.js')['useOperationalSseHost']>
     readonly useOperationalStore: UnwrapRef<typeof import('./src/stores/operational.js')['useOperationalStore']>
+    readonly useOrderOperationalEvents: UnwrapRef<typeof import('./src/composables/useOrderOperationalEvents.js')['useOrderOperationalEvents']>
     readonly useOrderProductShortcuts: UnwrapRef<typeof import('./src/composables/useOrderProductShortcuts.js')['useOrderProductShortcuts']>
     readonly usePageLeave: UnwrapRef<typeof import('@vueuse/core')['usePageLeave']>
     readonly useParallax: UnwrapRef<typeof import('@vueuse/core')['useParallax']>
@@ -860,6 +924,7 @@ declare module 'vue' {
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
     readonly useServiceCashSession: UnwrapRef<typeof import('./src/composables/useServiceCashSession.js')['useServiceCashSession']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
+    readonly useSettlementPayment: UnwrapRef<typeof import('./src/composables/useSettlementPayment.js')['useSettlementPayment']>
     readonly useSettlementPendingSources: UnwrapRef<typeof import('./src/composables/useSettlementPendingSources.js')['useSettlementPendingSources']>
     readonly useShare: UnwrapRef<typeof import('@vueuse/core')['useShare']>
     readonly useShowMaterializeCustomizer: UnwrapRef<typeof import('./src/composables/useShowMaterializeCustomizer.js')['useShowMaterializeCustomizer']>
@@ -899,6 +964,7 @@ declare module 'vue' {
     readonly useVModels: UnwrapRef<typeof import('@vueuse/core')['useVModels']>
     readonly useVibrate: UnwrapRef<typeof import('@vueuse/core')['useVibrate']>
     readonly useVirtualList: UnwrapRef<typeof import('@vueuse/core')['useVirtualList']>
+    readonly useWaiterTables: UnwrapRef<typeof import('./src/composables/useWaiterTables.js')['useWaiterTables']>
     readonly useWakeLock: UnwrapRef<typeof import('@vueuse/core')['useWakeLock']>
     readonly useWebNotification: UnwrapRef<typeof import('@vueuse/core')['useWebNotification']>
     readonly useWebSocket: UnwrapRef<typeof import('@vueuse/core')['useWebSocket']>
@@ -934,6 +1000,7 @@ declare module '@vue/runtime-core' {
     readonly BRANCH_CODE_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['BRANCH_CODE_COOKIE']>
     readonly BRANCH_NAME_COOKIE: UnwrapRef<typeof import('./src/stores/context.js')['BRANCH_NAME_COOKIE']>
     readonly CASHIER_ORDER_TABS: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['CASHIER_ORDER_TABS']>
+    readonly CASHIER_SHELL_TABS: UnwrapRef<typeof import('./src/utils/cashierShellNav.js')['CASHIER_SHELL_TABS']>
     readonly CASH_SESSION_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useCashSessionSectionTabs.js')['CASH_SESSION_SECTION_TABS']>
     readonly CATALOG_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useStaffSectionTabs.js')['CATALOG_SECTION_TABS']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
@@ -963,14 +1030,18 @@ declare module '@vue/runtime-core' {
     readonly alphaValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['alphaValidator']>
     readonly appendGirlToSelectList: UnwrapRef<typeof import('./src/composables/useOperationalGirls.js')['appendGirlToSelectList']>
     readonly appendWaiterToSelectList: UnwrapRef<typeof import('./src/composables/useOperationalWaiters.js')['appendWaiterToSelectList']>
+    readonly assignedUnitsFromMap: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['assignedUnitsFromMap']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly avatarText: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['avatarText']>
     readonly betweenValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['betweenValidator']>
+    readonly buildAllocationPayload: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['buildAllocationPayload']>
     readonly buildUserPayload: UnwrapRef<typeof import('./src/composables/useUserAdminForm.js')['buildUserPayload']>
     readonly buildWaiterCreateOrderPayload: UnwrapRef<typeof import('./src/utils/waiterOrderPayload.js')['buildWaiterCreateOrderPayload']>
     readonly canModifyOrder: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['canModifyOrder']>
+    readonly cashierOrderOperationalChips: UnwrapRef<typeof import('./src/composables/useCashierOrderQueue.js')['cashierOrderOperationalChips']>
     readonly clearAuthCookies: UnwrapRef<typeof import('./src/utils/authSession.js')['clearAuthCookies']>
+    readonly comboRequiredUnits: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['comboRequiredUnits']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -981,6 +1052,7 @@ declare module '@vue/runtime-core' {
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly countBlockingOverlays: UnwrapRef<typeof import('./src/utils/overlaySafety.js')['countBlockingOverlays']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
+    readonly createDefaultProductForm: UnwrapRef<typeof import('./src/composables/useProductForm.js')['createDefaultProductForm']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
     readonly createGenericProjection: UnwrapRef<typeof import('@vueuse/math')['createGenericProjection']>
     readonly createGlobalState: UnwrapRef<typeof import('@vueuse/core')['createGlobalState']>
@@ -1007,11 +1079,17 @@ declare module '@vue/runtime-core' {
     readonly emailValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['emailValidator']>
     readonly emptyUserForm: UnwrapRef<typeof import('./src/composables/useUserAdminForm.js')['emptyUserForm']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
+    readonly formPricePayloads: UnwrapRef<typeof import('./src/composables/useProductForm.js')['formPricePayloads']>
+    readonly formToQuickCreatePayload: UnwrapRef<typeof import('./src/composables/useProductForm.js')['formToQuickCreatePayload']>
+    readonly formToUpdatePayload: UnwrapRef<typeof import('./src/composables/useProductForm.js')['formToUpdatePayload']>
+    readonly formatAllocationSummary: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['formatAllocationSummary']>
+    readonly formatCompanionBraceletLine: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['formatCompanionBraceletLine']>
     readonly formatDate: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDateToMonthShort']>
     readonly formatProductType: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatProductType']>
     readonly formatSaleMode: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatSaleMode']>
     readonly formatStatus: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatStatus']>
+    readonly formatWaitingMinutes: UnwrapRef<typeof import('./src/composables/useCashierOrderQueue.js')['formatWaitingMinutes']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
@@ -1021,9 +1099,15 @@ declare module '@vue/runtime-core' {
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hasWaiterTableReference: UnwrapRef<typeof import('./src/utils/waiterOrderPayload.js')['hasWaiterTableReference']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
+    readonly initialUnitsMap: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['initialUnitsMap']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly integerValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['integerValidator']>
+    readonly isBasicCashierStaff: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isBasicCashierStaff']>
+    readonly isCashierShellAllowedPath: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellAllowedPath']>
+    readonly isCashierShellRoute: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellRoute']>
+    readonly isCashierShellStaff: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellStaff']>
+    readonly isCashierShellTabVisible: UnwrapRef<typeof import('./src/utils/cashierShellNav.js')['isCashierShellTabVisible']>
     readonly isCleaningStaff: UnwrapRef<typeof import('./src/utils/resolveHomeRoute.js')['isCleaningStaff']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isEmpty: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isEmpty']>
@@ -1050,6 +1134,7 @@ declare module '@vue/runtime-core' {
     readonly isWaiterOnlyRoute: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['isWaiterOnlyRoute']>
     readonly isWaiterStaff: UnwrapRef<typeof import('./src/utils/resolveHomeRoute.js')['isWaiterStaff']>
     readonly isWaiterStaff: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['isWaiterStaff']>
+    readonly itemsNeedingAllocation: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['itemsNeedingAllocation']>
     readonly itemsNeedingGirl: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['itemsNeedingGirl']>
     readonly kFormatter: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['kFormatter']>
     readonly lengthValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['lengthValidator']>
@@ -1068,6 +1153,7 @@ declare module '@vue/runtime-core' {
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly normalizeOperationalGirls: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['normalizeOperationalGirls']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
     readonly onBeforeRouteLeave: UnwrapRef<typeof import('vue-router/auto')['onBeforeRouteLeave']>
@@ -1099,6 +1185,8 @@ declare module '@vue/runtime-core' {
     readonly productActivePrice: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productActivePrice']>
     readonly productCategoryLabel: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productCategoryLabel']>
     readonly productHasActivePricing: UnwrapRef<typeof import('./src/composables/useProductSaleModeLabels.js')['productHasActivePricing']>
+    readonly productPreviewLabel: UnwrapRef<typeof import('./src/composables/useProductForm.js')['productPreviewLabel']>
+    readonly productToForm: UnwrapRef<typeof import('./src/composables/useProductForm.js')['productToForm']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
     readonly reactify: UnwrapRef<typeof import('@vueuse/core')['reactify']>
@@ -1121,6 +1209,7 @@ declare module '@vue/runtime-core' {
     readonly regexValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['regexValidator']>
     readonly registerPlugins: UnwrapRef<typeof import('./src/@core/utils/plugins.js')['registerPlugins']>
     readonly requiredValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['requiredValidator']>
+    readonly resolveCashierShellRedirect: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['resolveCashierShellRedirect']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveHomeRoute: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['resolveHomeRoute']>
     readonly resolveHomeRouteName: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['resolveHomeRouteName']>
@@ -1137,6 +1226,7 @@ declare module '@vue/runtime-core' {
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
+    readonly shouldShowCompanionBraceletLine: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['shouldShowCompanionBraceletLine']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>
@@ -1154,6 +1244,7 @@ declare module '@vue/runtime-core' {
     readonly tryOnMounted: UnwrapRef<typeof import('@vueuse/core')['tryOnMounted']>
     readonly tryOnScopeDispose: UnwrapRef<typeof import('@vueuse/core')['tryOnScopeDispose']>
     readonly tryOnUnmounted: UnwrapRef<typeof import('@vueuse/core')['tryOnUnmounted']>
+    readonly unitsMapToRows: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['unitsMapToRows']>
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
@@ -1189,6 +1280,10 @@ declare module '@vue/runtime-core' {
     readonly useBroadcastChannel: UnwrapRef<typeof import('@vueuse/core')['useBroadcastChannel']>
     readonly useBrowserLocation: UnwrapRef<typeof import('@vueuse/core')['useBrowserLocation']>
     readonly useCached: UnwrapRef<typeof import('@vueuse/core')['useCached']>
+    readonly useCashierAccount: UnwrapRef<typeof import('./src/composables/useCashierAccount.js')['useCashierAccount']>
+    readonly useCashierMoreMenu: UnwrapRef<typeof import('./src/composables/useCashierMoreMenu.js')['useCashierMoreMenu']>
+    readonly useCashierShell: UnwrapRef<typeof import('./src/composables/useCashierShell.js')['useCashierShell']>
+    readonly useCashierShellTabs: UnwrapRef<typeof import('./src/utils/cashierShellNav.js')['useCashierShellTabs']>
     readonly useCeil: UnwrapRef<typeof import('@vueuse/math')['useCeil']>
     readonly useClamp: UnwrapRef<typeof import('@vueuse/math')['useClamp']>
     readonly useClipboard: UnwrapRef<typeof import('@vueuse/core')['useClipboard']>
@@ -1214,6 +1309,7 @@ declare module '@vue/runtime-core' {
     readonly useDeviceOrientation: UnwrapRef<typeof import('@vueuse/core')['useDeviceOrientation']>
     readonly useDevicePixelRatio: UnwrapRef<typeof import('@vueuse/core')['useDevicePixelRatio']>
     readonly useDevicesList: UnwrapRef<typeof import('@vueuse/core')['useDevicesList']>
+    readonly useDialogKeyboardShortcuts: UnwrapRef<typeof import('./src/composables/useDialogKeyboardShortcuts.js')['useDialogKeyboardShortcuts']>
     readonly useDisplayMedia: UnwrapRef<typeof import('@vueuse/core')['useDisplayMedia']>
     readonly useDocumentVisibility: UnwrapRef<typeof import('@vueuse/core')['useDocumentVisibility']>
     readonly useDraggable: UnwrapRef<typeof import('@vueuse/core')['useDraggable']>
@@ -1283,7 +1379,10 @@ declare module '@vue/runtime-core' {
     readonly useOnContextChange: UnwrapRef<typeof import('./src/composables/useOnContextChange.js')['useOnContextChange']>
     readonly useOnline: UnwrapRef<typeof import('@vueuse/core')['useOnline']>
     readonly useOperationalEvents: UnwrapRef<typeof import('./src/composables/useOperationalEvents.js')['useOperationalEvents']>
+    readonly useOperationalPollingFallback: UnwrapRef<typeof import('./src/composables/useOperationalPollingFallback.js')['useOperationalPollingFallback']>
+    readonly useOperationalSseHost: UnwrapRef<typeof import('./src/composables/useOperationalSseHost.js')['useOperationalSseHost']>
     readonly useOperationalStore: UnwrapRef<typeof import('./src/stores/operational.js')['useOperationalStore']>
+    readonly useOrderOperationalEvents: UnwrapRef<typeof import('./src/composables/useOrderOperationalEvents.js')['useOrderOperationalEvents']>
     readonly useOrderProductShortcuts: UnwrapRef<typeof import('./src/composables/useOrderProductShortcuts.js')['useOrderProductShortcuts']>
     readonly usePageLeave: UnwrapRef<typeof import('@vueuse/core')['usePageLeave']>
     readonly useParallax: UnwrapRef<typeof import('@vueuse/core')['useParallax']>
@@ -1320,6 +1419,7 @@ declare module '@vue/runtime-core' {
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
     readonly useServiceCashSession: UnwrapRef<typeof import('./src/composables/useServiceCashSession.js')['useServiceCashSession']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
+    readonly useSettlementPayment: UnwrapRef<typeof import('./src/composables/useSettlementPayment.js')['useSettlementPayment']>
     readonly useSettlementPendingSources: UnwrapRef<typeof import('./src/composables/useSettlementPendingSources.js')['useSettlementPendingSources']>
     readonly useShare: UnwrapRef<typeof import('@vueuse/core')['useShare']>
     readonly useShowMaterializeCustomizer: UnwrapRef<typeof import('./src/composables/useShowMaterializeCustomizer.js')['useShowMaterializeCustomizer']>
@@ -1359,6 +1459,7 @@ declare module '@vue/runtime-core' {
     readonly useVModels: UnwrapRef<typeof import('@vueuse/core')['useVModels']>
     readonly useVibrate: UnwrapRef<typeof import('@vueuse/core')['useVibrate']>
     readonly useVirtualList: UnwrapRef<typeof import('@vueuse/core')['useVirtualList']>
+    readonly useWaiterTables: UnwrapRef<typeof import('./src/composables/useWaiterTables.js')['useWaiterTables']>
     readonly useWakeLock: UnwrapRef<typeof import('@vueuse/core')['useWakeLock']>
     readonly useWebNotification: UnwrapRef<typeof import('@vueuse/core')['useWebNotification']>
     readonly useWebSocket: UnwrapRef<typeof import('@vueuse/core')['useWebSocket']>

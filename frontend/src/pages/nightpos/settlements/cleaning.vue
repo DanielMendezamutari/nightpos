@@ -1,20 +1,21 @@
 <script setup>
+import SettlementsCashBanner from '@/components/nightpos/settlements/SettlementsCashBanner.vue'
+import SettlementPayDialog from '@/components/nightpos/settlements/SettlementPayDialog.vue'
+import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
 import { useCurrentShiftSettlements } from '@/composables/useCurrentShiftSettlements'
 import { useFilteredSettlementTabs } from '@/composables/useSettlementSectionTabs'
-import { markSettlementPaid } from '@/api/settlements'
+import { useSettlementPayment } from '@/composables/useSettlementPayment'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
-import { useNightPosNotify } from '@/composables/useNightPosNotify'
-import { getApiErrorMessage } from '@/services/http'
 
 definePage({ meta: { permission: 'settlements.access' } })
 
 const settlementTabs = useFilteredSettlementTabs()
 const router = useRouter()
 const { can } = useNightPosPermissions()
-const { notify } = useNightPosNotify()
 const { loading, shift, cleaning, reload } = useCurrentShiftSettlements()
+const { paySettlement, showOpenCash, refreshCashSession } = useSettlementPayment({ onPaid: reload })
 
 const canPay = computed(() => can('settlements.pay'))
 const paying = ref(false)
@@ -23,12 +24,15 @@ const payingItem = ref(null)
 
 const headers = [
   { title: 'Personal limpieza', key: 'staff_name' },
+  { title: 'Corte', key: 'cut_label' },
   { title: 'Base', key: 'cleaning_base_total' },
   { title: 'Piezas limpias', key: 'cleaning_rooms_count' },
   { title: 'Pago por pieza', key: 'cleaning_room_rate' },
   { title: 'Total piezas', key: 'cleaning_rooms_total' },
   { title: 'Total a pagar', key: 'total_amount' },
   { title: 'Estado', key: 'status' },
+  { title: 'Generado', key: 'created_at' },
+  { title: 'Pagado', key: 'paid_at' },
   { title: 'Acciones', key: 'actions', sortable: false },
 ]
 
@@ -38,24 +42,22 @@ const statusColor = status => ({
   CANCELLED: 'secondary',
 }[status] || 'default')
 
-const openPayDialog = item => {
+const openPayDialog = async item => {
+  await refreshCashSession()
   payingItem.value = item
   showPayDialog.value = true
 }
 
-const confirmPay = async () => {
+const confirmPay = async ({ payment_method, notes }) => {
   if (!payingItem.value)
     return
   paying.value = true
   try {
-    await markSettlementPaid(payingItem.value.id)
-    notify('Liquidación de limpieza marcada como pagada. Egreso registrado en caja.', 'success')
-    showPayDialog.value = false
-    payingItem.value = null
-    await reload()
-  }
-  catch (error) {
-    notify(getApiErrorMessage(error), 'error')
+    const result = await paySettlement(payingItem.value.id, { payment_method, notes })
+    if (result.ok) {
+      showPayDialog.value = false
+      payingItem.value = null
+    }
   }
   finally {
     paying.value = false
@@ -76,6 +78,8 @@ const confirmPay = async () => {
       ]"
     />
     <NightPosSectionTabs :tabs="settlementTabs" />
+
+    <SettlementsCashBanner emphasize-pay-requirement />
 
     <VAlert
       v-if="!loading && !shift"
@@ -132,44 +136,15 @@ const confirmPay = async () => {
       </VDataTable>
     </VCard>
 
-    <!-- Confirmación pago -->
-    <VDialog
+    <SettlementPayDialog
       v-model="showPayDialog"
-      max-width="420"
-    >
-      <VCard title="Confirmar pago limpieza">
-        <VCardText>
-          <p class="text-body-2 mb-3">
-            Pagar liquidación de <strong>{{ payingItem?.staff_name }}</strong>.
-          </p>
-          <VAlert
-            type="info"
-            variant="tonal"
-            density="compact"
-            class="mb-0"
-          >
-            Se registrará un <strong>egreso de {{ payingItem?.total_amount }} BOB</strong>
-            en su caja abierta. El efectivo esperado bajará automáticamente.
-          </VAlert>
-        </VCardText>
-        <VCardActions>
-          <VBtn
-            variant="text"
-            @click="showPayDialog = false"
-          >
-            Cancelar
-          </VBtn>
-          <VSpacer />
-          <VBtn
-            color="success"
-            :loading="paying"
-            :disabled="paying"
-            @click="confirmPay"
-          >
-            Confirmar pago
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+      :settlement="payingItem"
+      title="Confirmar pago limpieza"
+      type-label="Limpieza"
+      :loading="paying"
+      @confirm="confirmPay"
+    />
+
+    <QuickOpenCashDialog v-model="showOpenCash" @opened="refreshCashSession" />
   </div>
 </template>

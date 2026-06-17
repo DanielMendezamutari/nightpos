@@ -17,7 +17,7 @@ final class CreateCashMovementReasonRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => ['required', 'string', Rule::in(['INCOME', 'EXPENSE'])],
+            'type' => ['required', 'string', Rule::in(['INCOME', 'EXPENSE', 'BOTH'])],
             'name' => ['required', 'string', 'max:100'],
             'status' => ['nullable', 'string', Rule::in(['active', 'inactive'])],
             'branch_scoped' => ['nullable', 'boolean'],

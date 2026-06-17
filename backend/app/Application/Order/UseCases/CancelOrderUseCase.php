@@ -8,6 +8,7 @@ use App\Application\Order\DTOs\OrderActionInput;
 use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Application\Order\Services\OrderAccessGuard;
 use App\Application\Order\Support\OrderMapper;
+use App\Application\Order\Support\OrderOperationalEventPayload;
 use App\Domain\Auth\Exceptions\PermissionDeniedException;
 use App\Domain\Order\Exceptions\OrderDomainException;
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
@@ -69,11 +70,12 @@ final class CancelOrderUseCase implements UseCaseInterface
             $tenant->id,
             $branch->id,
             'order.cancelled',
-            [
-                'entity'  => ['type' => 'order', 'id' => $order->id],
-                'summary' => 'Comanda cancelada: ' . $order->tableLabel,
-                'refresh' => ['orders'],
-            ]
+            OrderOperationalEventPayload::build(
+                orderId: $order->id,
+                status: OrderStatus::CANCELLED,
+                source: 'cancel_order',
+                summary: 'Comanda cancelada: ' . $order->tableLabel,
+            )
         );
 
         return OperationResult::ok('Comanda cancelada.', [

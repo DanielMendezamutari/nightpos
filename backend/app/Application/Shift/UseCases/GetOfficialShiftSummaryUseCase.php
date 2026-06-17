@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Shift\UseCases;
 
 use App\Application\Shift\Support\ShiftMapper;
+use App\Application\Reports\Services\ComboBraceletReportingService;
 use App\Domain\Shift\Exceptions\OfficialShiftNotFoundException;
 use App\Domain\Shift\Repositories\OfficialShiftRepositoryInterface;
 use App\Domain\Shift\ValueObjects\OfficialShiftStatus;
@@ -19,6 +20,7 @@ final class GetOfficialShiftSummaryUseCase implements UseCaseInterface
         private readonly TenantContextInterface $tenantContext,
         private readonly BranchContextInterface $branchContext,
         private readonly OfficialShiftRepositoryInterface $shifts,
+        private readonly ComboBraceletReportingService $comboReporting,
     ) {
     }
 
@@ -47,6 +49,9 @@ final class GetOfficialShiftSummaryUseCase implements UseCaseInterface
                 'counted_cash' => $closure?->countedCash,
                 'cash_difference' => $closure?->cashDifference,
                 'is_open' => $shift->status === OfficialShiftStatus::OPEN,
+            ]),
+            'combo_bracelets' => $this->comboReporting->buildScopeSummary($tenant->id, $branch->id, [
+                'official_shift_id' => $shift->id,
             ]),
         ]);
     }

@@ -22,6 +22,9 @@ interface OrderRepositoryInterface extends RepositoryInterface
         ?string $status = null,
         ?int $officialShiftId = null,
         ?array $statuses = null,
+        ?int $cashSessionId = null,
+        ?int $cashierUserId = null,
+        bool $includeItems = false,
     ): array;
 
     /**
@@ -56,10 +59,13 @@ interface OrderRepositoryInterface extends RepositoryInterface
         string $orderNumber,
         ?string $tableLabel,
         ?int $serviceAreaId,
+        ?int $serviceTableId,
         ?int $waiterUserId,
         int $openedByUserId,
         ?string $notes,
     ): Order;
+
+    public function findActiveByServiceTable(int $tenantId, int $branchId, int $serviceTableId): ?Order;
 
     public function addItem(
         int $tenantId,

@@ -7,22 +7,36 @@ export async function fetchOrders(status = null) {
   return unwrapNightPosResponse(response).orders ?? []
 }
 
-export async function fetchOrdersByScope(scope) {
-  const response = await api.get('/orders', { params: { scope } })
+export async function fetchOrdersByScope(scope, extraParams = {}) {
+  const response = await api.get('/orders', { params: { scope, ...extraParams } })
 
   return unwrapNightPosResponse(response).orders ?? []
 }
 
-export async function fetchCashierChargeableOrders() {
-  const response = await api.get('/orders', { params: { scope: 'cashier_chargeable' } })
+/** Listado acotado al turno/caja actual de la cajera. */
+export async function fetchCashierOrdersByScope(scope) {
+  const params = { scope, cashier_scope: 1 }
 
-  return unwrapNightPosResponse(response).orders ?? []
+  if (scope === 'billed_recent')
+    params.current_session = 1
+
+  return fetchOrdersByScope(scope, params)
+}
+
+export async function fetchCashierChargeableOrders() {
+  return fetchCashierOrdersByScope('cashier_chargeable')
 }
 
 export async function fetchOrder(id) {
   const response = await api.get(`/orders/${id}`)
 
   return unwrapNightPosResponse(response).order
+}
+
+export async function fetchOrderPrecheck(id) {
+  const response = await api.get(`/orders/${id}/precheck`)
+
+  return unwrapNightPosResponse(response).precheck
 }
 
 export async function createOrder(payload) {
@@ -33,6 +47,14 @@ export async function createOrder(payload) {
 
 export async function addOrderItem(orderId, payload) {
   const response = await api.post(`/orders/${orderId}/items`, payload)
+
+  return unwrapNightPosResponse(response).order
+}
+
+export async function syncOrderItemAllocations(orderId, itemId, allocations) {
+  const response = await api.put(`/orders/${orderId}/items/${itemId}/allocations`, {
+    allocations,
+  })
 
   return unwrapNightPosResponse(response).order
 }

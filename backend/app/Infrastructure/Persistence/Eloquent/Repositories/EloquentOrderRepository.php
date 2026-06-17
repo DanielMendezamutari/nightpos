@@ -11,10 +11,14 @@ use App\Domain\Order\Repositories\OrderRepositoryInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\OrderItemModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OrderModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OrderStatusHistoryModel;
+use App\Infrastructure\Persistence\Eloquent\Models\SaleModel;
 use Illuminate\Support\Carbon;
 
 final class EloquentOrderRepository implements OrderRepositoryInterface
 {
+    /** @var list<string> */
+    private const ACTIVE_TABLE_STATUSES = ['OPEN', 'SENT_TO_BAR', 'IN_PREPARATION', 'READY'];
+
     public function findById(int $id, int $tenantId): ?Order
     {
         $model = OrderModel::query()
@@ -32,6 +36,9 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
         ?string $status = null,
         ?int $officialShiftId = null,
         ?array $statuses = null,
+        ?int $cashSessionId = null,
+        ?int $cashierUserId = null,
+        bool $includeItems = false,
     ): array {
         $query = OrderModel::query()
             ->with('waiter:id,name')
@@ -39,6 +46,10 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
             ->orderByDesc('id');
+
+        if ($includeItems) {
+            $query->with('items');
+        }
 
         if ($statuses !== null && $statuses !== []) {
             $query->whereIn('status', $statuses);
@@ -51,8 +62,21 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
             $query->where('official_shift_id', $officialShiftId);
         }
 
+        if ($cashSessionId !== null) {
+            $saleQuery = SaleModel::query()
+                ->select('order_id')
+                ->where('cash_session_id', $cashSessionId)
+                ->whereNotNull('order_id');
+
+            if ($cashierUserId !== null) {
+                $saleQuery->where('cashier_user_id', $cashierUserId);
+            }
+
+            $query->whereIn('id', $saleQuery);
+        }
+
         return $query->get()
-            ->map(fn (OrderModel $model) => $this->mapOrder($model, false))
+            ->map(fn (OrderModel $model) => $this->mapOrder($model, $includeItems))
             ->all();
     }
 
@@ -116,6 +140,19 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
         return $query;
     }
 
+    public function findActiveByServiceTable(int $tenantId, int $branchId, int $serviceTableId): ?Order
+    {
+        $model = OrderModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('service_table_id', $serviceTableId)
+            ->whereIn('status', self::ACTIVE_TABLE_STATUSES)
+            ->orderByDesc('id')
+            ->first();
+
+        return $model ? $this->mapOrder($model, false) : null;
+    }
+
     public function create(
         int $tenantId,
         int $branchId,
@@ -123,6 +160,7 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
         string $orderNumber,
         ?string $tableLabel,
         ?int $serviceAreaId,
+        ?int $serviceTableId,
         ?int $waiterUserId,
         int $openedByUserId,
         ?string $notes,
@@ -135,6 +173,7 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
             'status' => 'OPEN',
             'table_label' => $tableLabel,
             'service_area_id' => $serviceAreaId,
+            'service_table_id' => $serviceTableId,
             'waiter_user_id' => $waiterUserId,
             'opened_by_user_id' => $openedByUserId,
             'notes' => $notes,
@@ -395,6 +434,7 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
             status: $model->status,
             tableLabel: $model->table_label,
             serviceAreaId: $model->service_area_id !== null ? (int) $model->service_area_id : null,
+            serviceTableId: $model->service_table_id !== null ? (int) $model->service_table_id : null,
             waiterUserId: $model->waiter_user_id !== null ? (int) $model->waiter_user_id : null,
             openedByUserId: (int) $model->opened_by_user_id,
             notes: $model->notes,

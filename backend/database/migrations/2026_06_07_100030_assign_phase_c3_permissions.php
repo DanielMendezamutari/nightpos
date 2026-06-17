@@ -12,7 +12,7 @@ return new class extends Migration
     {
         $rows = [
             ['name' => 'Motivos de caja', 'slug' => 'settings.cash_reasons', 'roles' => ['tenant_owner', 'cashier', 'cashier_senior']],
-            ['name' => 'Gestionar motivos de caja', 'slug' => 'settings.cash_reasons.manage', 'roles' => ['tenant_owner']],
+            ['name' => 'Gestionar motivos de caja', 'slug' => 'settings.cash_reasons.manage', 'roles' => ['tenant_owner', 'cashier_senior']],
             ['name' => 'Métodos de pago config', 'slug' => 'settings.payment_methods', 'roles' => ['tenant_owner', 'cashier', 'cashier_senior']],
             ['name' => 'Gestionar métodos de pago', 'slug' => 'settings.payment_methods.manage', 'roles' => ['tenant_owner']],
             ['name' => 'Ambientes / mesas', 'slug' => 'settings.service_areas', 'roles' => ['tenant_owner', 'cashier', 'cashier_senior']],

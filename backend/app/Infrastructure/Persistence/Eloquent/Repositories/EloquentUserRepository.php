@@ -448,4 +448,19 @@ final class EloquentUserRepository implements UserRepositoryInterface
             permissions: $permissions,
         );
     }
+
+    public function findDisplayNamesByIds(array $userIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $userIds), static fn (int $id) => $id > 0)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        return UserModel::query()
+            ->whereIn('id', $ids)
+            ->pluck('name', 'id')
+            ->mapWithKeys(static fn ($name, $id) => [(int) $id => (string) $name])
+            ->all();
+    }
 }

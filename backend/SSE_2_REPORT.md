@@ -25,12 +25,12 @@ Conectar los eventos reales del negocio al stream SSE para que las pantallas ope
 | `room.cleaned` | `MarkRoomCleanUseCase` | null (broadcast) |
 | `cleaning.earnings.updated` | `MarkRoomCleanUseCase` | `cleaning` (solo limpieza) |
 
-### Comandas / Cajera
+### Comandas / Cajera (actualizado P0 2026-06-16)
 
 | Evento | Use Case | target_role |
 |--------|---------|-------------|
 | `order.created` | `CreateOrderUseCase` | null |
-| `order.updated` | `AddOrderItemUseCase` | null |
+| `order.updated` | `AddOrderItemUseCase`, `UpdateOrderItemUseCase`, `RemoveOrderItemUseCase`, `AssignOrderItemGirlUseCase`, `CancelOrderItemUseCase`, `UpdateOrderHeaderUseCase`, `SyncOrderItemAllocationsUseCase` | null |
 | `order.sent_to_bar` | `SendOrderToBarUseCase` | null |
 | `order.billed` | `ChargeOrderUseCase` | null |
 | `order.cancelled` | `CancelOrderUseCase` | null |
@@ -60,11 +60,16 @@ Cada evento sigue la estructura:
 
 ```json
 {
-  "entity": { "type": "order", "id": 1 },
-  "summary": "Texto breve descriptivo",
-  "refresh": ["orders", "cash"]
+  "order_id": 123,
+  "entity": { "type": "order", "id": 123 },
+  "refresh": ["orders"],
+  "status": "OPEN",
+  "source": "update_order_item",
+  "summary": "Texto breve descriptivo"
 }
 ```
+
+Helper: `OrderOperationalEventPayload.php`. Tests P0: `SseOrderEventsP0Test.php` (10 escenarios).
 
 ---
 

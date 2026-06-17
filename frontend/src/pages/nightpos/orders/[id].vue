@@ -7,6 +7,7 @@ import {
   cancelOrder,
   fetchOrder,
   sendOrderToBar,
+  syncOrderItemAllocations,
   updateOrderHeader,
 } from '@/api/orders'
 import { chargeOrder } from '@/api/sales'
@@ -23,9 +24,12 @@ import OrderItemsTable from '@/components/nightpos/orders/OrderItemsTable.vue'
 import OrderTotals from '@/components/nightpos/orders/OrderTotals.vue'
 import { useOrderProductShortcuts } from '@/composables/useOrderProductShortcuts'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
+import { useOrderOperationalEvents } from '@/composables/useOrderOperationalEvents'
+import { useOperationalPollingFallback } from '@/composables/useOperationalPollingFallback'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useAuthStore } from '@/stores/auth'
-import { activeOrderItems, canModifyOrder, itemsNeedingGirl } from '@/composables/useOrderHelpers'
+import { activeOrderItems, canModifyOrder, itemsNeedingAllocation, itemsNeedingGirl } from '@/composables/useOrderHelpers'
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { getApiErrorMessage } from '@/services/http'
 
@@ -240,8 +244,31 @@ const submitAddItem = async (addForm) => {
       notes: addForm.notes?.trim() || null,
     })
     recordRecent(addForm.product_id)
+
+    if (addForm.allocations?.length) {
+      const added = [...(order.value?.items ?? [])]
+        .reverse()
+        .find(i => i.product_id === addForm.product_id && i.requires_allocation)
+
+      if (added) {
+        order.value = await syncOrderItemAllocations(orderId.value, added.id, addForm.allocations)
+      }
+    }
+
     showAddItem.value = false
-    notify('Producto agregado')
+
+    const pending = [...(order.value?.items ?? [])]
+      .reverse()
+      .find(i => i.product_id === addForm.product_id && i.requires_allocation && !i.allocation_complete)
+
+    if (pending) {
+      notify('Complete el reparto de manillas', 'warning')
+      await nextTick()
+      orderItemsTableRef.value?.openAllocationForItem?.(pending)
+    }
+    else {
+      notify(addForm.is_combo ? 'Combo agregado' : 'Producto agregado')
+    }
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -252,6 +279,12 @@ const submitAddItem = async (addForm) => {
 }
 
 const openSendDialog = async () => {
+  if (itemsNeedingAllocation(order.value).length) {
+    notify('Complete el reparto de manillas antes de enviar a barra.', 'warning')
+
+    return
+  }
+
   if (itemsNeedingGirl(order.value).length) {
     await loadStaffUsers()
     showSendDialog.value = true
@@ -344,6 +377,12 @@ const onChargeConfirm = async (payload) => {
 
   if (cashPortion > 0 && (!receivedAmount || receivedAmount < cashPortion)) {
     notify('El efectivo recibido debe cubrir la parte en efectivo.', 'warning')
+
+    return
+  }
+
+  if (itemsNeedingAllocation(order.value).length) {
+    notify('Complete el reparto de manillas antes de cobrar.', 'warning')
 
     return
   }
@@ -502,6 +541,18 @@ const openAddProductDialog = async () => {
   await openAddItem()
 }
 
+const { connected: sseConnected, reconnecting: sseReconnecting } = useOrderOperationalEvents(loadOrder, {
+  orderId: orderId.value,
+  toastOnUpdated: true,
+  updatedDebounceMs: 400,
+  onTerminalStatus: (status) => {
+    if (['BILLED', 'CANCELLED'].includes(status))
+      notify('La comanda fue cerrada por otro usuario.', 'warning')
+  },
+})
+
+useOperationalPollingFallback(loadOrder)
+
 onMounted(async () => {
   const refreshMe = cashierCorrectionMode.value
     ? auth.fetchMe().catch(() => {})
@@ -516,6 +567,11 @@ onMounted(async () => {
 
 <template>
   <div class="order-detail">
+    <NightPosSseBanner
+      :connected="sseConnected"
+      :reconnecting="sseReconnecting"
+    />
+
     <VBtn
       variant="text"
       class="mb-2"

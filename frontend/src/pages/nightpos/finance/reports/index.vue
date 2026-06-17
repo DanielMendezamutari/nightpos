@@ -359,6 +359,45 @@ async function exportCsv(rows, filename) {
           <div v-if="!sales.sales?.length" class="text-center py-4 text-medium-emphasis">
             Sin ventas para el período.
           </div>
+
+          <div
+            v-if="sales.sales?.some(s => s.items?.some(i => i.requires_allocation))"
+            class="mt-4"
+          >
+            <div class="text-subtitle-2 font-weight-bold mb-2">
+              Combos con manillas
+            </div>
+            <div
+              v-for="s in sales.sales"
+              :key="`combo-${s.id}`"
+            >
+              <template
+                v-for="item in (s.items ?? []).filter(i => i.requires_allocation)"
+                :key="item.product_id"
+              >
+                <VCard
+                  variant="tonal"
+                  class="mb-2"
+                >
+                  <VCardText class="py-2">
+                    <div class="font-weight-medium">
+                      {{ item.product_name }} × {{ item.quantity }}
+                    </div>
+                    <div class="text-caption">
+                      Manillas: {{ item.allocated_bracelet_units }}/{{ item.required_bracelet_units }}
+                    </div>
+                    <div
+                      v-for="alloc in item.allocations ?? []"
+                      :key="alloc.id"
+                      class="text-caption"
+                    >
+                      {{ alloc.girl_name }} ×{{ alloc.units }} — {{ fmtMoney(alloc.total_amount) }}
+                    </div>
+                  </VCardText>
+                </VCard>
+              </template>
+            </div>
+          </div>
         </template>
       </VWindowItem>
 
@@ -587,6 +626,41 @@ async function exportCsv(rows, filename) {
             </tbody>
           </VTable>
           <div v-if="!settlements.settlements?.length" class="text-center py-4 text-medium-emphasis">Sin liquidaciones.</div>
+
+          <div
+            v-if="settlements.settlements?.some(s => s.items?.some(i => i.source_type === 'GIRL_BRACELET_ALLOCATION'))"
+            class="mt-4"
+          >
+            <div class="text-subtitle-2 font-weight-bold mb-2">
+              Manillas combo por chica
+            </div>
+            <VTable density="compact">
+              <thead>
+                <tr>
+                  <th>Personal</th>
+                  <th>Descripción</th>
+                  <th>Unidades</th>
+                  <th>Monto</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template
+                  v-for="s in settlements.settlements"
+                  :key="`alloc-${s.id}`"
+                >
+                  <tr
+                    v-for="item in (s.items ?? []).filter(i => i.source_type === 'GIRL_BRACELET_ALLOCATION')"
+                    :key="item.id"
+                  >
+                    <td>{{ s.staff }}</td>
+                    <td>{{ item.display_description || item.description }}</td>
+                    <td>{{ item.units }}</td>
+                    <td>{{ fmtMoney(item.amount) }}</td>
+                  </tr>
+                </template>
+              </tbody>
+            </VTable>
+          </div>
         </template>
       </VWindowItem>
 

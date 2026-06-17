@@ -64,7 +64,7 @@ final class RegisterCashMovementUseCase implements UseCaseInterface
             throw MasterDataDomainException::notFound();
         }
 
-        if ($reason['type'] !== $type->value) {
+        if (! $this->reasonMatchesMovementType($reason['type'], $type->value)) {
             throw MasterDataDomainException::invalidReasonType();
         }
 
@@ -102,5 +102,10 @@ final class RegisterCashMovementUseCase implements UseCaseInterface
         return OperationResult::ok('Movimiento registrado.', [
             'session' => CashMapper::session($updated),
         ]);
+    }
+
+    private function reasonMatchesMovementType(string $reasonType, string $movementType): bool
+    {
+        return $reasonType === 'BOTH' || $reasonType === $movementType;
     }
 }

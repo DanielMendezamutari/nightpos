@@ -1,20 +1,36 @@
 <script setup>
+import SettlementsCashBanner from '@/components/nightpos/settlements/SettlementsCashBanner.vue'
+import SettlementPayDialog from '@/components/nightpos/settlements/SettlementPayDialog.vue'
+import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
 import { useCurrentShiftSettlements } from '@/composables/useCurrentShiftSettlements'
 import { useFilteredSettlementTabs } from '@/composables/useSettlementSectionTabs'
-import { markSettlementPaid } from '@/api/settlements'
+import { useSettlementPayment } from '@/composables/useSettlementPayment'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
-import { useNightPosNotify } from '@/composables/useNightPosNotify'
-import { getApiErrorMessage } from '@/services/http'
+import { useOperationalEvents } from '@/composables/useOperationalEvents'
 
 definePage({ meta: { permission: 'settlements.access' } })
 
 const settlementTabs = useFilteredSettlementTabs()
 const router = useRouter()
 const { can } = useNightPosPermissions()
-const { notify } = useNightPosNotify()
 const { loading, shift, girls, reload } = useCurrentShiftSettlements()
+const { paySettlement, showOpenCash, refreshCashSession } = useSettlementPayment({ onPaid: reload })
+
+const { on, start: startSse, stop: stopSse } = useOperationalEvents()
+
+let settlementDebounce = null
+const debouncedReload = () => {
+  clearTimeout(settlementDebounce)
+  settlementDebounce = setTimeout(reload, 600)
+}
+
+on('settlement.generated', debouncedReload)
+on('settlement.paid', debouncedReload)
+
+onMounted(() => { startSse() })
+onUnmounted(() => { stopSse() })
 
 const canPay = computed(() => can('settlements.pay'))
 const paying = ref(false)
@@ -23,12 +39,11 @@ const payingItem = ref(null)
 
 const headers = [
   { title: 'Chica', key: 'staff_name' },
-  { title: 'Consumos', key: 'consumption_total' },
-  { title: 'Manillas', key: 'bracelets_total' },
-  { title: 'Piezas', key: 'pieces_total' },
-  { title: 'Shows', key: 'shows_total' },
+  { title: 'Corte', key: 'cut_label' },
   { title: 'Total', key: 'total_amount' },
   { title: 'Estado', key: 'status' },
+  { title: 'Generado', key: 'created_at' },
+  { title: 'Pagado', key: 'paid_at' },
   { title: 'Acciones', key: 'actions', sortable: false },
 ]
 
@@ -38,24 +53,22 @@ const statusColor = status => ({
   CANCELLED: 'secondary',
 }[status] || 'default')
 
-const openPayDialog = item => {
+const openPayDialog = async item => {
+  await refreshCashSession()
   payingItem.value = item
   showPayDialog.value = true
 }
 
-const confirmPay = async () => {
+const confirmPay = async ({ payment_method, notes }) => {
   if (!payingItem.value)
     return
   paying.value = true
   try {
-    await markSettlementPaid(payingItem.value.id)
-    notify('Liquidación marcada como pagada. Egreso registrado en caja.', 'success')
-    showPayDialog.value = false
-    payingItem.value = null
-    await reload()
-  }
-  catch (error) {
-    notify(getApiErrorMessage(error), 'error')
+    const result = await paySettlement(payingItem.value.id, { payment_method, notes })
+    if (result.ok) {
+      showPayDialog.value = false
+      payingItem.value = null
+    }
   }
   finally {
     paying.value = false
@@ -67,7 +80,7 @@ const confirmPay = async () => {
   <div>
     <NightPosPageHeader
       title="Liquidaciones — Chicas"
-      subtitle="Consumos con acompañante, manillas, piezas y shows del turno."
+      subtitle="Liquidación del turno por chica."
       :breadcrumbs="[
         { title: 'NightPOS', disabled: true },
         { title: 'Finanzas', disabled: true },
@@ -77,13 +90,15 @@ const confirmPay = async () => {
     />
     <NightPosSectionTabs :tabs="settlementTabs" />
 
+    <SettlementsCashBanner emphasize-pay-requirement />
+
     <VAlert
       v-if="!loading && !shift"
       type="info"
       variant="tonal"
       class="mb-4"
     >
-      Sin turno clasificado. Registre servicios o cobre ventas CON_ACOMPANANTE y genere desde el resumen.
+      Sin turno clasificado. Genere liquidaciones desde el resumen cuando haya ventas cobradas.
     </VAlert>
 
     <VProgressLinear
@@ -132,44 +147,15 @@ const confirmPay = async () => {
       </VDataTable>
     </VCard>
 
-    <!-- Confirmación pago -->
-    <VDialog
+    <SettlementPayDialog
       v-model="showPayDialog"
-      max-width="420"
-    >
-      <VCard title="Confirmar pago chica">
-        <VCardText>
-          <p class="text-body-2 mb-3">
-            Pagar liquidación de <strong>{{ payingItem?.staff_name }}</strong>.
-          </p>
-          <VAlert
-            type="info"
-            variant="tonal"
-            density="compact"
-            class="mb-0"
-          >
-            Se registrará un <strong>egreso de {{ payingItem?.total_amount }} BOB</strong>
-            en su caja abierta. El efectivo esperado bajará automáticamente.
-          </VAlert>
-        </VCardText>
-        <VCardActions>
-          <VBtn
-            variant="text"
-            @click="showPayDialog = false"
-          >
-            Cancelar
-          </VBtn>
-          <VSpacer />
-          <VBtn
-            color="success"
-            :loading="paying"
-            :disabled="paying"
-            @click="confirmPay"
-          >
-            Confirmar pago
-          </VBtn>
-        </VCardActions>
-      </VCard>
-    </VDialog>
+      :settlement="payingItem"
+      title="Confirmar pago chica"
+      type-label="Chica"
+      :loading="paying"
+      @confirm="confirmPay"
+    />
+
+    <QuickOpenCashDialog v-model="showOpenCash" @opened="refreshCashSession" />
   </div>
 </template>

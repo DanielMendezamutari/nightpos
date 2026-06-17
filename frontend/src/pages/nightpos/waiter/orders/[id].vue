@@ -2,6 +2,7 @@
 import WaiterBottomNav from '@/components/nightpos/waiter/WaiterBottomNav.vue'
 import WaiterMobileHeader from '@/components/nightpos/waiter/WaiterMobileHeader.vue'
 import AssignGirlModal from '@/components/nightpos/orders/AssignGirlModal.vue'
+import ComboAllocationDialog from '@/components/nightpos/orders/ComboAllocationDialog.vue'
 import OrderAddProductDialog from '@/components/nightpos/orders/OrderAddProductDialog.vue'
 import QuickGirlCreateDialog from '@/components/nightpos/staff/QuickGirlCreateDialog.vue'
 import { fetchProductPrices } from '@/api/products'
@@ -10,12 +11,17 @@ import {
   assignOrderItemGirl,
   fetchOrder,
   sendOrderToBar,
+  syncOrderItemAllocations,
 } from '@/api/orders'
 import { loadOperationalGirlsForSelect } from '@/composables/useOperationalGirls'
 import { useOrderProductShortcuts } from '@/composables/useOrderProductShortcuts'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
-import { canModifyOrder, formatMoney, itemsNeedingGirl } from '@/composables/useOrderHelpers'
+import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
+import { useOrderOperationalEvents } from '@/composables/useOrderOperationalEvents'
+import { useOperationalPollingFallback } from '@/composables/useOperationalPollingFallback'
+import { canModifyOrder, formatCompanionBraceletLine, formatMoney, formatAllocationSummary, itemsNeedingAllocation, itemsNeedingGirl, shouldShowCompanionBraceletLine } from '@/composables/useOrderHelpers'
+import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { waiterOrderStatus } from '@/composables/useWaiterOrderStatus'
 import { getApiErrorMessage } from '@/services/http'
 
@@ -30,6 +36,7 @@ const route = useRoute()
 const router = useRouter()
 const { can } = useNightPosPermissions()
 const { notify } = useNightPosNotify()
+const { openPrintRoute } = useNightPosPrint()
 const {
   toggleFavorite,
   recordRecent,
@@ -43,6 +50,8 @@ const loading = ref(true)
 const actionLoading = ref(false)
 const showAddItem = ref(false)
 const showSendDialog = ref(false)
+const showAllocationDialog = ref(false)
+const allocationTarget = ref(null)
 const showQuickGirl = ref(false)
 const pricePreview = ref(null)
 const pricesLoading = ref(false)
@@ -61,8 +70,11 @@ const hasItems = computed(() => (order.value?.items?.length ?? 0) > 0)
 
 const orderStatus = computed(() => waiterOrderStatus(order.value?.status))
 
-const saleModeLabel = mode =>
-  mode === 'CON_ACOMPANANTE' ? 'Con acompañante' : 'Solo'
+const saleModeLabel = item => {
+  if (item.requires_allocation)
+    return `${item.required_bracelet_units ?? 0} manillas`
+  return item.sale_mode === 'CON_ACOMPANANTE' ? 'Con acompañante' : 'Solo'
+}
 
 const loadOrder = async () => {
   loading.value = true
@@ -124,8 +136,31 @@ const submitAddItem = async (addForm) => {
       notes: addForm.notes?.trim() || null,
     })
     recordRecent(addForm.product_id)
+
+    if (addForm.allocations?.length) {
+      const added = [...(order.value?.items ?? [])]
+        .reverse()
+        .find(i => i.product_id === addForm.product_id && i.requires_allocation)
+
+      if (added) {
+        order.value = await syncOrderItemAllocations(orderId.value, added.id, addForm.allocations)
+      }
+    }
+
     showAddItem.value = false
-    notify('Agregado')
+
+    const pending = order.value?.items?.find(i =>
+      i.product_id === addForm.product_id && i.requires_allocation && !i.allocation_complete,
+    )
+
+    if (pending) {
+      allocationTarget.value = pending
+      showAllocationDialog.value = true
+      notify('Complete el reparto de manillas', 'warning')
+    }
+    else {
+      notify(addForm.is_combo ? 'Combo agregado' : 'Agregado')
+    }
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -133,6 +168,31 @@ const submitAddItem = async (addForm) => {
   finally {
     actionLoading.value = false
   }
+}
+
+const saveAllocation = async allocations => {
+  if (!allocationTarget.value)
+    return
+
+  actionLoading.value = true
+  try {
+    order.value = await syncOrderItemAllocations(orderId.value, allocationTarget.value.id, allocations)
+    showAllocationDialog.value = false
+    allocationTarget.value = null
+    notify('Reparto guardado')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error), 'error')
+  }
+  finally {
+    actionLoading.value = false
+  }
+}
+
+const openAllocationEditor = async item => {
+  await loadGirls()
+  allocationTarget.value = item
+  showAllocationDialog.value = true
 }
 
 const confirmSendToBar = async () => {
@@ -151,6 +211,10 @@ const confirmSendToBar = async () => {
 }
 
 const openSendDialog = async () => {
+  if (itemsNeedingAllocation(order.value).length) {
+    notify('Complete el reparto de manillas antes de enviar a barra', 'warning')
+    return
+  }
   if (itemsNeedingGirl(order.value).length) {
     await loadGirls()
     showSendDialog.value = true
@@ -182,11 +246,27 @@ const assignGirlsAndSend = async (girlAssignments) => {
   }
 }
 
+const openPrecheck = () => {
+  openPrintRoute({ name: 'nightpos-print-precheck-order-id', params: { id: orderId.value } })
+}
+
 const onGirlCreated = girl => {
   if (!girl?.id)
     return
   staffUsers.value = [...staffUsers.value, { id: girl.id, name: girl.name }]
 }
+
+const { connected: sseConnected, reconnecting: sseReconnecting } = useOrderOperationalEvents(loadOrder, {
+  orderId: orderId.value,
+  toastOnUpdated: true,
+  updatedDebounceMs: 400,
+  onTerminalStatus: (status) => {
+    if (['BILLED', 'CANCELLED'].includes(status))
+      notify('La comanda fue cerrada por otro usuario.', 'warning')
+  },
+})
+
+useOperationalPollingFallback(loadOrder)
 
 onMounted(async () => {
   await loadOrder()
@@ -203,6 +283,13 @@ onMounted(async () => {
       :title="order?.table_label || 'Comanda'"
       show-back
     />
+
+    <VContainer class="py-2 px-4">
+      <NightPosSseBanner
+        :connected="sseConnected"
+        :reconnecting="sseReconnecting"
+      />
+    </VContainer>
 
     <VContainer
       v-if="order"
@@ -223,9 +310,44 @@ onMounted(async () => {
         <VListItem
           v-for="item in order.items"
           :key="item.id"
-          :subtitle="saleModeLabel(item.sale_mode)"
+          :subtitle="saleModeLabel(item)"
         >
           <VListItemTitle>{{ item.product_name }} × {{ item.quantity }}</VListItemTitle>
+          <div
+            v-if="shouldShowCompanionBraceletLine(item)"
+            class="text-caption text-medium-emphasis"
+          >
+            {{ formatCompanionBraceletLine(item) }}
+          </div>
+          <div
+            v-if="item.requires_allocation"
+            class="text-caption mt-1"
+          >
+            <div class="font-weight-medium">
+              Manillas: {{ item.allocated_bracelet_units }}/{{ item.required_bracelet_units }}
+            </div>
+            <div
+              v-if="formatAllocationSummary(item).length"
+              class="text-medium-emphasis"
+            >
+              Distribución
+            </div>
+            <div
+              v-for="row in formatAllocationSummary(item)"
+              :key="`${row.name}-${row.units}`"
+            >
+              {{ row.name }} ×{{ row.units }}
+            </div>
+            <VBtn
+              v-if="modifiable"
+              variant="text"
+              size="x-small"
+              class="px-0 mt-1"
+              @click="openAllocationEditor(item)"
+            >
+              Editar reparto
+            </VBtn>
+          </div>
           <template #append>
             {{ formatMoney(item.line_total) }}
           </template>
@@ -261,6 +383,15 @@ onMounted(async () => {
           @click="openAddItem"
         >
           {{ isSentToBar ? 'Agregar extra' : '+ Producto' }}
+        </VBtn>
+        <VBtn
+          v-if="hasItems && !isReadOnly"
+          size="x-large"
+          variant="outlined"
+          prepend-icon="ri-file-list-3-line"
+          @click="openPrecheck"
+        >
+          Ver precuenta
         </VBtn>
         <VBtn
           v-if="isOpen"
@@ -300,6 +431,7 @@ onMounted(async () => {
       @preview-price="onPreviewPrice"
       @toggle-favorite="p => toggleFavorite(p.id)"
       @quick-create-girl="showQuickGirl = true"
+      @girl-created="onGirlCreated"
     />
 
     <AssignGirlModal
@@ -309,6 +441,21 @@ onMounted(async () => {
       :loading="actionLoading"
       @confirm="assignGirlsAndSend"
       @staff-updated="onGirlCreated"
+    />
+
+    <ComboAllocationDialog
+      v-model="showAllocationDialog"
+      :product-name="allocationTarget?.product_name ?? ''"
+      :quantity="allocationTarget?.quantity ?? 1"
+      :units-per-combo="allocationTarget?.bracelet_units_per_line ?? 6"
+      :required-units="allocationTarget?.required_bracelet_units ?? 0"
+      :girls="staffUsers"
+      :loading="actionLoading"
+      :initial-rows="allocationTarget?.allocations ?? []"
+      edit-mode
+      :can-quick-create-girl="can('staff.quick_create_girl')"
+      @save="saveAllocation"
+      @girl-created="onGirlCreated"
     />
 
     <QuickGirlCreateDialog

@@ -1,6 +1,6 @@
 # Frontend SSE-2 Report — Consumidores de Eventos Operativos
 
-## Fase: V1-94 — SSE-2 EVENTOS OPERATIVOS LIMPIEZA / CAJERA / ADMIN
+## Fase: V1-94 + P0 Fast Operation (2026-06-16)
 
 **Fecha:** 2026-06-06
 
@@ -29,15 +29,36 @@ Extras:
 
 ---
 
-### 2. `/nightpos/cashier/orders` — Cajera: Cobrar comandas
+### 2. `/nightpos/cashier/orders` — Cajera: Cobrar comandas (P0 2026-06-16)
 **Archivo:** `src/pages/nightpos/cashier/orders/index.vue`
 
-Eventos suscritos:
-- `order.created` → `debouncedLoad()`
-- `order.sent_to_bar` → `debouncedLoad()` + toast `"Nueva comanda enviada a barra"`
-- `order.updated` → `debouncedLoad()`
-- `order.billed` → `debouncedLoad()`
-- `order.cancelled` → `debouncedLoad()`
+Composable: `useOrderOperationalEvents` + `useOperationalPollingFallback` (30 s) + `NightPosSseBanner`
+
+- `order.created` → reload 100 ms + toast «Nueva comanda recibida»
+- `order.sent_to_bar` → reload + toast
+- `order.updated` / `order.billed` / `order.cancelled` → reload 500 ms
+
+---
+
+### 2b. `/nightpos/orders` y `/nightpos/orders/:id` — Admin/cajera detalle (P0)
+**Archivos:** `orders/index.vue`, `orders/[id].vue`
+
+- SSE + polling + banner
+- Detalle: filtro por `orderId`, toast «Comanda actualizada», aviso si cobrada/cancelada por otro
+
+---
+
+### 2c. `/nightpos/waiter/orders` — Garzón móvil (P0)
+**Archivos:** `waiter/orders/index.vue`, `waiter/orders/[id].vue`
+
+- Mismo composable de comandas + polling + banner
+
+---
+
+### 2d. SSE persistente en layout (P0)
+**Archivos:** `DefaultLayoutWithVerticalNav.vue`, `DefaultLayoutWithHorizontalNav.vue`, `blank.vue`
+
+`useOperationalSseHost()` — conexión activa al navegar entre pantallas operativas.
 
 ---
 

@@ -22,8 +22,10 @@ use App\Http\Controllers\Api\V1\FirstNightChecklistController;
 use App\Http\Controllers\Api\V1\PaymentMethodController;
 use App\Http\Controllers\Api\V1\RoomTypeController;
 use App\Http\Controllers\Api\V1\ServiceAreaController;
+use App\Http\Controllers\Api\V1\ServiceTableController;
 use App\Http\Controllers\Api\V1\ShowTypeController;
 use App\Http\Controllers\Api\V1\WaiterController;
+use App\Http\Controllers\Api\V1\WaiterTableAssignmentController;
 use App\Http\Controllers\Api\V1\CleaningController;
 use App\Http\Controllers\Api\V1\GirlController;
 use App\Http\Controllers\Api\V1\AuditLogController;
@@ -52,6 +54,7 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware('auth:api')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
+            Route::post('refresh', [AuthController::class, 'refresh']);
             Route::post('logout', [AuthController::class, 'logout']);
         });
     });
@@ -225,6 +228,7 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shifts.close'])->group(function () {
+            Route::get('shifts/current/close-check', [ShiftController::class, 'closeCheck']);
             Route::post('shifts/{id}/close', [ShiftController::class, 'close'])->whereNumber('id');
         });
 
@@ -268,6 +272,11 @@ Route::prefix('v1')->group(function () {
             Route::get('orders', [OrderController::class, 'index']);
         });
 
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:waiter.my_tables'])->group(function () {
+            Route::get('waiter/my-tables', [WaiterController::class, 'myTables']);
+            Route::post('waiter/my-tables/{tableId}/open', [WaiterController::class, 'openTable'])->whereNumber('tableId');
+        });
+
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.create'])->group(function () {
             Route::post('orders', [OrderController::class, 'store']);
             Route::get('waiter/service-areas', [WaiterController::class, 'serviceAreas']);
@@ -275,11 +284,13 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.access'])->group(function () {
+            Route::get('orders/{id}/precheck', [OrderController::class, 'precheck'])->whereNumber('id');
             Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.add_items'])->group(function () {
             Route::post('orders/{id}/items', [OrderController::class, 'addItem'])->whereNumber('id');
+            Route::put('orders/{id}/items/{itemId}/allocations', [OrderController::class, 'syncItemAllocations'])->whereNumber(['id', 'itemId']);
             Route::patch('orders/{id}/items/{itemId}', [OrderController::class, 'assignItemGirl'])->whereNumber(['id', 'itemId']);
         });
 
@@ -319,6 +330,8 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:cash.access'])->group(function () {
             Route::get('cash/session/current', [CashController::class, 'current']);
+            Route::get('cash/session/current/close-check', [CashController::class, 'closeCheck']);
+            Route::get('cash/movement-reasons', [CashMovementReasonController::class, 'index']);
             Route::post('cash/session/open', [CashController::class, 'open']);
             Route::post('cash/movements', [CashController::class, 'registerMovement']);
             Route::post('cash/session/close', [CashController::class, 'close']);
@@ -467,6 +480,23 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.service_areas.manage'])->group(function () {
             Route::post('service-areas', [ServiceAreaController::class, 'store']);
             Route::put('service-areas/{id}', [ServiceAreaController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.service_tables'])->group(function () {
+            Route::get('service-tables', [ServiceTableController::class, 'index']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.service_tables.manage'])->group(function () {
+            Route::post('service-tables', [ServiceTableController::class, 'store']);
+            Route::put('service-tables/{id}', [ServiceTableController::class, 'update'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.waiter_assignments'])->group(function () {
+            Route::get('waiter-table-assignments', [WaiterTableAssignmentController::class, 'index']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.waiter_assignments.manage'])->group(function () {
+            Route::put('waiter-table-assignments/sync', [WaiterTableAssignmentController::class, 'sync']);
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.room_types'])->group(function () {

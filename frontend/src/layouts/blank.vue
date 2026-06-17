@@ -1,5 +1,12 @@
 <script setup>
+import { useRoute } from 'vue-router'
+import { useOperationalSseHost } from '@/composables/useOperationalSseHost'
+
 const { injectSkinClasses } = useSkins()
+const route = useRoute()
+
+if (route.path.startsWith('/nightpos'))
+  useOperationalSseHost()
 
 // ℹ️ This will inject classes in body tag for accurate styling
 injectSkinClasses()

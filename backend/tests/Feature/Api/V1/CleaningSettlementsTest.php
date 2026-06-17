@@ -263,7 +263,7 @@ it('paying cleaning settlement creates cash expense', function () {
 
     nightposOpenCashSession($cashier);
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($cashier))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($cashier))
         ->assertOk();
 
     expect(CashMovementModel::query()->where('movement_type', 'EXPENSE')->count())->toBe($before + 1);
@@ -284,7 +284,7 @@ it('cannot pay cleaning settlement without open cash session', function () {
     $settlementId = (int) StaffSettlementModel::query()->where('settlement_type', 'CLEANING')->value('id');
     $cashier = cleaningSettlementsCashierToken();
 
-    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", [], nightposOperationalHeaders($cashier))
+    test()->postJson("/api/v1/settlements/{$settlementId}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($cashier))
         ->assertStatus(422)
         ->assertJsonPath('message', 'Debe abrir caja para pagar esta liquidación.');
 });

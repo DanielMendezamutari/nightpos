@@ -122,6 +122,7 @@ final class TenantDefaultRolePermissions
         return [
             'waiter.dashboard',
             'waiter.orders',
+            'waiter.my_tables',
             'orders.access',
             'orders.create',
             'orders.add_items',

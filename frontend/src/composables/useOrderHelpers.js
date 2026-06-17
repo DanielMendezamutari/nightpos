@@ -54,8 +54,44 @@ export function itemsNeedingGirl(order) {
     return []
 
   return order.items.filter(
-    item => item.sale_mode === 'CON_ACOMPANANTE' && !item.girl_user_id,
+    item => item.sale_mode === 'CON_ACOMPANANTE'
+      && !item.requires_allocation
+      && !item.girl_user_id,
   )
+}
+
+export function itemsNeedingAllocation(order) {
+  if (!order?.items?.length)
+    return []
+
+  return order.items.filter(
+    item => item.item_status !== 'CANCELLED'
+      && item.requires_allocation
+      && !item.allocation_complete,
+  )
+}
+
+export function formatAllocationSummary(item) {
+  if (!item?.allocations?.length)
+    return []
+
+  return item.allocations.map(a => ({
+    name: a.girl_name ?? `Chica #${a.girl_user_id}`,
+    units: a.units,
+  }))
+}
+
+export function shouldShowCompanionBraceletLine(item) {
+  return item?.sale_mode === 'CON_ACOMPANANTE' && !item?.requires_allocation
+}
+
+export function formatCompanionBraceletLine(item) {
+  if (!shouldShowCompanionBraceletLine(item))
+    return null
+
+  const name = item.girl_name?.trim()
+
+  return `Manilla: ${name || 'Sin asignar'}`
 }
 
 export function formatMoney(amount, currency = 'BOB') {

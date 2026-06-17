@@ -1,9 +1,15 @@
 <script setup>
-import ProductFormFields from '@/components/nightpos/forms/ProductFormFields.vue'
+import ProductForm from '@/components/nightpos/products/ProductForm.vue'
 import NightPosFormActions from '@/components/nightpos/layout/NightPosFormActions.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import { fetchCategories } from '@/api/categories'
-import { fetchProduct, updateProduct } from '@/api/products'
+import { fetchProduct, replaceActiveProductPrice, updateProduct } from '@/api/products'
+import {
+  createDefaultProductForm,
+  formPricePayloads,
+  formToUpdatePayload,
+  productToForm,
+} from '@/composables/useProductForm'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
 import { getApiErrorMessage } from '@/services/http'
@@ -16,22 +22,20 @@ const { canUpdateProduct } = useNightPosPermissions()
 const { notify } = useNightPosNotify()
 
 const categories = ref([])
-const form = ref(null)
+const form = ref(createDefaultProductForm())
 const saving = ref(false)
 const loading = ref(true)
-const refForm = ref()
+const productFormRef = ref()
 
 const save = async () => {
-  const { valid } = await refForm.value?.validate() ?? { valid: false }
-  if (!valid)
-    return
-
   saving.value = true
   try {
-    await updateProduct(route.params.id, {
-      ...form.value,
-      category_id: form.value.category_id || null,
-    })
+    await updateProduct(route.params.id, formToUpdatePayload(form.value))
+
+    for (const pricePayload of formPricePayloads(form.value)) {
+      await replaceActiveProductPrice(route.params.id, pricePayload)
+    }
+
     notify('Producto actualizado')
     await router.push({ name: 'nightpos-products-id', params: { id: route.params.id } })
   }
@@ -51,18 +55,12 @@ onMounted(async () => {
   }
 
   try {
-    const [p, cats] = await Promise.all([
+    const [product, cats] = await Promise.all([
       fetchProduct(route.params.id),
       fetchCategories().catch(() => []),
     ])
     categories.value = cats
-    form.value = {
-      name: p.name,
-      product_type: p.product_type,
-      category_id: p.category_id,
-      unit: p.unit || 'unit',
-      status: p.status,
-    }
+    form.value = productToForm(product, product.active_prices ?? [])
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -76,12 +74,12 @@ onMounted(async () => {
 <template>
   <div>
     <NightPosPageHeader
-      :title="`Editar — ${form?.name || ''}`"
-      subtitle="Datos del producto en catálogo."
+      :title="`Editar — ${form.name || ''}`"
+      subtitle="Datos, precios y combo en una sola pantalla."
       :breadcrumbs="[
         { title: 'NightPOS', disabled: true },
         { title: 'Productos', to: { name: 'nightpos-products' } },
-        { title: form?.name || 'Editar', disabled: true },
+        { title: form.name || 'Editar', disabled: true },
       ]"
     />
     <VProgressLinear
@@ -89,23 +87,26 @@ onMounted(async () => {
       indeterminate
       class="mb-4"
     />
-    <VCard v-else-if="form">
+    <VCard v-else>
       <VCardText>
-        <VForm
-          ref="refForm"
-          @submit.prevent="save"
+        <ProductForm
+          ref="productFormRef"
+          v-model="form"
+          mode="edit"
+          :categories="categories"
+          :saving="saving"
+          @submit="save"
         >
-          <ProductFormFields
-            v-model="form"
-            :categories="categories"
-          />
-          <NightPosFormActions
-            :saving="saving"
-            :cancel-to="{ name: 'nightpos-products-id', params: { id: route.params.id } }"
-            @save="save"
-          />
-        </VForm>
+          <template #actions>
+            <NightPosFormActions
+              class="mt-4"
+              :saving="saving"
+              :cancel-to="{ name: 'nightpos-products-id', params: { id: route.params.id } }"
+              @save="productFormRef?.submit?.()"
+            />
+          </template>
+        </ProductForm>
       </VCardText>
     </VCard>
-</div>
+  </div>
 </template>

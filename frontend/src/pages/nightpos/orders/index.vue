@@ -19,6 +19,9 @@ import {
 } from '@/composables/useOrderListTabs'
 
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
+import { useOrderOperationalEvents } from '@/composables/useOrderOperationalEvents'
+import { useOperationalPollingFallback } from '@/composables/useOperationalPollingFallback'
 import { getApiErrorMessage } from '@/services/http'
 
 
@@ -121,6 +124,12 @@ watch(
 
 
 
+const { connected: sseConnected, reconnecting: sseReconnecting } = useOrderOperationalEvents(loadOrders, {
+  updatedDebounceMs: 500,
+})
+
+useOperationalPollingFallback(loadOrders)
+
 onMounted(loadOrders)
 
 useOnContextChange(loadOrders)
@@ -132,6 +141,11 @@ useOnContextChange(loadOrders)
 <template>
 
   <div class="orders-page">
+
+    <NightPosSseBanner
+      :connected="sseConnected"
+      :reconnecting="sseReconnecting"
+    />
 
     <div class="orders-page__header mb-4">
 

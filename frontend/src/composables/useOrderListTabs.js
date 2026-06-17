@@ -11,8 +11,7 @@ export const ORDER_LIST_TABS = [
 ]
 
 export const CASHIER_ORDER_TABS = [
-  { value: 'pending_charge', label: 'Pendientes de cobro', scope: 'pending_charge' },
-  { value: 'operational_active', label: 'Abiertas / en barra', scope: 'operational_active' },
+  { value: 'cashier_chargeable', label: 'Pendientes de cobro', scope: 'cashier_chargeable' },
   { value: 'billed_recent', label: 'Cobradas recientes', scope: 'billed_recent' },
 ]
 

@@ -72,4 +72,24 @@ final class ProductDomainException extends DomainException
             $label,
         ));
     }
+
+    public static function invalidSettlementBehavior(string $value): self
+    {
+        return new self(sprintf('Comportamiento de liquidación inválido: %s.', $value));
+    }
+
+    public static function invalidAllocationType(string $value): self
+    {
+        return new self(sprintf('Tipo de asignación inválido: %s.', $value));
+    }
+
+    public static function invalidBraceletUnits(): self
+    {
+        return new self('Las manillas por combo deben ser al menos 1.');
+    }
+
+    public static function directSaleAllocationNotSupported(): self
+    {
+        return new self('Este combo debe venderse por comanda para asignar manillas.');
+    }
 }

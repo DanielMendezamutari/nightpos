@@ -47,4 +47,9 @@ final class CashDomainException extends DomainException
     {
         return new self(sprintf('Tipo de movimiento inválido: %s.', $value));
     }
+
+    public static function cannotCloseWithBlockers(string $details): self
+    {
+        return new self('No puedes cerrar caja todavía. '.$details);
+    }
 }

@@ -98,6 +98,25 @@ final class EloquentOfficialShiftRepository implements OfficialShiftRepositoryIn
         return $this->mapShift($model->fresh(['openedBy', 'closedBy', 'branch']));
     }
 
+    public function markAutoClosed(int $shiftId, int $tenantId, int $closedByUserId): OfficialShift
+    {
+        $model = OfficialShiftModel::query()
+            ->where('id', $shiftId)
+            ->where('tenant_id', $tenantId)
+            ->firstOrFail();
+
+        $note = trim(((string) $model->notes)."\n".OfficialShiftStatus::AUTO_CLOSE_NOTE);
+
+        $model->update([
+            'status' => OfficialShiftStatus::CLOSED,
+            'closed_by_user_id' => $closedByUserId,
+            'closed_at' => Carbon::now(),
+            'notes' => $note,
+        ]);
+
+        return $this->mapShift($model->fresh(['openedBy', 'closedBy', 'branch']));
+    }
+
     public function buildSummaryTotals(int $officialShiftId, int $tenantId, int $branchId): array
     {
         $payments = SalePaymentModel::query()

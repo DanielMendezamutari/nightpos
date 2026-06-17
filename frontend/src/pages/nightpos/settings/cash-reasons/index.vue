@@ -93,6 +93,14 @@ onMounted(load)
       ]"
     />
     <NightPosSectionTabs :tabs="SETTINGS_SECTION_TABS" />
+    <VAlert
+      v-if="!can('settings.cash_reasons.manage')"
+      type="info"
+      variant="tonal"
+      class="mb-4"
+    >
+      Solo lectura. Para crear o editar motivos necesita permiso de gestión (administrador).
+    </VAlert>
     <VRow>
       <VCol
         cols="12"
@@ -107,6 +115,7 @@ onMounted(load)
               :items="[
                 { title: 'Ingreso', value: 'INCOME' },
                 { title: 'Egreso', value: 'EXPENSE' },
+                { title: 'Ambos', value: 'BOTH' },
               ]"
               :disabled="!!editId"
             />
@@ -156,6 +165,7 @@ onMounted(load)
               :items="[
                 { title: 'Ingresos', value: 'INCOME' },
                 { title: 'Egresos', value: 'EXPENSE' },
+                { title: 'Ambos', value: 'BOTH' },
               ]"
               class="mb-4"
               style="max-width: 240px"
@@ -169,9 +179,9 @@ onMounted(load)
               <template #item.type="{ item }">
                 <VChip
                   size="small"
-                  :color="item.type === 'INCOME' ? 'success' : 'error'"
+                  :color="item.type === 'INCOME' ? 'success' : item.type === 'BOTH' ? 'info' : 'error'"
                 >
-                  {{ item.type === 'INCOME' ? 'Ingreso' : 'Egreso' }}
+                  {{ item.type === 'INCOME' ? 'Ingreso' : item.type === 'BOTH' ? 'Ambos' : 'Egreso' }}
                 </VChip>
               </template>
               <template #item.status="{ item }">

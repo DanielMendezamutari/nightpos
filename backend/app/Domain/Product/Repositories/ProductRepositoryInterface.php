@@ -32,6 +32,10 @@ interface ProductRepositoryInterface extends RepositoryInterface
         string $unit,
         bool $trackInventory,
         string $status,
+        string $settlementBehavior = 'GIRL_LINE',
+        int $braceletUnitsPerLine = 1,
+        bool $requiresAllocation = false,
+        ?string $allocationType = null,
     ): Product;
 
     public function update(
@@ -47,5 +51,9 @@ interface ProductRepositoryInterface extends RepositoryInterface
         string $unit,
         bool $trackInventory,
         string $status,
+        string $settlementBehavior = 'GIRL_LINE',
+        int $braceletUnitsPerLine = 1,
+        bool $requiresAllocation = false,
+        ?string $allocationType = null,
     ): Product;
 }

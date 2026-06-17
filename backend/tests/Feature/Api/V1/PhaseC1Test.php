@@ -75,6 +75,32 @@ it('creates quick waiter and uses it on new order', function () {
         ->assertJsonPath('data.order.waiter_user_id', $waiterId);
 });
 
+it('creates quick combo product with bracelet allocation in one step', function () {
+    $category = ProductCategoryModel::query()->create([
+        'tenant_id' => 1,
+        'name' => 'Combos C1',
+        'status' => 'active',
+    ]);
+
+    $response = test()->postJson('/api/v1/products/quick', [
+        'name' => 'Combo 6 Cervezas',
+        'category_id' => $category->id,
+        'solo_price' => 120,
+        'companion_price' => 180,
+        'girl_amount' => 90,
+        'house_amount' => 90,
+        'settlement_behavior' => 'GIRL_BRACELET_ALLOCATION',
+        'bracelet_units_per_line' => 6,
+        'unit' => 'combo',
+    ], nightposOperationalHeaders(phaseC1CashierToken()))
+        ->assertCreated();
+
+    expect($response->json('data.product.settlement_behavior'))->toBe('GIRL_BRACELET_ALLOCATION')
+        ->and($response->json('data.product.bracelet_units_per_line'))->toBe(6)
+        ->and($response->json('data.product.requires_allocation'))->toBeTrue()
+        ->and($response->json('data.prices'))->toHaveCount(2);
+});
+
 it('creates quick product with solo and companion prices', function () {
     $category = ProductCategoryModel::query()->create([
         'tenant_id' => 1,
@@ -133,30 +159,60 @@ it('lists cleaning rooms when none are available', function () {
         ->and(collect($cleaning)->pluck('code'))->toContain('C1-LIMP');
 });
 
-it('reports waiters without commission in pending sources', function () {
+it('reports waiters without commission in pending sources when they had activity', function () {
     $waiterId = nightposDemoWaiterUserId();
+    $cashier = phaseC1CashierToken();
+    nightposOpenCashSession($cashier, 100);
+
+    // El garzón participa en una venta del turno actual.
+    $created = nightposCreateOrderWithItem($cashier, ['table_label' => 'Mesa C1 garzón']);
+    test()->postJson("/api/v1/orders/{$created['order_id']}/charge", [
+        'payments' => [['method' => 'CASH', 'amount' => 50]],
+    ], nightposOperationalHeaders($cashier))->assertCreated();
 
     StaffProfileModel::query()
         ->where('user_id', $waiterId)
         ->update(['waiter_commission_percent' => null]);
 
-    $response = test()->getJson('/api/v1/settlements/current-shift/pending-sources', nightposOperationalHeaders(phaseC1CashierToken()))
+    $response = test()->getJson('/api/v1/settlements/current-shift/pending-sources', nightposOperationalHeaders(phaseC1AdminToken()))
         ->assertOk();
 
     expect(collect($response->json('data.waiters_without_commission'))->pluck('id'))
         ->toContain($waiterId);
 });
 
-it('reports girls without commission flag in pending sources', function () {
+it('does not warn about waiters without commission when they had no activity in the shift', function () {
+    $waiterId = nightposDemoWaiterUserId();
+    nightposEnsureShiftOpen();
+
+    StaffProfileModel::query()
+        ->where('user_id', $waiterId)
+        ->update(['waiter_commission_percent' => null]);
+
+    $response = test()->getJson('/api/v1/settlements/current-shift/pending-sources', nightposOperationalHeaders(phaseC1AdminToken()))
+        ->assertOk();
+
+    expect(collect($response->json('data.waiters_without_commission'))->pluck('id'))
+        ->not->toContain($waiterId);
+});
+
+it('reports girls without commission flag in pending sources when they had activity', function () {
     $girlId = (int) UserModel::query()
         ->whereHas('staffProfile', fn ($q) => $q->where('staff_role', 'GIRL'))
         ->value('id');
+
+    $cashier = phaseC1CashierToken();
+    nightposOpenCashSession($cashier, 100);
+
+    test()->postJson('/api/v1/room-services', nightposRoomServicePayload([
+        'girl_user_id' => $girlId,
+    ]), nightposOperationalHeaders($cashier))->assertCreated();
 
     StaffProfileModel::query()
         ->where('user_id', $girlId)
         ->update(['can_receive_girl_commissions' => false]);
 
-    $response = test()->getJson('/api/v1/settlements/current-shift/pending-sources', nightposOperationalHeaders(phaseC1CashierToken()))
+    $response = test()->getJson('/api/v1/settlements/current-shift/pending-sources', nightposOperationalHeaders(phaseC1AdminToken()))
         ->assertOk();
 
     expect(collect($response->json('data.girls_without_commission_flag'))->pluck('id'))

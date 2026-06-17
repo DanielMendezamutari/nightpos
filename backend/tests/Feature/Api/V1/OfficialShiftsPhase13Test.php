@@ -99,6 +99,8 @@ it('closes shift and generates closure summary', function () {
         'payments' => [['method' => 'CASH', 'amount' => 50]],
     ], nightposOperationalHeaders($token))->assertCreated();
 
+    nightposPrepareCashSessionClose($token);
+
     $this->postJson('/api/v1/cash/session/close', [
         'declared_closing_amount' => 150,
     ], nightposOperationalHeaders($token))->assertOk();

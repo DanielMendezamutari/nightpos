@@ -133,6 +133,12 @@ const addToCart = async (product, saleMode = 'SOLO_CLIENTE') => {
     return
   }
 
+  if (product.requires_allocation) {
+    notify('Este combo debe venderse por comanda para asignar manillas.', 'warning')
+
+    return
+  }
+
   const existing = cart.value.find(
     i => i.product_id === product.id && i.sale_mode === saleMode && !i.girl_user_id,
   )
@@ -188,6 +194,9 @@ const clearCart = () => {
 
 // ---- Confirmar venta ----
 const confirmSale = async () => {
+  if (saving.value)
+    return
+
   if (cartEmpty.value) {
     notify('Agregue al menos un producto.', 'warning')
 
@@ -467,29 +476,31 @@ const onCashOpened = () => {
                 </span>
               </div>
 
-              <!-- Pago mixto -->
-              <MixedPaymentForm
+              <!-- Pago mixto + cobro -->
+              <VForm
                 v-if="!cartEmpty"
-                ref="paymentFormRef"
-                :total="cartTotal"
-                :currency="cart[0]?.currency ?? 'BOB'"
-                variant="inline"
-                show-quick-buttons
-                class="mb-4"
-              />
-
-              <!-- Botón cobrar -->
-              <VBtn
-                v-if="!cartEmpty"
-                color="success"
-                size="x-large"
-                block
-                :loading="saving"
-                prepend-icon="ri-money-dollar-circle-line"
-                @click="confirmSale"
+                @submit.prevent="confirmSale"
               >
-                Cobrar {{ formatMoney(cartTotal, cart[0]?.currency ?? 'BOB') }}
-              </VBtn>
+                <MixedPaymentForm
+                  ref="paymentFormRef"
+                  :total="cartTotal"
+                  :currency="cart[0]?.currency ?? 'BOB'"
+                  show-quick-buttons
+                  class="mb-4"
+                />
+
+                <VBtn
+                  color="success"
+                  size="x-large"
+                  block
+                  type="submit"
+                  :loading="saving"
+                  :disabled="!cashSessionOpen || saving"
+                  prepend-icon="ri-money-dollar-circle-line"
+                >
+                  Cobrar {{ formatMoney(cartTotal, cart[0]?.currency ?? 'BOB') }}
+                </VBtn>
+              </VForm>
             </VCardText>
           </VCard>
         </VCol>

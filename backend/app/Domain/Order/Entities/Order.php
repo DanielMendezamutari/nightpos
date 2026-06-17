@@ -18,6 +18,7 @@ final readonly class Order
         public string $status,
         public ?string $tableLabel,
         public ?int $serviceAreaId = null,
+        public ?int $serviceTableId = null,
         public ?int $waiterUserId,
         public int $openedByUserId,
         public ?string $notes,

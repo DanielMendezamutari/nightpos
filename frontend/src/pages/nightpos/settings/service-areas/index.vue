@@ -73,8 +73,8 @@ onMounted(load)
 <template>
   <div>
     <NightPosPageHeader
-      title="Ambientes y mesas"
-      subtitle="Opcional en comandas — puede usarse junto con etiqueta libre."
+      title="Ambientes (salones)"
+      subtitle="Salones y zonas del local. Las mesas numeradas se configuran en Mesas."
       :breadcrumbs="[
         { title: 'NightPOS', disabled: true },
         { title: 'Configuración', disabled: true },

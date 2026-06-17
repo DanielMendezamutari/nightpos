@@ -7,6 +7,11 @@ import {
   readContextFromCookies,
 } from '@/utils/authSession'
 import {
+  isCashierShellAllowedPath,
+  isBasicCashierStaff,
+  resolveCashierShellRedirect,
+} from '@/utils/cashierRouting'
+import {
   isCleaningOnlyRoute,
   isCleaningStaff,
   isGirlOnlyRoute,
@@ -114,6 +119,7 @@ export const setupGuards = router => {
     const girlUser = session.user && isGirlStaff(session.user)
     const waiterUser = session.user && isWaiterStaff(session.user)
     const cleaningUser = session.user && isCleaningStaff(session.user)
+    const basicCashier = session.user && isBasicCashierStaff(session.user)
 
     if (!session.isLoggedIn) {
       if (isIndexRoute(to))
@@ -134,6 +140,10 @@ export const setupGuards = router => {
       return redirectIfDifferent(router, to, { name: 'nightpos-girl' })
     }
 
+    if (waiterUser && to.name === 'nightpos-waiter-orders-new') {
+      return redirectIfDifferent(router, to, { name: 'nightpos-waiter' })
+    }
+
     if (waiterUser && !isWaiterOnlyRoute(to.path) && to.name !== 'not-authorized') {
       return redirectIfDifferent(router, to, { name: 'nightpos-waiter' })
     }
@@ -142,9 +152,25 @@ export const setupGuards = router => {
       return redirectIfDifferent(router, to, { name: 'nightpos-cleaning' })
     }
 
+    if (basicCashier) {
+      const shellRedirect = resolveCashierShellRedirect(to.name)
+
+      if (shellRedirect)
+        return redirectIfDifferent(router, to, { name: shellRedirect })
+
+      if (!isCashierShellAllowedPath(to.path) && to.name !== 'not-authorized') {
+        return redirectIfDifferent(router, to, { name: 'nightpos-cashier-orders' })
+      }
+    }
+
+    const requiredPermissions = to.meta.permissions
     const requiredPermission = to.meta.permission
 
-    if (requiredPermission && !session.permissions.includes(requiredPermission)) {
+    const lacksPermission = Array.isArray(requiredPermissions) && requiredPermissions.length > 0
+      ? !requiredPermissions.some(permission => session.permissions.includes(permission))
+      : requiredPermission && !session.permissions.includes(requiredPermission)
+
+    if (lacksPermission) {
       if (isUserHomeRoute(to, session.user, session.context)) {
         purgeCorruptSession()
 

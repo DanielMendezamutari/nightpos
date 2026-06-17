@@ -8,6 +8,7 @@ import { useContextStore } from '@/stores/context'
 
 import nightposNavigation from '@/navigation/vertical/nightpos-r4'
 import { isGirlStaff, isWaiterStaff } from '@/utils/waiterRouting'
+import { isBasicCashierStaff } from '@/utils/cashierRouting'
 
 
 
@@ -142,7 +143,7 @@ export function useNightPosNavItems() {
 
 
   const navItems = computed(() => {
-    if (isWaiterStaff(auth.user) || isGirlStaff(auth.user))
+    if (isWaiterStaff(auth.user) || isGirlStaff(auth.user) || isBasicCashierStaff(auth.user))
       return []
 
     return filterNavTree(nightposNavigation, navContext.value)

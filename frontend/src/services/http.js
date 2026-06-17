@@ -12,6 +12,54 @@ const api = axios.create({
   },
 })
 
+let refreshInFlight = null
+
+function isAuthEndpoint(url = '') {
+  return url.includes('/auth/login-')
+    || url.includes('/auth/refresh')
+    || url.includes('/auth/logout')
+}
+
+function redirectToLogin() {
+  if (typeof window === 'undefined')
+    return
+
+  const onLoginPage = window.location.pathname.startsWith('/login')
+
+  if (onLoginPage)
+    return
+
+  const params = new URLSearchParams({ reason: 'session_expired' })
+
+  window.location.assign(`/login?${params.toString()}`)
+}
+
+function clearClientSession() {
+  if (getActivePinia())
+    useAuthStore().clearSession()
+  else {
+    useCookie('accessToken').value = null
+    useCookie('userData').value = null
+  }
+}
+
+async function tryRefreshSession() {
+  if (!getActivePinia())
+    return null
+
+  if (!refreshInFlight) {
+    const auth = useAuthStore()
+
+    refreshInFlight = auth.refreshSession()
+      .catch(() => null)
+      .finally(() => {
+        refreshInFlight = null
+      })
+  }
+
+  return refreshInFlight
+}
+
 api.interceptors.request.use(config => {
   const accessToken = useCookie('accessToken').value
 
@@ -43,33 +91,31 @@ api.interceptors.request.use(config => {
 
 api.interceptors.response.use(
   response => response,
-  error => {
+  async error => {
     const status = error.response?.status
+    const originalConfig = error.config
 
-    if (typeof window !== 'undefined') {
-      if (status === 401) {
-        const onLoginPage = window.location.pathname.startsWith('/login')
-        const isAuthLoginRequest = error.config?.url?.includes('/auth/login-')
+    if (typeof window !== 'undefined' && status === 401 && originalConfig) {
+      const onLoginPage = window.location.pathname.startsWith('/login')
+      const skipRefresh = originalConfig._skipAuthRefresh
+      const isLoginRequest = isAuthEndpoint(originalConfig.url)
 
-        // En /login no limpiar sesión: applyContext puede llamar APIs tras persistSession.
-        if (!isAuthLoginRequest && !onLoginPage) {
-          if (getActivePinia())
-            useAuthStore().clearSession()
-          else {
-            useCookie('accessToken').value = null
-            useCookie('userData').value = null
-          }
-        }
+      if (!isLoginRequest && !onLoginPage && !skipRefresh && !originalConfig._retried) {
+        originalConfig._retried = true
 
-        if (!onLoginPage && !isAuthLoginRequest) {
-          const params = new URLSearchParams({ reason: 'session_expired' })
+        const newToken = await tryRefreshSession()
 
-          window.location.assign(`/login?${params.toString()}`)
+        if (newToken) {
+          originalConfig.headers.Authorization = `Bearer ${newToken}`
+
+          return api.request(originalConfig)
         }
       }
 
-      // 403 por acción (ej. cobrar sin permiso): lo maneja cada vista vía getApiErrorMessage.
-      // Rutas protegidas usan guards → not-authorized sin tumbar la sesión en dev.
+      if (!isLoginRequest && !onLoginPage) {
+        clearClientSession()
+        redirectToLogin()
+      }
     }
 
     return Promise.reject(error)
