@@ -10,6 +10,7 @@ import {
   syncOrderItemAllocations,
   updateOrderHeader,
 } from '@/api/orders'
+import { fetchOrderPrintStatus, reprintOrderCommand } from '@/api/printDevices'
 import { chargeOrder } from '@/api/sales'
 import { loadOperationalGirlsForSelect } from '@/composables/useOperationalGirls'
 import AssignGirlModal from '@/components/nightpos/orders/AssignGirlModal.vue'
@@ -113,12 +114,68 @@ const canCreateProductQuick = computed(() => can('products.quick_create'))
 
 const staffUsers = ref([])
 const assignLoading = ref(false)
+const printJob = ref(null)
+const reprintLoading = ref(false)
+
+const printStatusLabel = computed(() => {
+  const status = printJob.value?.status
+  if (!status)
+    return null
+  const map = {
+    PENDING: 'Pendiente impresión',
+    CLAIMED: 'Imprimiendo…',
+    PRINTED: 'Impreso en barra',
+    FAILED: 'Error de impresión',
+  }
+  return map[status] ?? status
+})
+
+const printStatusColor = computed(() => {
+  const status = printJob.value?.status
+  if (status === 'PRINTED')
+    return 'success'
+  if (status === 'FAILED')
+    return 'error'
+  if (status === 'PENDING' || status === 'CLAIMED')
+    return 'warning'
+  return 'default'
+})
+
+const loadPrintStatus = async () => {
+  if (!orderId.value)
+    return
+  try {
+    printJob.value = await fetchOrderPrintStatus(orderId.value)
+  }
+  catch {
+    printJob.value = null
+  }
+}
+
+const handleReprint = async () => {
+  reprintLoading.value = true
+  try {
+    await reprintOrderCommand(orderId.value)
+    notify('Reimpresión encolada')
+    await loadPrintStatus()
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error), 'error')
+  }
+  finally {
+    reprintLoading.value = false
+  }
+}
 
 const loadOrder = async () => {
   loading.value = true
 
   try {
     order.value = await fetchOrder(orderId.value)
+    if (order.value && order.value.status !== 'OPEN')
+      await loadPrintStatus()
+    else
+      printJob.value = null
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -127,6 +184,10 @@ const loadOrder = async () => {
   finally {
     loading.value = false
   }
+}
+
+const refreshOrderAndPrint = async () => {
+  await loadOrder()
 }
 
 const loadCashSession = async () => {
@@ -302,6 +363,7 @@ const confirmSendToBar = async () => {
     order.value = await sendOrderToBar(orderId.value)
     showSendDialog.value = false
     notify('Comanda enviada a barra')
+    await loadPrintStatus()
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -541,7 +603,7 @@ const openAddProductDialog = async () => {
   await openAddItem()
 }
 
-const { connected: sseConnected, reconnecting: sseReconnecting } = useOrderOperationalEvents(loadOrder, {
+const { connected: sseConnected, reconnecting: sseReconnecting } = useOrderOperationalEvents(refreshOrderAndPrint, {
   orderId: orderId.value,
   toastOnUpdated: true,
   updatedDebounceMs: 400,
@@ -551,7 +613,7 @@ const { connected: sseConnected, reconnecting: sseReconnecting } = useOrderOpera
   },
 })
 
-useOperationalPollingFallback(loadOrder)
+useOperationalPollingFallback(refreshOrderAndPrint)
 
 onMounted(async () => {
   const refreshMe = cashierCorrectionMode.value
@@ -635,7 +697,25 @@ onMounted(async () => {
         </VCard>
       </template>
 
-      <div class="d-flex justify-end mb-2">
+      <div class="d-flex justify-end align-center gap-2 mb-2 flex-wrap">
+        <VChip
+          v-if="printStatusLabel"
+          :color="printStatusColor"
+          size="small"
+          variant="tonal"
+        >
+          {{ printStatusLabel }}
+        </VChip>
+        <VBtn
+          v-if="can('printing.reprint') && order?.status === 'SENT_TO_BAR'"
+          size="small"
+          variant="tonal"
+          prepend-icon="ri-refresh-line"
+          :loading="reprintLoading"
+          @click="handleReprint"
+        >
+          Reimprimir barra
+        </VBtn>
         <VBtn
           size="small"
           variant="tonal"

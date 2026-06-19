@@ -37,6 +37,8 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BranchController;
 use App\Http\Controllers\Api\V1\ProductCategoryController;
 use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\PrintDeviceController;
+use App\Http\Controllers\Api\V1\PrintJobController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\TenantController;
 use App\Http\Controllers\Api\V1\DirectSaleController;
@@ -57,6 +59,15 @@ Route::prefix('v1')->group(function () {
             Route::post('refresh', [AuthController::class, 'refresh']);
             Route::post('logout', [AuthController::class, 'logout']);
         });
+    });
+
+    Route::middleware('nightpos.print-device')->group(function () {
+        Route::get('print-devices/me', [PrintDeviceController::class, 'me']);
+        Route::post('print-devices/heartbeat', [PrintDeviceController::class, 'heartbeat']);
+        Route::get('print-jobs/pending', [PrintJobController::class, 'pending']);
+        Route::post('print-jobs/{id}/claim', [PrintJobController::class, 'claim'])->whereNumber('id');
+        Route::post('print-jobs/{id}/printed', [PrintJobController::class, 'printed'])->whereNumber('id');
+        Route::post('print-jobs/{id}/failed', [PrintJobController::class, 'failed'])->whereNumber('id');
     });
 
     Route::middleware(['auth:api', 'nightpos.tenant', 'nightpos.branch:optional'])->group(function () {
@@ -514,6 +525,24 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.bootstrap'])->group(function () {
             Route::post('settings/bootstrap-operational', [SettingsBootstrapController::class, 'store']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.printers'])->group(function () {
+            Route::get('print-devices', [PrintDeviceController::class, 'index']);
+            Route::get('print-settings', [PrintDeviceController::class, 'settings']);
+            Route::get('print-jobs', [PrintJobController::class, 'index']);
+            Route::get('orders/{id}/print-status', [PrintJobController::class, 'orderStatus'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.printers.manage'])->group(function () {
+            Route::post('print-devices/register', [PrintDeviceController::class, 'register']);
+            Route::patch('print-devices/{id}', [PrintDeviceController::class, 'update'])->whereNumber('id');
+            Route::post('print-devices/{id}/rotate-key', [PrintDeviceController::class, 'rotateKey'])->whereNumber('id');
+            Route::patch('print-settings', [PrintDeviceController::class, 'updateSettings']);
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:printing.reprint'])->group(function () {
+            Route::post('orders/{id}/reprint', [PrintJobController::class, 'reprintOrder'])->whereNumber('id');
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:audits.list'])->group(function () {

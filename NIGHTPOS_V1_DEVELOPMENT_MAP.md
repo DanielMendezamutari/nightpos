@@ -800,6 +800,24 @@ Diseño de módulo kardex para cerrar V1 operativo con control de stock. **Sin i
 
 ---
 
+## AUDITORÍA PLANIFICADA — Impresión local automática (2026-06-17)
+
+Diseño agente local + cola `print_jobs`. **Sin implementación aún.**
+
+| Documento | Contenido |
+|-----------|-----------|
+| `backend/LOCAL_PRINTING_AGENT_AUDIT.md` | Modelo datos, API, hooks send-to-bar, seguridad device_key, fases PRINT-1…6 |
+| `frontend/LOCAL_PRINTING_AGENT_AUDIT.md` | UI admin impresoras, badges estado, reimpresión |
+| `agent/LOCAL_PRINTING_AGENT_AUDIT.md` | Agente Node.js Windows, polling, ESC/POS, dry-run |
+
+**Estado actual:** V1-97 solo `window.print()`; sin `print_jobs` en DB; `settings/printers` placeholder.
+
+**Recomendación V1:** Agente Node + polling 1,5s + `content_text` generado en backend + auto print al enviar a barra.
+
+**Estimado MVP comanda auto:** ~11–15 días dev + QA impresora real.
+
+---
+
 ## AJUSTE UX — Tab Piezas en shell cajera (2026-06-17)
 
 | Área | Entregable |

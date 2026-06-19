@@ -4,6 +4,8 @@ use App\Domain\Auth\Exceptions\BranchAccessDeniedException;
 use App\Domain\Auth\Exceptions\InvalidCredentialsException;
 use App\Domain\Auth\Exceptions\PermissionDeniedException;
 use App\Domain\Auth\Exceptions\TenantAccessDeniedException;
+use App\Domain\Printing\Exceptions\PrintingDomainException;
+use App\Infrastructure\Laravel\Http\Middleware\AuthenticatePrintDeviceMiddleware;
 use App\Infrastructure\Laravel\Http\Middleware\EnsureRolePermissionMiddleware;
 use App\Infrastructure\Laravel\Http\Middleware\EnsureUserHasBranchAccessMiddleware;
 use App\Infrastructure\Laravel\Http\Middleware\ResolveBranchMiddleware;
@@ -57,6 +59,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'nightpos.branch' => ResolveBranchMiddleware::class,
             'nightpos.branch.access' => EnsureUserHasBranchAccessMiddleware::class,
             'nightpos.permission' => EnsureRolePermissionMiddleware::class,
+            'nightpos.print-device' => AuthenticatePrintDeviceMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -86,6 +89,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof ShowNotFoundException,
                 $exception instanceof RoomNotFoundException => 404,
                 $exception instanceof RoleAdminException => $exception->statusCode,
+                $exception instanceof PrintingDomainException => $exception->statusCode,
                 $exception instanceof ProductDomainException,
                 $exception instanceof TenantDomainException,
                 $exception instanceof PlanDomainException,

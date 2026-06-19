@@ -168,7 +168,7 @@ export default [
       { title: 'Tipos habitación', to: 'nightpos-settings-room-types', action: 'access', subject: 'settings.room_types' },
       { title: 'Checklist 1ª noche', to: 'nightpos-settings-first-night-checklist', action: 'access', subject: 'settings.checklist' },
       { title: 'Sucursal actual', to: 'nightpos-settings-branch' },
-      { title: 'Impresoras', to: 'nightpos-settings-printers' },
+      { title: 'Impresoras', to: 'nightpos-settings-printers', action: 'access', subject: 'settings.printers' },
       { title: 'Preferencias', to: 'nightpos-settings-preferences' },
       { title: 'Seguridad', to: 'nightpos-settings-security' },
       { title: 'Bitácora auditoría', to: 'nightpos-settings-audit-logs', action: 'access', subject: 'audits.list' },

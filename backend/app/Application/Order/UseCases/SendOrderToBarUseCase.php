@@ -10,6 +10,7 @@ namespace App\Application\Order\UseCases;
 
 
 
+use App\Application\Printing\UseCases\CreateOrderCommandPrintJobUseCase;
 use App\Application\Order\DTOs\OrderActionInput;
 
 use App\Application\Order\Services\OrderItemReadinessChecker;
@@ -62,6 +63,8 @@ final class SendOrderToBarUseCase implements UseCaseInterface
         private readonly OrderPresentationService $presentation,
 
         private readonly OperationalEventEmitter $eventEmitter,
+
+        private readonly CreateOrderCommandPrintJobUseCase $createOrderCommandPrintJob,
 
     ) {
 
@@ -173,7 +176,14 @@ final class SendOrderToBarUseCase implements UseCaseInterface
 
         $updated = $this->orders->findById($order->id, $tenant->id);
 
-
+        if ($updated !== null) {
+            $this->createOrderCommandPrintJob->execute(
+                order: $updated,
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                requestedByUserId: $this->staffContext->userId(),
+            );
+        }
 
         $this->eventEmitter->emit(
             $tenant->id,
