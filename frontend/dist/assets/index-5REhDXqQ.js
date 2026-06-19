@@ -1,0 +1,1 @@
+import{eP as r,R as a,o,g as s,K as t}from"./index-BWGl88CJ.js";const _={__name:"index",setup(n){const e=r();return a(()=>{e.replace({name:"nightpos-cash"})}),(c,p)=>(o(),s(t,{indeterminate:""}))}};export{_ as default};
