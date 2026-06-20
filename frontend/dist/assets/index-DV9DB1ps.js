@@ -1,1 +1,0 @@
-import{eP as o,R as r,o as t,c as s}from"./index-BWGl88CJ.js";const u={__name:"index",setup(a){const e=o();return r(()=>{e.replace({name:"nightpos-cashier-orders"})}),(n,c)=>(t(),s("div"))}};export{u as default};

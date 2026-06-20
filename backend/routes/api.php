@@ -296,6 +296,7 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:orders.access'])->group(function () {
             Route::get('orders/{id}/precheck', [OrderController::class, 'precheck'])->whereNumber('id');
+            Route::post('orders/{id}/precheck/print', [OrderController::class, 'printPrecheck'])->whereNumber('id');
             Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id');
         });
 

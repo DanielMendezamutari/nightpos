@@ -375,6 +375,7 @@ declare module 'vue' {
     DialogCloseBtn: typeof import('./src/@core/components/DialogCloseBtn.vue')['default']
     EnableOneTimePasswordDialog: typeof import('./src/components/dialogs/EnableOneTimePasswordDialog.vue')['default']
     ErrorHeader: typeof import('./src/components/ErrorHeader.vue')['default']
+    GirlQuickPicker: typeof import('./src/components/nightpos/waiter/GirlQuickPicker.vue')['default']
     I18n: typeof import('./src/@core/components/I18n.vue')['default']
     MixedPaymentForm: typeof import('./src/components/nightpos/payments/MixedPaymentForm.vue')['default']
     MoreBtn: typeof import('./src/@core/components/MoreBtn.vue')['default']
@@ -446,6 +447,7 @@ declare module 'vue' {
     WaiterMobileHeader: typeof import('./src/components/nightpos/waiter/WaiterMobileHeader.vue')['default']
     WaiterOrderActions: typeof import('./src/components/nightpos/waiter/WaiterOrderActions.vue')['default']
     WaiterOrderCard: typeof import('./src/components/nightpos/waiter/WaiterOrderCard.vue')['default']
+    WaiterSaleTypeTabs: typeof import('./src/components/nightpos/waiter/WaiterSaleTypeTabs.vue')['default']
     WaiterTablesGrid: typeof import('./src/components/nightpos/waiter/WaiterTablesGrid.vue')['default']
     WaiterTableTile: typeof import('./src/components/nightpos/waiter/WaiterTableTile.vue')['default']
   }

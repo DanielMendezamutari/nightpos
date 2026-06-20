@@ -39,6 +39,12 @@ export async function fetchOrderPrecheck(id) {
   return unwrapNightPosResponse(response).precheck
 }
 
+export async function printOrderPrecheck(id) {
+  const response = await api.post(`/orders/${id}/precheck/print`)
+
+  return unwrapNightPosResponse(response).job
+}
+
 export async function createOrder(payload) {
   const response = await api.post('/orders', payload)
 

@@ -17,7 +17,8 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(NightPosSeeder::class);
     nightposEnsureShiftOpen();
-    nightposOpenCashSession(cleaningSettlementsCashierToken());
+    $cashier = nightposLoginPin('1234');
+    nightposOpenCashSession($cashier, 100, false);
 });
 
 function cleaningSettlementsAdminToken(): string
@@ -57,7 +58,7 @@ function cleaningSettlementsCreateFinishedService(
     ?string $startedAt = null,
 ): int {
     $opsToken = cleaningSettlementsCashierToken();
-    nightposOpenCashSession($opsToken);
+    nightposOpenCashSession($opsToken, 100, false);
     $payload = nightposRoomServicePayload([
         'girl_user_id' => cleaningSettlementsGirlId(),
         'room_id' => $roomId,
@@ -88,7 +89,7 @@ function cleaningSettlementsMarkRoomClean(int $roomId): void
 
 function cleaningSettlementsGenerate(): void
 {
-    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders(cleaningSettlementsCashierToken()))
+    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders(cleaningSettlementsAdminToken()))
         ->assertCreated();
 }
 

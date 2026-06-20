@@ -164,6 +164,71 @@ export function usePosCatalog(options = {}) {
     products.value = []
   }
 
+  const fetchAllSellableProducts = async () => {
+    loading.value = true
+
+    try {
+      const metaData = await fetchPosCatalog({
+        sellable_only: sellableOnly.value ? 1 : 0,
+        unpriced_only: unpricedOnly.value ? 1 : 0,
+        limit: Math.min(limit.value, 50),
+      })
+
+      categories.value = metaData.categories ?? []
+      meta.value = metaData.meta ?? {}
+
+      const categoryTargets = categories.value
+        .filter(c => (c.sellable_count ?? 0) > 0 || (c.product_count ?? 0) > 0)
+        .map(c => c.id)
+        .filter(id => id != null)
+
+      categoryTargets.push(0)
+
+      const batchLimit = 50
+      const batches = await Promise.all(
+        categoryTargets.map(async catId => {
+          try {
+            const data = await fetchPosCatalog({
+              sellable_only: sellableOnly.value ? 1 : 0,
+              unpriced_only: unpricedOnly.value ? 1 : 0,
+              category_id: catId,
+              limit: batchLimit,
+            })
+
+            return data.products ?? []
+          }
+          catch {
+            return []
+          }
+        }),
+      )
+
+      const merged = new Map()
+
+      for (const batch of batches) {
+        for (const product of batch)
+          merged.set(product.id, product)
+      }
+
+      products.value = [...merged.values()].sort((a, b) =>
+        String(a.name ?? '').localeCompare(String(b.name ?? ''), 'es'),
+      )
+
+      meta.value = {
+        ...meta.value,
+        result_count: products.value.length,
+        matched_count: products.value.length,
+        has_more: false,
+      }
+    }
+    catch {
+      products.value = []
+    }
+    finally {
+      loading.value = false
+    }
+  }
+
   const debouncedFetch = useDebounceFn(fetchResults, 300)
 
   watch([search, categoryId, productIds, sellableOnly, unpricedOnly], () => {
@@ -192,5 +257,6 @@ export function usePosCatalog(options = {}) {
     showFavorites,
     showRecents,
     resetBrowse,
+    fetchAllSellableProducts,
   }
 }

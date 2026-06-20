@@ -47,7 +47,7 @@ function settlementsCashUiCreateCleaningSettlement(string $adminToken): int
         ->json('data.room.id');
 
     $opsToken = settlementsCashUiCashierToken();
-    nightposOpenCashSession($opsToken);
+    nightposOpenCashSession($opsToken, 100, false);
 
     $girlId = (int) UserModel::query()->where('username', 'chica.centro')->value('id');
     $serviceId = (int) test()->postJson('/api/v1/room-services', nightposRoomServicePayload([
@@ -66,10 +66,7 @@ function settlementsCashUiCreateCleaningSettlement(string $adminToken): int
     test()->postJson("/api/v1/cleaning/rooms/{$roomId}/mark-clean", [], nightposOperationalHeaders(settlementsCashUiCleaningToken()))
         ->assertOk();
 
-    auth('api')->forgetUser();
-    test()->flushHeaders();
-
-    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders(settlementsCashUiCashierToken()))
+    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders(settlementsCashUiAdminToken()))
         ->assertCreated();
 
     $settlement = StaffSettlementModel::query()

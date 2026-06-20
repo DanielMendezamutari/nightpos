@@ -92,11 +92,96 @@ final class PrintTicketContentBuilder
         return implode("\n", $lines)."\n";
     }
 
+    /**
+     * @param  array<string, mixed>  $order  Order from OrderPresentationService
+     */
+    public function buildPrecheck(array $order, ?string $branchName, ?string $waiterName, ?string $serviceAreaName, int $paperWidthMm = 80): string
+    {
+        $width = $paperWidthMm <= 58 ? 32 : 48;
+        $lines = [];
+
+        $lines[] = $this->center($branchName ?: 'NIGHTPOS', $width);
+        $lines[] = $this->center('PRECUENTA', $width);
+        $lines[] = str_repeat('=', $width);
+
+        $orderNumber = (string) ($order['order_number'] ?? '—');
+        $lines[] = $this->row('Comanda', $orderNumber, $width);
+
+        $tableLabel = (string) ($order['table_label'] ?? '');
+        if ($tableLabel !== '') {
+            $lines[] = $this->row('Mesa', $tableLabel, $width);
+        }
+
+        if ($serviceAreaName !== null && $serviceAreaName !== '') {
+            $lines[] = $this->row('Salon', $serviceAreaName, $width);
+        }
+
+        if ($waiterName !== null && $waiterName !== '') {
+            $lines[] = $this->row('Garzon', $waiterName, $width);
+        }
+
+        $timestamp = $order['opened_at'] ?? now()->toIso8601String();
+        $lines[] = $this->row('Fecha', $this->formatDateTime($timestamp), $width);
+
+        $lines[] = str_repeat('-', $width);
+
+        foreach ($this->visibleItems($order) as $item) {
+            $qty = (int) ($item['quantity'] ?? 1);
+            $name = (string) ($item['product_name'] ?? 'Producto');
+            $mode = self::SALE_MODE_LABELS[$item['sale_mode'] ?? ''] ?? ($item['sale_mode'] ?? '');
+            $lines[] = sprintf('%dx %s', $qty, $this->truncate($name, $width - 4));
+
+            if ($mode !== '') {
+                $lines[] = '   '.$mode;
+            }
+
+            if (($item['sale_mode'] ?? '') === 'CON_ACOMPANANTE' && ! ($item['requires_allocation'] ?? false)) {
+                $girlName = $item['girl_name'] ?? null;
+                if ($girlName) {
+                    $lines[] = '   Manilla: '.$girlName;
+                }
+            }
+
+            if ($item['requires_allocation'] ?? false) {
+                $allocated = (int) ($item['allocated_bracelet_units'] ?? 0);
+                $required = (int) ($item['required_bracelet_units'] ?? 0);
+                $lines[] = "   Manillas: {$allocated}/{$required}";
+
+                foreach ($item['allocations'] ?? [] as $alloc) {
+                    $girl = (string) ($alloc['girl_name'] ?? '—');
+                    $units = (int) ($alloc['units'] ?? 0);
+                    $lines[] = "   {$girl} x{$units}";
+                }
+            }
+        }
+
+        $lines[] = str_repeat('-', $width);
+
+        $total = $order['total'] ?? '0.00';
+        $currency = $order['currency'] ?? 'BOB';
+        $lines[] = $this->row('TOTAL', "{$total} {$currency}", $width);
+
+        $lines[] = str_repeat('=', $width);
+        foreach ($this->wrap('PRECUENTA — NO ES COMPROBANTE FISCAL', $width) as $line) {
+            $lines[] = $this->center($line, $width);
+        }
+        $lines[] = str_repeat('=', $width);
+
+        return implode("\n", $lines)."\n";
+    }
+
     public function buildForType(PrintJobType $type, array $payload, int $paperWidthMm = 80): string
     {
         return match ($type) {
             PrintJobType::OrderCommand => $this->buildOrderCommand(
                 $payload['order'] ?? [],
+                $payload['waiter_name'] ?? null,
+                $payload['service_area_name'] ?? null,
+                $paperWidthMm,
+            ),
+            PrintJobType::Precheck => $this->buildPrecheck(
+                $payload['order'] ?? [],
+                $payload['branch_name'] ?? null,
                 $payload['waiter_name'] ?? null,
                 $payload['service_area_name'] ?? null,
                 $paperWidthMm,

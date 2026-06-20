@@ -65,10 +65,10 @@ const {
 
 const scopeLabel = computed(() => {
   if (context.value?.scope === 'my_cash_session') {
-    return 'Mostrando: Mi caja actual'
+    return 'Mostrando liquidaciones de mi caja actual'
   }
   if (context.value?.scope === 'shift') {
-    return 'Mostrando: Turno completo de sucursal'
+    return 'Mostrando liquidaciones del turno'
   }
 
   return null
@@ -180,10 +180,15 @@ const generate = async () => {
       notify(`Liquidaciones generadas (${result.created_items} líneas nuevas)`)
     }
     else if ((result.settlement_summary?.generated_pending_count ?? 0) > 0) {
-      notify('No hay nuevas liquidaciones para generar. Tienes pagos pendientes por pagar.', 'warning')
+      notify('No hay nuevas liquidaciones para generar. Tienes pagos pendientes en tu caja.', 'warning')
     }
     else {
-      notify('No hay liquidaciones nuevas para generar en este turno/caja.', 'info')
+      notify(
+        result.context?.scope === 'my_cash_session'
+          ? 'No hay liquidaciones nuevas para generar en tu caja actual.'
+          : 'No hay liquidaciones nuevas para generar en este turno.',
+        'info',
+      )
     }
 
     await refreshAll()
@@ -398,7 +403,12 @@ onUnmounted(() => { stopSse() })
 
     >
 
-      No hay liquidaciones para este turno/caja.
+      <span v-if="context?.scope === 'my_cash_session'">
+        No tienes liquidaciones pendientes en tu caja.
+      </span>
+      <span v-else>
+        No hay liquidaciones pendientes para este turno.
+      </span>
 
       <span v-if="sourcesSummary">
 

@@ -1,8 +1,11 @@
 <script setup>
 import {
   formatMoney,
+  isComboCatalogProduct,
+  isSellableCatalogProduct,
   productActivePrice,
   productCategoryLabel,
+  productHasActivePrice,
 } from '@/composables/useOrderHelpers'
 import { useOrderProductShortcuts } from '@/composables/useOrderProductShortcuts'
 import { usePosCatalog } from '@/composables/usePosCatalog'
@@ -18,7 +21,10 @@ const props = defineProps({
   selectedSaleMode: { type: String, default: null },
   searchPlaceholder: { type: String, default: 'Buscar producto…' },
   autofocus: { type: Boolean, default: false },
+  intent: { type: String, default: null },
 })
+
+const OTHER_CATEGORY_KEYWORDS = ['cover', 'cortesía', 'cortesia', 'extras']
 
 const emit = defineEmits([
   'pick-product',
@@ -37,6 +43,8 @@ const {
   loading,
   search,
   categoryId,
+  productIds,
+  limit,
   showResults,
   categoryMap,
   loadMeta,
@@ -47,7 +55,76 @@ const {
   showFavorites: showFavoritesView,
   showRecents: showRecentsView,
   resetBrowse,
+  fetchAllSellableProducts,
 } = usePosCatalog({ sellableOnly: props.sellableOnly })
+
+const priceFor = (product, saleMode) => productActivePrice(product, saleMode)
+
+const intentActive = computed(() => props.intent != null && props.intent !== '')
+const intentSingleTap = computed(() => intentActive.value && props.intent !== 'all')
+
+const productCategoryName = product => {
+  const label = productCategoryLabel(product, categoryMap.value)
+
+  return String(label || product?.category_name || '').toLowerCase()
+}
+
+const matchesIntent = product => {
+  if (!intentActive.value)
+    return true
+
+  if (props.intent === 'all')
+    return isSellableCatalogProduct(product)
+
+  if (props.intent === 'combo') {
+    if (!isComboCatalogProduct(product))
+      return false
+
+    return productHasActivePrice(product, 'CON_ACOMPANANTE')
+      || productHasActivePrice(product, 'SOLO_CLIENTE')
+      || isSellableCatalogProduct(product)
+  }
+
+  if (props.intent === 'solo') {
+    if (isComboCatalogProduct(product))
+      return false
+
+    return productHasActivePrice(product, 'SOLO_CLIENTE')
+  }
+
+  if (props.intent === 'companion') {
+    if (isComboCatalogProduct(product))
+      return false
+
+    return productHasActivePrice(product, 'CON_ACOMPANANTE')
+  }
+
+  if (props.intent === 'other') {
+    if (isComboCatalogProduct(product))
+      return false
+
+    const categoryName = productCategoryName(product)
+
+    return OTHER_CATEGORY_KEYWORDS.some(keyword => categoryName.includes(keyword))
+      && isSellableCatalogProduct(product)
+  }
+
+  return true
+}
+
+const displayProducts = computed(() => products.value.filter(matchesIntent))
+
+const effectiveShowResults = computed(() => intentActive.value || showResults.value)
+
+const intentEmptyMessage = computed(() => {
+  if (props.intent === 'other')
+    return 'No hay productos configurados en Otros.'
+
+  if (props.intent === 'all')
+    return 'No hay productos con precio configurado.'
+
+  return 'No hay productos con precio configurado para esta opción.'
+})
 
 const {
   favorites,
@@ -75,8 +152,6 @@ const categoryChips = computed(() => {
 
   return chips
 })
-
-const priceFor = (product, saleMode) => productActivePrice(product, saleMode)
 
 const priceLabel = (product, saleMode) => {
   const row = priceFor(product, saleMode)
@@ -115,6 +190,28 @@ const onPickMode = (product, saleMode) => emit('pick-mode', { product, saleMode 
 
 const onPickCombo = product => emit('pick-combo', { product, saleMode: 'CON_ACOMPANANTE' })
 
+const onIntentPick = product => {
+  if (props.intent === 'combo') {
+    onPickCombo(product)
+    return
+  }
+
+  if (props.intent === 'solo') {
+    onPickMode(product, 'SOLO_CLIENTE')
+    return
+  }
+
+  if (props.intent === 'companion') {
+    onPickMode(product, 'CON_ACOMPANANTE')
+    return
+  }
+
+  if (props.intent === 'other') {
+    const mode = priceFor(product, 'SOLO_CLIENTE') ? 'SOLO_CLIENTE' : 'CON_ACOMPANANTE'
+    onPickMode(product, mode)
+  }
+}
+
 const onToggleFavorite = product => {
   emit('toggle-favorite', product)
   loadShortcuts()
@@ -139,15 +236,60 @@ const onCategoryClick = chip => {
 
 const refresh = async () => {
   await loadMeta()
-  await fetchResults()
+  if (intentActive.value)
+    await fetchAllSellableProducts()
+  else
+    await fetchResults()
   await loadShortcuts()
 }
 
 defineExpose({ refresh, resetBrowse })
 
+const loadIntentCatalog = async () => {
+  limit.value = 50
+  search.value = ''
+  categoryId.value = null
+  productIds.value = []
+
+  if (search.value.trim().length >= 2)
+    await fetchResults()
+  else
+    await fetchAllSellableProducts()
+}
+
 onMounted(async () => {
   await loadMeta()
   await loadShortcuts()
+
+  if (intentActive.value)
+    await loadIntentCatalog()
+})
+
+watch(() => props.intent, async intent => {
+  if (intent) {
+    await loadIntentCatalog()
+  }
+  else {
+    limit.value = 20
+    products.value = []
+  }
+})
+
+watch(search, async (q, prev) => {
+  if (!intentActive.value)
+    return
+
+  const trimmed = q.trim()
+  const prevTrimmed = (prev ?? '').trim()
+
+  if (trimmed.length >= 2) {
+    categoryId.value = null
+    productIds.value = []
+    await fetchResults()
+  }
+  else if (trimmed.length === 0 && prevTrimmed.length >= 2) {
+    await fetchAllSellableProducts()
+  }
 })
 
 watch(() => props.sellableOnly, value => {
@@ -170,7 +312,7 @@ watch(() => props.sellableOnly, value => {
     />
 
     <div
-      v-if="showFavorites && !search && favoriteList.length"
+      v-if="showFavorites && !search && !intentActive && favoriteList.length"
       class="mb-3"
     >
       <div class="text-caption text-medium-emphasis mb-2">
@@ -192,7 +334,7 @@ watch(() => props.sellableOnly, value => {
     </div>
 
     <div
-      v-if="showFavorites && !search && recentList.length"
+      v-if="showFavorites && !search && !intentActive && recentList.length"
       class="mb-3"
     >
       <div class="text-caption text-medium-emphasis mb-2">
@@ -213,7 +355,7 @@ watch(() => props.sellableOnly, value => {
     </div>
 
     <div
-      v-if="categoryChips.length && !search"
+      v-if="categoryChips.length && !search && !intentActive"
       class="mb-3 pos-product-picker__chips"
     >
       <VChip
@@ -240,7 +382,7 @@ watch(() => props.sellableOnly, value => {
     />
 
     <VAlert
-      v-else-if="!showResults"
+      v-else-if="!effectiveShowResults"
       type="info"
       variant="tonal"
       :density="compact ? 'compact' : 'default'"
@@ -250,12 +392,12 @@ watch(() => props.sellableOnly, value => {
     </VAlert>
 
     <VAlert
-      v-else-if="!products.length"
+      v-else-if="!displayProducts.length"
       type="info"
       variant="tonal"
       class="mb-3"
     >
-      No hay productos que coincidan.
+      {{ intentEmptyMessage }}
       <div
         v-if="canCreateProduct"
         class="mt-2"
@@ -273,11 +415,11 @@ watch(() => props.sellableOnly, value => {
     </VAlert>
 
     <VRow
-      v-else-if="layout === 'grid' && showResults"
+      v-else-if="layout === 'grid' && effectiveShowResults"
       class="mb-2"
     >
       <VCol
-        v-for="product in products"
+        v-for="product in displayProducts"
         :key="product.id"
         :cols="compact ? 12 : 6"
         :md="compact ? 12 : 6"
@@ -285,8 +427,12 @@ watch(() => props.sellableOnly, value => {
       >
         <VCard
           variant="outlined"
-          :class="{ 'pos-product-picker__card--selected': Number(selectedProductId) === product.id }"
+          :class="{
+            'pos-product-picker__card--selected': Number(selectedProductId) === product.id,
+            'pos-product-picker__card--tap': intentSingleTap,
+          }"
           class="pos-product-picker__card"
+          @click="intentSingleTap ? onIntentPick(product) : undefined"
         >
           <VCardText :class="compact ? 'pb-2' : 'pa-2 pb-2'">
             <div class="d-flex align-start justify-space-between gap-2">
@@ -298,7 +444,7 @@ watch(() => props.sellableOnly, value => {
                   {{ productCategoryLabel(product, categoryMap) }}
                 </div>
                 <VChip
-                  v-if="product.requires_allocation"
+                  v-if="isComboCatalogProduct(product)"
                   size="x-small"
                   color="secondary"
                   variant="tonal"
@@ -308,11 +454,11 @@ watch(() => props.sellableOnly, value => {
                 </VChip>
               </div>
               <VBtn
-                v-if="showFavorites"
+                v-if="showFavorites && !intentActive"
                 icon
                 variant="text"
                 size="small"
-                @click="onToggleFavorite(product)"
+                @click.stop="onToggleFavorite(product)"
               >
                 <VIcon
                   :icon="isFavorite(product.id) ? 'ri-star-fill' : 'ri-star-line'"
@@ -322,7 +468,25 @@ watch(() => props.sellableOnly, value => {
             </div>
 
             <div
-              v-if="!product.requires_allocation"
+              v-if="intentSingleTap && props.intent !== 'combo'"
+              :class="compact ? 'text-body-2 mt-3' : 'text-caption mb-2 mt-2'"
+            >
+              <div class="d-flex justify-space-between">
+                <span class="text-medium-emphasis">Precio</span>
+                <span class="font-weight-medium">
+                  {{
+                    props.intent === 'solo'
+                      ? (priceLabel(product, 'SOLO_CLIENTE') || 'Sin precio')
+                      : props.intent === 'companion'
+                        ? (priceLabel(product, 'CON_ACOMPANANTE') || 'Sin precio')
+                        : (priceLabel(product, 'SOLO_CLIENTE') || priceLabel(product, 'CON_ACOMPANANTE') || 'Sin precio')
+                  }}
+                </span>
+              </div>
+            </div>
+
+            <div
+              v-else-if="!isComboCatalogProduct(product)"
               :class="compact ? 'text-body-2 mt-3' : 'text-caption mb-2 mt-2'"
             >
               <div class="d-flex justify-space-between">
@@ -351,7 +515,7 @@ watch(() => props.sellableOnly, value => {
             </div>
 
             <div
-              v-if="product.requires_allocation"
+              v-if="intentActive && props.intent === 'combo'"
               class="mt-2"
             >
               <VBtn
@@ -359,13 +523,27 @@ watch(() => props.sellableOnly, value => {
                 :size="compact ? 'large' : 'small'"
                 color="primary"
                 :disabled="!priceFor(product, 'CON_ACOMPANANTE')"
+                @click.stop="onPickCombo(product)"
+              >
+                Agregar combo
+              </VBtn>
+            </div>
+            <div
+              v-else-if="isComboCatalogProduct(product) && !intentSingleTap"
+              class="mt-2"
+            >
+              <VBtn
+                class="w-100"
+                :size="compact ? 'large' : 'small'"
+                color="primary"
+                :disabled="!priceFor(product, 'CON_ACOMPANANTE') && !isSellableCatalogProduct(product)"
                 @click="onPickCombo(product)"
               >
                 Agregar combo
               </VBtn>
             </div>
             <div
-              v-else
+              v-else-if="!intentSingleTap && !isComboCatalogProduct(product)"
               class="d-flex gap-2 mt-2"
             >
               <VBtn
@@ -403,14 +581,14 @@ watch(() => props.sellableOnly, value => {
     </VRow>
 
     <VList
-      v-else-if="layout === 'list' && showResults"
+      v-else-if="layout === 'list' && effectiveShowResults"
       class="pos-product-picker__list mb-2"
     >
       <VListItem
-        v-for="product in products"
+        v-for="product in displayProducts"
         :key="product.id"
         :active="Number(selectedProductId) === product.id"
-        @click="product.requires_allocation ? onPickCombo(product) : onPickProduct(product)"
+        @click="intentSingleTap ? onIntentPick(product) : (isComboCatalogProduct(product) ? onPickCombo(product) : onPickProduct(product))"
       >
         <VListItemTitle>
           {{ product.name }}
@@ -464,7 +642,7 @@ watch(() => props.sellableOnly, value => {
     </VList>
 
     <div
-      v-if="showResults && meta.has_more"
+      v-if="effectiveShowResults && meta.has_more && !intentActive"
       class="text-caption text-medium-emphasis text-center mt-2"
     >
       Mostrando {{ meta.result_count }} de {{ meta.matched_count }} resultados. Refina la búsqueda o categoría.
@@ -490,6 +668,11 @@ watch(() => props.sellableOnly, value => {
 
 .pos-product-picker__card {
   transition: border-color 0.15s ease;
+  cursor: default;
+}
+
+.pos-product-picker__card--tap {
+  cursor: pointer;
 }
 
 .pos-product-picker__card--selected {

@@ -111,12 +111,14 @@ declare global {
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
   const integerValidator: typeof import('./src/@core/utils/validators.js')['integerValidator']
+  const isActivePriceRow: typeof import('./src/composables/useProductLabels.js')['isActivePriceRow']
   const isBasicCashierStaff: typeof import('./src/utils/cashierRouting.js')['isBasicCashierStaff']
   const isCashierShellAllowedPath: typeof import('./src/utils/cashierRouting.js')['isCashierShellAllowedPath']
   const isCashierShellRoute: typeof import('./src/utils/cashierRouting.js')['isCashierShellRoute']
   const isCashierShellStaff: typeof import('./src/utils/cashierRouting.js')['isCashierShellStaff']
   const isCashierShellTabVisible: typeof import('./src/utils/cashierShellNav.js')['isCashierShellTabVisible']
   const isCleaningStaff: typeof import('./src/utils/resolveHomeRoute.js')['isCleaningStaff']
+  const isComboCatalogProduct: typeof import('./src/composables/useProductLabels.js')['isComboCatalogProduct']
   const isDefined: typeof import('@vueuse/core')['isDefined']
   const isEmpty: typeof import('./src/@core/utils/helpers.js')['isEmpty']
   const isEmptyArray: typeof import('./src/@core/utils/helpers.js')['isEmptyArray']
@@ -132,6 +134,7 @@ declare global {
   const isReactive: typeof import('vue')['isReactive']
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
+  const isSellableCatalogProduct: typeof import('./src/composables/useProductLabels.js')['isSellableCatalogProduct']
   const isSessionCorrupt: typeof import('./src/utils/authSession.js')['isSessionCorrupt']
   const isToday: typeof import('./src/@core/utils/helpers.js')['isToday']
   const isUserHomeRoute: typeof import('./src/utils/waiterRouting.js')['isUserHomeRoute']
@@ -157,6 +160,7 @@ declare global {
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
   const nextTick: typeof import('vue')['nextTick']
+  const normalizeActivePrices: typeof import('./src/composables/useProductLabels.js')['normalizeActivePrices']
   const normalizeOperationalGirls: typeof import('./src/composables/useComboAllocation.js')['normalizeOperationalGirls']
   const onActivated: typeof import('vue')['onActivated']
   const onBeforeMount: typeof import('vue')['onBeforeMount']
@@ -187,6 +191,7 @@ declare global {
   const preventNumberWheelScroll: typeof import('./src/composables/usePreventNumberWheel.js')['preventNumberWheelScroll']
   const productActivePrice: typeof import('./src/composables/useProductLabels.js')['productActivePrice']
   const productCategoryLabel: typeof import('./src/composables/useProductLabels.js')['productCategoryLabel']
+  const productHasActivePrice: typeof import('./src/composables/useProductLabels.js')['productHasActivePrice']
   const productHasActivePricing: typeof import('./src/composables/useProductSaleModeLabels.js')['productHasActivePricing']
   const productPreviewLabel: typeof import('./src/composables/useProductForm.js')['productPreviewLabel']
   const productToForm: typeof import('./src/composables/useProductForm.js')['productToForm']
@@ -608,12 +613,14 @@ declare module 'vue' {
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly integerValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['integerValidator']>
+    readonly isActivePriceRow: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['isActivePriceRow']>
     readonly isBasicCashierStaff: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isBasicCashierStaff']>
     readonly isCashierShellAllowedPath: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellAllowedPath']>
     readonly isCashierShellRoute: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellRoute']>
     readonly isCashierShellStaff: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellStaff']>
     readonly isCashierShellTabVisible: UnwrapRef<typeof import('./src/utils/cashierShellNav.js')['isCashierShellTabVisible']>
     readonly isCleaningStaff: UnwrapRef<typeof import('./src/utils/resolveHomeRoute.js')['isCleaningStaff']>
+    readonly isComboCatalogProduct: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['isComboCatalogProduct']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isEmpty: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isEmpty']>
     readonly isEmptyArray: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isEmptyArray']>
@@ -630,6 +637,7 @@ declare module 'vue' {
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
+    readonly isSellableCatalogProduct: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['isSellableCatalogProduct']>
     readonly isSessionCorrupt: UnwrapRef<typeof import('./src/utils/authSession.js')['isSessionCorrupt']>
     readonly isToday: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isToday']>
     readonly isUserHomeRoute: UnwrapRef<typeof import('./src/utils/resolveHomeRoute.js')['isUserHomeRoute']>
@@ -658,6 +666,8 @@ declare module 'vue' {
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly normalizeActivePrices: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['normalizeActivePrices']>
+    readonly normalizeActivePrices: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['normalizeActivePrices']>
     readonly normalizeOperationalGirls: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['normalizeOperationalGirls']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
@@ -686,9 +696,9 @@ declare module 'vue' {
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['prefixWithPlus']>
     readonly preventNumberWheelScroll: UnwrapRef<typeof import('./src/composables/usePreventNumberWheel.js')['preventNumberWheelScroll']>
-    readonly productActivePrice: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['productActivePrice']>
     readonly productActivePrice: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productActivePrice']>
     readonly productCategoryLabel: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productCategoryLabel']>
+    readonly productHasActivePrice: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productHasActivePrice']>
     readonly productHasActivePricing: UnwrapRef<typeof import('./src/composables/useProductSaleModeLabels.js')['productHasActivePricing']>
     readonly productPreviewLabel: UnwrapRef<typeof import('./src/composables/useProductForm.js')['productPreviewLabel']>
     readonly productToForm: UnwrapRef<typeof import('./src/composables/useProductForm.js')['productToForm']>
@@ -1103,12 +1113,14 @@ declare module '@vue/runtime-core' {
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly integerValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['integerValidator']>
+    readonly isActivePriceRow: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['isActivePriceRow']>
     readonly isBasicCashierStaff: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isBasicCashierStaff']>
     readonly isCashierShellAllowedPath: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellAllowedPath']>
     readonly isCashierShellRoute: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellRoute']>
     readonly isCashierShellStaff: UnwrapRef<typeof import('./src/utils/cashierRouting.js')['isCashierShellStaff']>
     readonly isCashierShellTabVisible: UnwrapRef<typeof import('./src/utils/cashierShellNav.js')['isCashierShellTabVisible']>
     readonly isCleaningStaff: UnwrapRef<typeof import('./src/utils/resolveHomeRoute.js')['isCleaningStaff']>
+    readonly isComboCatalogProduct: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['isComboCatalogProduct']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isEmpty: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isEmpty']>
     readonly isEmptyArray: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isEmptyArray']>
@@ -1125,6 +1137,7 @@ declare module '@vue/runtime-core' {
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
+    readonly isSellableCatalogProduct: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['isSellableCatalogProduct']>
     readonly isSessionCorrupt: UnwrapRef<typeof import('./src/utils/authSession.js')['isSessionCorrupt']>
     readonly isToday: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isToday']>
     readonly isUserHomeRoute: UnwrapRef<typeof import('./src/utils/resolveHomeRoute.js')['isUserHomeRoute']>
@@ -1153,6 +1166,8 @@ declare module '@vue/runtime-core' {
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly normalizeActivePrices: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['normalizeActivePrices']>
+    readonly normalizeActivePrices: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['normalizeActivePrices']>
     readonly normalizeOperationalGirls: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['normalizeOperationalGirls']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onBeforeMount: UnwrapRef<typeof import('vue')['onBeforeMount']>
@@ -1181,9 +1196,9 @@ declare module '@vue/runtime-core' {
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['prefixWithPlus']>
     readonly preventNumberWheelScroll: UnwrapRef<typeof import('./src/composables/usePreventNumberWheel.js')['preventNumberWheelScroll']>
-    readonly productActivePrice: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['productActivePrice']>
     readonly productActivePrice: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productActivePrice']>
     readonly productCategoryLabel: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productCategoryLabel']>
+    readonly productHasActivePrice: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productHasActivePrice']>
     readonly productHasActivePricing: UnwrapRef<typeof import('./src/composables/useProductSaleModeLabels.js')['productHasActivePricing']>
     readonly productPreviewLabel: UnwrapRef<typeof import('./src/composables/useProductForm.js')['productPreviewLabel']>
     readonly productToForm: UnwrapRef<typeof import('./src/composables/useProductForm.js')['productToForm']>

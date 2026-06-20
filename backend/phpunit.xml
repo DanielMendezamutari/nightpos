@@ -33,6 +33,7 @@
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
         <env name="JWT_SECRET" value="nightpos-testing-jwt-secret-key-phase4-min-32-chars"/>
+        <env name="JWT_BLACKLIST_ENABLED" value="false"/>
         <env name="AUTH_GUARD" value="api"/>
     </php>
 </phpunit>

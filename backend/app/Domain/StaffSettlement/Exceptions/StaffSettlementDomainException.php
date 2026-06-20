@@ -38,6 +38,16 @@ final class StaffSettlementDomainException extends DomainException
         return new self('Debe abrir caja para pagar esta liquidación.');
     }
 
+    public static function cashRequiredForGeneration(): self
+    {
+        return new self('Debe abrir caja para generar liquidaciones de su sesión.');
+    }
+
+    public static function cannotPayOtherCashSession(): self
+    {
+        return new self('No puede pagar liquidaciones de otra caja.');
+    }
+
     public static function expenseReasonRequired(): self
     {
         return new self('No hay motivo de egreso configurado para registrar el pago en caja.');

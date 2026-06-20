@@ -60,7 +60,7 @@ final class CloseCashSessionUseCase implements UseCaseInterface
             throw CashDomainException::cannotCloseWithBlockers('La sesión de caja no tiene turno oficial asociado.');
         }
 
-        $check = $this->closeCheckBuilder->build($tenant->id, $branch->id, $shiftId);
+        $check = $this->closeCheckBuilder->build($tenant->id, $branch->id, $shiftId, $session->id);
 
         if (! $check['can_close']) {
             $messages = array_map(static fn (array $b) => $b['message'], $check['blockers']);

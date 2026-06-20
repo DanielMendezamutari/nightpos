@@ -134,6 +134,11 @@ final class SettlementShiftScopeResolver
             || $this->staffContext->hasPermission(self::FULL_SCOPE_PERMISSION);
     }
 
+    public function usesMyCashSessionScope(): bool
+    {
+        return $this->isMyCashSessionOperator();
+    }
+
     private function effectiveScope(?string $requestedScope): string
     {
         if ($this->isMyCashSessionOperator()) {

@@ -1,0 +1,1 @@
+import{eP as s,R as o,o as r,g as t,K as a}from"./index-lyohmsME.js";const u={__name:"index",setup(n){const e=s();return o(()=>{e.replace({name:"nightpos-shifts-close"})}),(c,i)=>(r(),t(a,{indeterminate:""}))}};export{u as default};

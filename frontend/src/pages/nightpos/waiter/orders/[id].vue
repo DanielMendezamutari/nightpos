@@ -10,6 +10,7 @@ import {
   addOrderItem,
   assignOrderItemGirl,
   fetchOrder,
+  printOrderPrecheck,
   sendOrderToBar,
   syncOrderItemAllocations,
 } from '@/api/orders'
@@ -48,6 +49,8 @@ const orderId = computed(() => Number(route.params.id))
 const order = ref(null)
 const loading = ref(true)
 const actionLoading = ref(false)
+const precheckPrintLoading = ref(false)
+const precheckPrintFailed = ref(false)
 const showAddItem = ref(false)
 const showSendDialog = ref(false)
 const showAllocationDialog = ref(false)
@@ -246,8 +249,28 @@ const assignGirlsAndSend = async (girlAssignments) => {
   }
 }
 
+const canPrintPrecheck = computed(() =>
+  hasItems.value && order.value && !['BILLED', 'CANCELLED'].includes(order.value.status),
+)
+
 const openPrecheck = () => {
   openPrintRoute({ name: 'nightpos-print-precheck-order-id', params: { id: orderId.value } })
+}
+
+const printPrecheck = async () => {
+  precheckPrintLoading.value = true
+  precheckPrintFailed.value = false
+  try {
+    await printOrderPrecheck(orderId.value)
+    notify('Precuenta enviada a impresora.')
+  }
+  catch (error) {
+    precheckPrintFailed.value = true
+    notify(getApiErrorMessage(error) || 'No se pudo enviar a impresora. Puedes abrir la vista imprimible.', 'error')
+  }
+  finally {
+    precheckPrintLoading.value = false
+  }
 }
 
 const onGirlCreated = girl => {
@@ -385,15 +408,6 @@ onMounted(async () => {
           {{ isSentToBar ? 'Agregar extra' : '+ Producto' }}
         </VBtn>
         <VBtn
-          v-if="hasItems && !isReadOnly"
-          size="x-large"
-          variant="outlined"
-          prepend-icon="ri-file-list-3-line"
-          @click="openPrecheck"
-        >
-          Ver precuenta
-        </VBtn>
-        <VBtn
           v-if="isOpen"
           size="x-large"
           color="warning"
@@ -404,6 +418,31 @@ onMounted(async () => {
           @click="openSendDialog"
         >
           Enviar a barra
+        </VBtn>
+      </div>
+
+      <div
+        v-if="canPrintPrecheck"
+        class="d-flex flex-column gap-3 mt-3"
+      >
+        <VBtn
+          size="x-large"
+          color="secondary"
+          variant="tonal"
+          prepend-icon="ri-printer-line"
+          :loading="precheckPrintLoading"
+          @click="printPrecheck"
+        >
+          Imprimir precuenta
+        </VBtn>
+        <VBtn
+          v-if="precheckPrintFailed"
+          size="large"
+          variant="outlined"
+          prepend-icon="ri-file-list-3-line"
+          @click="openPrecheck"
+        >
+          Ver precuenta
         </VBtn>
       </div>
 

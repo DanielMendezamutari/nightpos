@@ -291,7 +291,7 @@ it('blocks cash close when new sources exist without settlement items after a pa
         ->assertJsonPath('data.can_close', false);
 
     expect(collect($response->json('data.blockers'))->pluck('code')->all())
-        ->toContain('unsettled_settlement_sources');
+        ->toContain('settlements_not_generated');
 });
 
 it('reports sum paid and pending amounts across multiple cuts', function () {

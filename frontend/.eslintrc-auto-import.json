@@ -499,6 +499,11 @@
     "useCashierAccount": true,
     "CASHIER_SHELL_TABS": true,
     "isCashierShellTabVisible": true,
-    "useCashierShellTabs": true
+    "useCashierShellTabs": true,
+    "isActivePriceRow": true,
+    "isComboCatalogProduct": true,
+    "isSellableCatalogProduct": true,
+    "normalizeActivePrices": true,
+    "productHasActivePrice": true
   }
 }

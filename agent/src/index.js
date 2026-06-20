@@ -1,6 +1,11 @@
 const fs = require('fs')
 const path = require('path')
-const { execFile } = require('child_process')
+const {
+  log,
+  printRawEscPos,
+  writeDryRunPayload,
+  verifyPrinter,
+} = require('./printer')
 
 const CONFIG_PATH = path.join(__dirname, '..', 'config.json')
 
@@ -57,10 +62,11 @@ async function apiRequest(config, method, route, body = null) {
   return json.data ?? json
 }
 
-async function sendHeartbeat(config) {
+async function sendHeartbeat(config, lastError = null) {
   await apiRequest(config, 'POST', '/print-devices/heartbeat', {
     printer_name: config.printer_name,
-    agent_version: '1.0.0',
+    agent_version: '1.1.0',
+    last_error: lastError,
   })
 }
 
@@ -82,54 +88,43 @@ async function markFailed(config, jobId, error) {
   await apiRequest(config, 'POST', `/print-jobs/${jobId}/failed`, { error })
 }
 
-function ensureDryRunDir(dir) {
-  if (!fs.existsSync(dir))
-    fs.mkdirSync(dir, { recursive: true })
-}
-
 async function printContent(config, job) {
   const content = job.content_text || ''
   if (!content)
     throw new Error('Empty content_text')
 
   if (config.dry_run) {
-    ensureDryRunDir(config.dry_run_dir)
-    const file = path.join(config.dry_run_dir, `job-${job.id}-${Date.now()}.txt`)
-    fs.writeFileSync(file, content, 'utf8')
-    console.log(`[dry-run] wrote ${file}`)
-    return
+    writeDryRunPayload(config.dry_run_dir, job.id, content)
+    return { mode: 'dry-run' }
   }
 
   if (!config.printer_name)
-    throw new Error('printer_name not configured')
+    throw new Error('printer_name not configured in config.json')
 
-  const tmp = path.join(require('os').tmpdir(), `nightpos-job-${job.id}.txt`)
-  fs.writeFileSync(tmp, content, 'utf8')
-
-  await new Promise((resolve, reject) => {
-    execFile('cmd', ['/c', 'print', `/D:${config.printer_name}`, tmp], error => {
-      try { fs.unlinkSync(tmp) }
-      catch {}
-      if (error)
-        reject(error)
-      else
-        resolve()
-    })
-  })
+  const result = await printRawEscPos(config.printer_name, content)
+  return { mode: 'raw-spooler', ...result }
 }
 
 async function processJob(config, job) {
-  console.log(`Processing job #${job.id} (${job.type})`)
+  log('info', `Processing job #${job.id} (${job.type})`)
   await claimJob(config, job.id)
+
   try {
-    await printContent(config, job)
+    const printResult = await printContent(config, job)
+    log('info', `Physical print confirmed for job #${job.id}`, printResult)
     await markPrinted(config, job.id)
-    console.log(`Job #${job.id} PRINTED`)
+    log('info', `Job #${job.id} marked PRINTED in backend`)
   }
   catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    console.error(`Job #${job.id} FAILED: ${message}`)
+    log('error', `Job #${job.id} print failed — NOT marking PRINTED`, message)
     await markFailed(config, job.id, message)
+    try {
+      await sendHeartbeat(config, message)
+    }
+    catch (heartbeatError) {
+      log('warn', 'Failed to send error heartbeat', heartbeatError.message)
+    }
   }
 }
 
@@ -142,15 +137,27 @@ async function tick(config) {
 
 async function main() {
   const config = loadConfig()
-  console.log(`NightPOS print agent — ${config.dry_run ? 'DRY-RUN' : config.printer_name}`)
-  console.log(`Polling ${config.backend_url} every ${config.poll_interval_ms}ms`)
+
+  log('info', `NightPOS print agent v1.1.0 — ${config.dry_run ? 'DRY-RUN' : config.printer_name}`)
+  log('info', `Backend ${config.backend_url} — poll ${config.poll_interval_ms}ms`)
+
+  if (!config.dry_run && config.printer_name) {
+    try {
+      await verifyPrinter(config.printer_name)
+    }
+    catch (error) {
+      log('error', 'Startup printer check failed', error.message)
+      log('error', 'Fix printer_name or run: node src/test-print.js --list')
+      process.exit(1)
+    }
+  }
 
   while (true) {
     try {
       await tick(config)
     }
     catch (error) {
-      console.error('Poll error:', error instanceof Error ? error.message : error)
+      log('error', 'Poll error', error instanceof Error ? error.message : error)
     }
     await new Promise(r => setTimeout(r, config.poll_interval_ms))
   }

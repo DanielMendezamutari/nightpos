@@ -13,7 +13,7 @@ interface StaffSettlementRepositoryInterface
      *   shift_id: int
      * }
      */
-    public function generateForShift(int $tenantId, int $branchId, int $officialShiftId): array;
+    public function generateForShift(int $tenantId, int $branchId, int $officialShiftId, ?int $scopeCashSessionId = null): array;
 
     /**
      * @return array<string, mixed>

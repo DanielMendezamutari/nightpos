@@ -506,6 +506,8 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Motivos de caja | `backend/CASH_MOVEMENT_REASONS_MANAGEMENT_REPORT.md`, `frontend/CASH_MOVEMENT_REASONS_MANAGEMENT_REPORT.md` |
 | Cierre caja / scope cajera | `backend/CASHIER_CLOSE_CHECK_REPORT.md`, `frontend/CASHIER_CLOSE_CHECK_REPORT.md`, `backend/CASHIER_SHIFT_SCOPE_FIX_REPORT.md`, `frontend/CASHIER_SHIFT_SCOPE_FIX_REPORT.md` |
 | Liquidaciones / scope turno | `backend/SETTLEMENT_SHIFT_SCOPE_FIX_REPORT.md`, `frontend/SETTLEMENT_SHIFT_SCOPE_FIX_REPORT.md` |
+| Liquidaciones / permisos cajera (auditoría 2026-06-16) | `backend/SETTLEMENTS_PERMISSION_AUDIT.md`, `frontend/SETTLEMENTS_PERMISSION_AUDIT.md` |
+| Matriz permisos NightPOS (auditoría 2026-06-16) | `backend/NIGHTPOS_PERMISSION_MATRIX_AUDIT.md`, `frontend/NIGHTPOS_PERMISSION_MATRIX_AUDIT.md` |
 | Liquidaciones | `backend/CLEANING_SETTLEMENTS_REPORT.md`, `frontend/SETTLEMENTS_CASH_UI_FIX_REPORT.md` |
 | Liquidaciones parciales / cortes | `backend/PARTIAL_SETTLEMENTS_IMPLEMENTATION_REPORT.md`, `frontend/PARTIAL_SETTLEMENTS_IMPLEMENTATION_REPORT.md` |
 | Liquidaciones parciales post-Mis mesas | `backend/PARTIAL_SETTLEMENTS_AFTER_TABLES_FIX_REPORT.md`, `frontend/PARTIAL_SETTLEMENTS_AFTER_TABLES_FIX_REPORT.md` |
@@ -631,6 +633,25 @@ Ver **CBA-UX:** `frontend/WAITER_COMBO_UX_IMPLEMENTATION_REPORT.md`.
 | Productos normales sin cambios | ✅ |
 
 **Doc:** `frontend/WAITER_COMBO_UX_IMPLEMENTATION_REPORT.md`
+
+---
+
+## FEATURE — Garzón UX Fase 1: tipo de venta + precuenta local (completado 2026-06-16)
+
+| Entrega | Estado |
+|---------|--------|
+| Tabs Solo / Con compañía / Combos / Otros (`WaiterSaleTypeTabs`) | ✅ |
+| Tap único Solo → agregar sin modalidad | ✅ |
+| `GirlQuickPicker` con búsqueda realtime | ✅ |
+| Combos → flujo híbrido existente (`ComboAllocationDialog`) | ✅ |
+| Bucket Otros (Cover/Cortesía/Extras client-side) | ✅ |
+| `POST orders/{id}/precheck/print` → job `PRECHECK` | ✅ |
+| Botón garzón «Imprimir precuenta» + fallback vista manual | ✅ |
+| Tests `WaiterPrecheckPrintTest` (8) | ✅ |
+
+**Docs:** `frontend/WAITER_SALE_TYPE_FLOW_IMPLEMENTATION_REPORT.md`, `frontend/WAITER_PRECHECK_PRINT_REPORT.md`, `backend/WAITER_PRECHECK_PRINT_REPORT.md`  
+**Fix productos antiguos:** `frontend/WAITER_SALE_TYPE_FLOW_PRODUCT_FILTER_FIX_REPORT.md` (2026-06-16)  
+**Auditoría previa:** `frontend/WAITER_SALE_TYPE_FLOW_AUDIT.md`, `backend/WAITER_SALE_TYPE_FLOW_AUDIT.md`
 
 ---
 
@@ -873,6 +894,42 @@ Diseño agente local + cola `print_jobs`. **Sin implementación aún.**
 **Tests:** `SettlementCloseCheckConsistencyTest` (7).
 
 **Pendiente:** Fase 2B cajera (en pausa).
+
+---
+
+## AUDITORÍA — Liquidaciones y permisos cajera (2026-06-16, sin código)
+
+**Estado:** Diagnóstico completado — **sin fixes implementados** (decisión pendiente).
+
+**Problemas reportados:** (1) cajera genera pero UI dice vacío, (2) cajera no ve/paga liquidaciones que admin sí, (3) permisos nuevos al rol no aparecen en menú.
+
+### Causa raíz (evidencia)
+
+| # | Veredicto | Detalle |
+|---|-----------|---------|
+| 1–2 | **Scope read ≠ scope write** | `generateForShift` escanea **todo el turno**; `GET current-shift` filtra por `cash_session_id` (`my_cash_session`). Settlements GIRL/WAITER con `cash_session_id = NULL` (manillas, piezas, shows) **invisibles** para cajera básica. Admin usa `scope = shift`. |
+| 3 | **Permisos congelados en sesión** | Permisos en cookie `userData` al login. `POST /auth/refresh` no devuelve permisos. Cambios de rol requieren **logout/login** o `GET /auth/me` (no se invoca al arrancar). |
+
+**No es falta de slug `settlements.*` en demo:** cajera tiene los 5 permisos de liquidaciones. Diferenciador de scope: `admin.cash_sessions.view` (cajera senior ✓, cajera básica ✗).
+
+### Entregables
+
+| Documento | Contenido |
+|-----------|-----------|
+| `backend/SETTLEMENTS_PERMISSION_AUDIT.md` | API, scope resolver, generate vs read, mark-paid, JWT |
+| `frontend/SETTLEMENTS_PERMISSION_AUDIT.md` | UI, menú Más, toasts, guards, cache permisos |
+| `backend/NIGHTPOS_PERMISSION_MATRIX_AUDIT.md` | Matriz 98 permisos × 7 roles demo + drift wizard |
+| `frontend/NIGHTPOS_PERMISSION_MATRIX_AUDIT.md` | Menú vs permiso, visibilidad cajera shell |
+
+### Opciones de fix (pendiente aprobación)
+
+1. Alinear `generateForShift` con filtro `cash_session_id` para cajera básica, **o** asignar siempre `cash_session_id` al crear settlements (manillas/piezas/shows).
+2. Refrescar permisos en bootstrap (`/auth/me`) tras editar rol.
+3. Documentar que `admin.cash_sessions.view` cambia alcance liquidaciones (equivalente operativo a “ver turno completo”).
+
+**Tests relevantes:** `SettlementShiftScopeTest.php`, `SettlementCloseCheckConsistencyTest.php`.
+
+**Relacionado:** fixes previos scope (`SETTLEMENT_SHIFT_SCOPE_FIX_REPORT.md`) no cubren desalineación generate/read ni `cash_session_id` NULL en GIRL.
 
 ---
 

@@ -28,6 +28,7 @@ use App\Application\Order\UseCases\SendOrderToBarUseCase;
 use App\Application\Order\UseCases\SyncOrderItemAllocationsUseCase;
 use App\Application\Order\UseCases\UpdateOrderHeaderUseCase;
 use App\Application\Order\UseCases\UpdateOrderItemUseCase;
+use App\Application\Printing\UseCases\PrintOrderPrecheckUseCase;
 use App\Application\Sale\DTOs\ChargeOrderInput;
 use App\Application\Sale\UseCases\ChargeOrderUseCase;
 use App\Http\Controllers\Controller;
@@ -61,6 +62,7 @@ final class OrderController extends Controller
         private readonly CancelOrderItemUseCase $cancelOrderItem,
         private readonly UpdateOrderHeaderUseCase $updateOrderHeader,
         private readonly ChargeOrderUseCase $chargeOrder,
+        private readonly PrintOrderPrecheckUseCase $printOrderPrecheck,
     ) {
     }
 
@@ -105,6 +107,13 @@ final class OrderController extends Controller
     public function precheck(int $id): JsonResponse
     {
         return $this->presenter->present($this->getOrderPrecheck->execute(new GetOrderInput($id)));
+    }
+
+    public function printPrecheck(int $id): JsonResponse
+    {
+        return $this->presenter->present($this->printOrderPrecheck->execute((object) [
+            'orderId' => $id,
+        ]), 201);
     }
 
     public function addItem(int $id, AddOrderItemRequest $request): JsonResponse

@@ -1,11 +1,13 @@
 {
   "name": "nightpos-print-agent",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "NightPOS local print agent for Windows (USB thermal printer)",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
-    "dry-run": "node src/index.js --dry-run"
+    "dry-run": "node src/index.js --dry-run",
+    "test-print": "node src/test-print.js",
+    "list-printers": "node src/test-print.js --list"
   },
   "engines": {
     "node": ">=18"

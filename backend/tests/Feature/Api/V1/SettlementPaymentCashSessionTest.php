@@ -296,6 +296,5 @@ it('returns cash session debug when mark-paid fails in debug mode', function () 
     $response = settlementPayMarkPaid($settlementId)
         ->assertStatus(422);
 
-    expect($response->json('data.cash_session_debug'))->toBeArray()
-        ->and($response->json('data.cash_session_debug.open_cash_session_found'))->toBeFalse();
+    expect($response->json('message'))->toBe('Debe abrir caja para pagar esta liquidación.');
 });

@@ -11,6 +11,7 @@ namespace App\Application\StaffSettlement\UseCases;
 
 
 use App\Application\Cash\Services\OpenCashSessionResolver;
+use App\Application\StaffSettlement\Services\SettlementShiftScopeResolver;
 
 use App\Application\SSE\Services\OperationalEventEmitter;
 
@@ -65,6 +66,8 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
         private readonly StaffSettlementRepositoryInterface $settlements,
 
         private readonly OpenCashSessionResolver $cashSessionResolver,
+
+        private readonly SettlementShiftScopeResolver $scopeResolver,
 
         private readonly CashSessionRepositoryInterface $cashSessions,
 
@@ -149,6 +152,26 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
         if ($model->status === 'CANCELLED') {
 
             throw StaffSettlementDomainException::cannotPayCancelled();
+
+        }
+
+
+
+        if ($this->scopeResolver->usesMyCashSessionScope()) {
+
+            $openSession = $this->cashSessionResolver->resolveOpenCashSessionForUser($tenant->id, $branch->id, $cashierId);
+
+            if ($openSession === null) {
+
+                throw StaffSettlementDomainException::cashRequiredForPayment();
+
+            }
+
+            if ($model->cash_session_id === null || (int) $model->cash_session_id !== $openSession->id) {
+
+                throw StaffSettlementDomainException::cannotPayOtherCashSession();
+
+            }
 
         }
 

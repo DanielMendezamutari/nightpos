@@ -12,7 +12,7 @@ export const SALE_MODE_LABELS = {
   CON_ACOMPANANTE: 'Con acompañante',
 }
 
-export { formatProductType, formatSaleMode, formatStatus, productCategoryLabel, productActivePrice } from '@/composables/useProductLabels'
+export { formatProductType, formatSaleMode, formatStatus, productCategoryLabel, productActivePrice, productHasActivePrice, isComboCatalogProduct, isSellableCatalogProduct, normalizeActivePrices } from '@/composables/useProductLabels'
 
 export function orderStatusLabel(status) {
   return ORDER_STATUS_LABELS[status] || status

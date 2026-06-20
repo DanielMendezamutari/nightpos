@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Application\StaffSettlement\UseCases;
 
 use App\Application\Cash\Services\OpenCashSessionResolver;
-use App\Application\StaffSettlement\Services\SettlementAccessPolicy;
 use App\Application\StaffSettlement\Services\SettlementShiftScopeResolver;
 use App\Application\StaffSettlement\Support\SettlementOperationalContextBuilder;
 use App\Application\Shift\UseCases\EnsureOperationalShiftUseCase;
@@ -27,6 +26,7 @@ final class GenerateCurrentShiftSettlementsUseCase implements UseCaseInterface
         private readonly AuthenticatedStaffContextInterface $staffContext,
         private readonly EnsureOperationalShiftUseCase $ensureOperationalShift,
         private readonly OpenCashSessionResolver $cashSessionResolver,
+        private readonly SettlementShiftScopeResolver $scopeResolver,
         private readonly StaffSettlementRepositoryInterface $settlements,
         private readonly SettlementOperationalContextBuilder $contextBuilder,
         private readonly OperationalEventEmitter $eventEmitter,
@@ -53,32 +53,27 @@ final class GenerateCurrentShiftSettlementsUseCase implements UseCaseInterface
         }
 
         $cashSession = $this->cashSessionResolver->findOpenForCurrentUser($tenant->id, $branch->id, $userId);
-        $scope = SettlementShiftScopeResolver::SCOPE_SHIFT;
-        $cashSessionId = null;
-        $cashSessionShiftId = null;
+        $scopeInfo = $this->scopeResolver->resolve($tenant->id, $branch->id, $userId);
+        $scope = $scopeInfo['scope'];
+        $cashSessionId = $scopeInfo['cash_session_id'];
+        $cashSessionShiftId = $scopeInfo['cash_session_shift_id'];
 
-        if (
-            $this->staffContext->hasPermission('cash.access')
-            && (
-                $this->staffContext->roleSlug() === 'cashier'
-                || $this->staffContext->staffRole() === 'CASHIER'
-            )
-            && ! $this->staffContext->hasPermission('admin.cash_sessions.view')
-            && $cashSession?->officialShiftId !== null
-        ) {
-            $shiftId = $cashSession->officialShiftId;
-            $scope = SettlementShiftScopeResolver::SCOPE_MY_CASH_SESSION;
-            $cashSessionId = $cashSession->id;
-            $cashSessionShiftId = $cashSession->officialShiftId;
+        if ($scope === SettlementShiftScopeResolver::SCOPE_MY_CASH_SESSION) {
+            if ($cashSession === null || $scopeInfo['shift_id'] === null || $cashSessionId === null) {
+                throw StaffSettlementDomainException::cashRequiredForGeneration();
+            }
+
+            $shiftId = $scopeInfo['shift_id'];
+            $result = $this->settlements->generateForShift($tenant->id, $branch->id, $shiftId, $cashSessionId);
         }
         else {
             $shift = $this->ensureOperationalShift->execute($tenant->id, $branch->id, $userId);
             $shiftId = $shift->id;
-            $cashSessionId = $cashSession?->id;
-            $cashSessionShiftId = $cashSession?->officialShiftId;
+            $cashSessionId = $cashSession?->id ?? $cashSessionId;
+            $cashSessionShiftId = $cashSession?->officialShiftId ?? $cashSessionShiftId;
+            $result = $this->settlements->generateForShift($tenant->id, $branch->id, $shiftId);
         }
 
-        $result = $this->settlements->generateForShift($tenant->id, $branch->id, $shiftId);
         $openShiftId = $this->settlements->resolveOpenShiftId($tenant->id, $branch->id);
 
         $operational = $this->contextBuilder->build(
@@ -91,15 +86,19 @@ final class GenerateCurrentShiftSettlementsUseCase implements UseCaseInterface
             $scope,
             $openShiftId,
             $cashSessionShiftId,
-            $cashSessionShiftId !== null && $openShiftId !== null && $cashSessionShiftId !== $openShiftId,
-            false,
+            $scopeInfo['shift_rotated'],
+            $scopeInfo['empty_overview'] && $result['created_items'] === 0,
         );
 
         $message = $result['created_items'] > 0
-            ? 'Liquidaciones generadas para el turno actual.'
+            ? ($scope === SettlementShiftScopeResolver::SCOPE_MY_CASH_SESSION
+                ? 'Liquidaciones generadas para su caja actual.'
+                : 'Liquidaciones generadas para el turno actual.')
             : (($operational['settlement_summary']['generated_pending_count'] ?? 0) > 0
                 ? 'No hay nuevas liquidaciones para generar. Ya existen pagos pendientes.'
-                : 'No hay liquidaciones nuevas para generar en este turno/caja.');
+                : ($scope === SettlementShiftScopeResolver::SCOPE_MY_CASH_SESSION
+                    ? 'No hay liquidaciones nuevas para generar en su caja actual.'
+                    : 'No hay liquidaciones nuevas para generar en este turno.'));
 
         $this->eventEmitter->emit(
             $tenant->id,

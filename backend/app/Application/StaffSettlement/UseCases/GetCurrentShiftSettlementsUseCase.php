@@ -132,7 +132,7 @@ final class GetCurrentShiftSettlementsUseCase implements UseCaseInterface
             $pendingCount = $operational['settlement_summary']['generated_pending_count'] ?? 0;
             $message = $pendingCount > 0
                 ? 'Hay liquidaciones pendientes de pago en su caja.'
-                : 'Sin liquidaciones para este turno/caja.';
+                : 'No tienes liquidaciones pendientes en tu caja.';
 
             return OperationResult::ok($message, array_merge([
                 'shift' => $this->resolveShiftMeta($tenant->id, $branch->id, $shiftId ?? $openShiftId),

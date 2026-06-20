@@ -43,7 +43,7 @@ expect()->extend('toBeOne', function () {
 
 function nightposLoginPin(string $pin = '1234', ?string $tenantSlug = 'casa-demo', ?string $branchCode = 'CENTRO'): string
 {
-    auth('api')->forgetUser();
+    nightposResetApiAuth();
 
     $payload = ['pin' => $pin];
 
@@ -68,7 +68,7 @@ function nightposLoginPassword(
     string $password,
     ?string $tenantSlug = 'casa-demo',
 ): string {
-    auth('api')->forgetUser();
+    nightposResetApiAuth();
 
     $payload = [
         'username' => $username,
@@ -168,9 +168,29 @@ function nightposResetApiAuth(): void
     test()->flushHeaders();
 }
 
-function nightposOpenCashSession(string $token, float $openingAmount = 100): void
+function nightposOperationalHeaders(string $token, ?string $branchCode = 'CENTRO'): array
 {
-    nightposEnsureShiftOpen();
+    nightposResetApiAuth();
+    \PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth::setToken($token);
+
+    $headers = [
+        'Authorization' => 'Bearer '.$token,
+        'Accept' => 'application/json',
+    ];
+
+    if ($branchCode !== null) {
+        $headers['X-Branch-Code'] = $branchCode;
+    }
+
+    return $headers;
+}
+
+function nightposOpenCashSession(string $token, float $openingAmount = 100, bool $ensureShift = true): void
+{
+    if ($ensureShift) {
+        nightposEnsureShiftOpen();
+    }
+
     nightposResetApiAuth();
 
     $response = test()->postJson('/api/v1/cash/session/open', [
@@ -184,22 +204,6 @@ function nightposOpenCashSession(string $token, float $openingAmount = 100): voi
     $response
         ->assertStatus(422)
         ->assertJsonPath('message', 'Ya tiene una sesión de caja abierta en esta sucursal.');
-}
-
-function nightposOperationalHeaders(string $token, ?string $branchCode = 'CENTRO'): array
-{
-    nightposResetApiAuth();
-
-    $headers = [
-        'Authorization' => 'Bearer '.$token,
-        'Accept' => 'application/json',
-    ];
-
-    if ($branchCode !== null) {
-        $headers['X-Branch-Code'] = $branchCode;
-    }
-
-    return $headers;
 }
 
 function nightposSeedOrderProduct(array $extraPrices = []): int
