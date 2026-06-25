@@ -1,0 +1,1 @@
+import{eP as o,R as r,o as t,c as a}from"./index-Bfu-2vV7.js";const u={__name:"index",setup(s){const e=o();return r(()=>{e.replace({name:"nightpos-rooms-dashboard"})}),(n,c)=>(t(),a("div"))}};export{u as default};
