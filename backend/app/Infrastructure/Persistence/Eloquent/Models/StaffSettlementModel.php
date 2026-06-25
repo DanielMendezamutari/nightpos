@@ -21,9 +21,20 @@ final class StaffSettlementModel extends Model
         'staff_role',
         'settlement_type',
         'total_amount',
+        'gross_amount',
+        'adjustments_total',
+        'net_amount',
         'status',
         'paid_by_user_id',
         'paid_at',
+        'payment_method',
+        'cash_movement_id',
+        'ticket_number',
+        'print_count',
+        'last_printed_at',
+        'last_printed_by_user_id',
+        'print_job_id',
+        'version',
         'notes',
     ];
 
@@ -31,7 +42,13 @@ final class StaffSettlementModel extends Model
     {
         return [
             'total_amount' => 'decimal:2',
+            'gross_amount' => 'decimal:2',
+            'adjustments_total' => 'decimal:2',
+            'net_amount' => 'decimal:2',
             'paid_at' => 'datetime',
+            'last_printed_at' => 'datetime',
+            'print_count' => 'integer',
+            'version' => 'integer',
         ];
     }
 
@@ -43,6 +60,11 @@ final class StaffSettlementModel extends Model
     public function items(): HasMany
     {
         return $this->hasMany(StaffSettlementItemModel::class, 'staff_settlement_id');
+    }
+
+    public function adjustments(): HasMany
+    {
+        return $this->hasMany(StaffSettlementAdjustmentModel::class, 'staff_settlement_id');
     }
 
     public function officialShift(): BelongsTo

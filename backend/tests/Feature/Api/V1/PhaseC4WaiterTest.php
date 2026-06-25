@@ -45,6 +45,32 @@ it('returns waiter dashboard for logged waiter', function () {
     ]);
 });
 
+it('waiter active scope excludes orders from previous closed shifts', function () {
+    nightposEnsureShiftOpen();
+
+    test()->postJson('/api/v1/orders', [
+        'table_label' => 'Mesa turno viejo',
+    ], phaseC4WaiterHeaders())->assertCreated();
+
+    $openShiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+
+    OfficialShiftModel::query()->where('id', $openShiftId)->update(['status' => 'CLOSED']);
+
+    nightposEnsureShiftOpen();
+
+    test()->postJson('/api/v1/orders', [
+        'table_label' => 'Mesa turno nuevo',
+    ], phaseC4WaiterHeaders())->assertCreated();
+
+    $labels = collect(test()->getJson('/api/v1/waiter/orders?scope=active', phaseC4WaiterHeaders())
+        ->json('data.orders'))
+        ->pluck('table_label')
+        ->all();
+
+    expect($labels)->toContain('Mesa turno nuevo')
+        ->and($labels)->not->toContain('Mesa turno viejo');
+});
+
 it('lists only waiter own orders', function () {
     nightposEnsureShiftOpen();
     $waiterId = nightposDemoWaiterUserId();

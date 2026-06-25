@@ -9,6 +9,7 @@ use App\Application\GirlIncome\UseCases\CheckRoomServiceUseCase;
 use App\Application\GirlIncome\UseCases\CreateRoomServiceUseCase;
 use App\Application\GirlIncome\UseCases\FinishRoomServiceUseCase;
 use App\Application\GirlIncome\UseCases\GetRoomServiceUseCase;
+use App\Application\Printing\UseCases\PrintRoomServiceUseCase;
 use App\Application\GirlIncome\UseCases\ListActiveRoomServicesUseCase;
 use App\Application\GirlIncome\UseCases\ListCurrentShiftRoomServicesUseCase;
 use App\Application\GirlIncome\UseCases\ListDueRoomServicesUseCase;
@@ -30,6 +31,7 @@ final class RoomServiceController extends Controller
         private readonly GetRoomServiceUseCase $get,
         private readonly FinishRoomServiceUseCase $finish,
         private readonly CheckRoomServiceUseCase $check,
+        private readonly PrintRoomServiceUseCase $printRoomService,
     ) {
     }
 
@@ -80,11 +82,24 @@ final class RoomServiceController extends Controller
 
     public function finish(int $id): JsonResponse
     {
-        return $this->presenter->present($this->finish->execute((object) ['roomServiceId' => $id]));
+        return $this->presenter->present($this->finish->execute((object) [
+            'roomServiceId' => $id,
+            'releaseRoomImmediately' => true,
+        ]));
     }
 
     public function check(int $id): JsonResponse
     {
         return $this->presenter->present($this->check->execute((object) ['roomServiceId' => $id]));
+    }
+
+    public function print(int $id): JsonResponse
+    {
+        $reprint = (bool) request()->boolean('reprint');
+
+        return $this->presenter->present($this->printRoomService->execute((object) [
+            'roomServiceId' => $id,
+            'reprint' => $reprint,
+        ]));
     }
 }

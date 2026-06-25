@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Application\Cash\UseCases;
 
 use App\Application\Cash\DTOs\RegisterCashMovementInput;
-use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Application\Cash\Services\OpenCashSessionResolver;
 use App\Application\Cash\Support\CashMapper;
+use App\Application\Printing\UseCases\CreateCashMovementPrintJobUseCase;
+use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Domain\Cash\Exceptions\CashDomainException;
 use App\Domain\Cash\Repositories\CashSessionRepositoryInterface;
 use App\Domain\Settings\Exceptions\MasterDataDomainException;
@@ -28,6 +29,7 @@ final class RegisterCashMovementUseCase implements UseCaseInterface
         private readonly OpenCashSessionResolver $cashSessionResolver,
         private readonly CashSessionRepositoryInterface $sessions,
         private readonly CashMovementReasonRepositoryInterface $reasons,
+        private readonly CreateCashMovementPrintJobUseCase $createCashMovementPrintJob,
         private readonly OperationalEventEmitter $eventEmitter,
     ) {
     }
@@ -73,7 +75,7 @@ final class RegisterCashMovementUseCase implements UseCaseInterface
             $description = $reason['name'].' — '.trim($input->notes);
         }
 
-        $this->sessions->addMovement(
+        $movement = $this->sessions->addMovement(
             tenantId: $tenant->id,
             branchId: $branch->id,
             cashSessionId: $session->id,
@@ -88,6 +90,13 @@ final class RegisterCashMovementUseCase implements UseCaseInterface
 
         $updated = $this->sessions->findById($session->id, $tenant->id);
 
+        $printResult = $this->createCashMovementPrintJob->execute(
+            movementId: $movement->id,
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            requestedByUserId: $userId,
+        );
+
         $this->eventEmitter->emit(
             $tenant->id,
             $branch->id,
@@ -101,6 +110,9 @@ final class RegisterCashMovementUseCase implements UseCaseInterface
 
         return OperationResult::ok('Movimiento registrado.', [
             'session' => CashMapper::session($updated),
+            'movement' => CashMapper::movement($movement),
+            'print_job' => $printResult['job'],
+            'print_warning' => $printResult['warning'],
         ]);
     }
 

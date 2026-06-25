@@ -161,8 +161,75 @@ it('builds order command ticket content with table and items', function () {
         ],
     ], 'Carlos', 'Salon');
 
-    expect($content)->toContain('COMANDA BAR');
+    expect($content)->toContain('COMANDA #C-0001');
+    expect($content)->toContain('Mesa');
     expect($content)->toContain('Mesa 5');
     expect($content)->toContain('Carlos');
     expect($content)->toContain('2x Paceña');
+    expect($content)->toContain('EN BARRA');
+    expect($content)->not->toContain('TOTAL');
+});
+
+it('creates SALE_RECEIPT print job when charging order', function () {
+    $adminToken = nightposLoginPassword('admin.demo', 'AdminDemo123!');
+    registerPrintDevice($adminToken);
+
+    $cashierToken = nightposLoginPin('1234');
+    nightposEnsureShiftOpen();
+    test()->postJson('/api/v1/cash/session/open', [
+        'opening_amount' => 100,
+    ], nightposOperationalHeaders($cashierToken))->assertCreated();
+
+    $waiterToken = nightposLoginPin('5678');
+    $orderId = nightposCreateOrderWithItem($waiterToken)['order_id'];
+    test()->postJson("/api/v1/orders/{$orderId}/send-to-bar", [], nightposOperationalHeaders($waiterToken))
+        ->assertOk();
+
+    $order = test()->getJson("/api/v1/orders/{$orderId}", nightposOperationalHeaders($cashierToken))
+        ->assertOk()
+        ->json('data.order');
+
+    test()->postJson("/api/v1/orders/{$orderId}/charge", [
+        'payments' => [
+            ['method' => 'CASH', 'amount' => (float) $order['total']],
+        ],
+    ], nightposOperationalHeaders($cashierToken))
+        ->assertCreated()
+        ->assertJsonPath('data.print_job.type', 'SALE_RECEIPT')
+        ->assertJsonPath('data.print_job.status', 'PENDING');
+
+    test()->getJson('/api/v1/print-jobs', nightposOperationalHeaders($adminToken))
+        ->assertOk();
+
+    $types = collect(test()->getJson('/api/v1/print-jobs', nightposOperationalHeaders($adminToken))->json('data.jobs'))
+        ->pluck('type')
+        ->all();
+
+    expect($types)->toContain('SALE_RECEIPT');
+});
+
+it('creates TEST print job from admin test-print endpoint', function () {
+    $adminToken = nightposLoginPassword('admin.demo', 'AdminDemo123!');
+    $device = registerPrintDevice($adminToken)['device'];
+
+    test()->postJson("/api/v1/print-devices/{$device['id']}/test-print", [], nightposOperationalHeaders($adminToken))
+        ->assertCreated()
+        ->assertJsonPath('data.job.type', 'TEST')
+        ->assertJsonPath('data.job.status', 'PENDING');
+});
+
+it('returns queue summary in print settings', function () {
+    $adminToken = nightposLoginPassword('admin.demo', 'AdminDemo123!');
+    registerPrintDevice($adminToken);
+
+    test()->getJson('/api/v1/print-settings', nightposOperationalHeaders($adminToken))
+        ->assertOk()
+        ->assertJsonStructure([
+            'data' => [
+                'queue_summary' => ['pending_count', 'failed_count', 'claimed_count', 'last_job'],
+                'devices' => [
+                    ['job_summary' => ['last_job_id', 'last_job_status', 'last_job_at']],
+                ],
+            ],
+        ]);
 });

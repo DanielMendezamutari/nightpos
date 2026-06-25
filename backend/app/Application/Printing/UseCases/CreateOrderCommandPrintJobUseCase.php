@@ -41,6 +41,8 @@ final class CreateOrderCommandPrintJobUseCase
         ?int $requestedByUserId,
         ?string $idempotencyKey = null,
         bool $force = false,
+        bool $isCorrectionReprint = false,
+        ?int $correctionNumber = null,
     ): ?array {
         if (! $force && ! $this->branchSettings->isAutoPrintOrderCommandEnabled($branchId)) {
             return null;
@@ -57,6 +59,7 @@ final class CreateOrderCommandPrintJobUseCase
             return $existing;
         }
 
+        $printedAt = now()->toIso8601String();
         $presented = $this->presentation->presentOrder($order, $tenantId);
         $waiterName = $order->waiterUserId !== null
             ? $this->users->findDisplayNamesByIds([$order->waiterUserId])[$order->waiterUserId] ?? null
@@ -72,12 +75,18 @@ final class CreateOrderCommandPrintJobUseCase
             'order' => $presented,
             'waiter_name' => $waiterName,
             'service_area_name' => $serviceAreaName,
+            'is_reprint' => $isCorrectionReprint,
+            'correction_number' => $correctionNumber,
+            'printed_at' => $printedAt,
         ];
 
         $contentText = $this->contentBuilder->buildOrderCommand(
             $presented,
             $waiterName,
             $serviceAreaName,
+            isReprint: $isCorrectionReprint,
+            correctionNumber: $correctionNumber,
+            printedAt: $printedAt,
         );
 
         $job = $this->jobs->create([
@@ -103,6 +112,8 @@ final class CreateOrderCommandPrintJobUseCase
                 'order_id' => $order->id,
                 'type' => PrintJobType::OrderCommand->value,
                 'status' => PrintJobStatus::Pending->value,
+                'is_reprint' => $isCorrectionReprint,
+                'correction_number' => $correctionNumber,
             ],
         );
 

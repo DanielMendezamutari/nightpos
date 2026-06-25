@@ -41,4 +41,14 @@ interface PrintJobRepositoryInterface extends RepositoryInterface
         int $sourceId,
         string $type,
     ): ?array;
+
+    /**
+     * @return array{pending_count: int, failed_count: int, claimed_count: int, last_job: array<string, mixed>|null}
+     */
+    public function branchQueueSummary(int $tenantId, int $branchId): array;
+
+    /**
+     * @return array{last_job_id: int|null, last_job_status: string|null, last_job_at: string|null}
+     */
+    public function deviceJobSummary(int $tenantId, int $branchId, int $deviceId): array;
 }

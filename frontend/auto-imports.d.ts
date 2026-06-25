@@ -15,6 +15,7 @@ declare global {
   const EffectScope: typeof import('vue')['EffectScope']
   const ORDER_EMPTY_MESSAGES: typeof import('./src/composables/useOrderListTabs.js')['ORDER_EMPTY_MESSAGES']
   const ORDER_LIST_TABS: typeof import('./src/composables/useOrderListTabs.js')['ORDER_LIST_TABS']
+  const PAYMENT_LABELS: typeof import('./src/composables/usePrintTicketFormat.js')['PAYMENT_LABELS']
   const PLATFORM_SECTION_TABS: typeof import('./src/composables/useStaffSectionTabs.js')['PLATFORM_SECTION_TABS']
   const PUBLIC_ROUTE_PATHS: typeof import('./src/utils/routerGuardHelpers.js')['PUBLIC_ROUTE_PATHS']
   const ROOMS_SECTION_TABS: typeof import('./src/composables/useRoomsSectionTabs.js')['ROOMS_SECTION_TABS']
@@ -94,6 +95,7 @@ declare global {
   const formatCompanionBraceletLine: typeof import('./src/composables/useOrderHelpers.js')['formatCompanionBraceletLine']
   const formatDate: typeof import('./src/@core/utils/formatters.js')['formatDate']
   const formatDateToMonthShort: typeof import('./src/@core/utils/formatters.js')['formatDateToMonthShort']
+  const formatPrintTime: typeof import('./src/composables/usePrintTicketFormat.js')['formatPrintTime']
   const formatProductType: typeof import('./src/composables/useProductLabels.js')['formatProductType']
   const formatSaleMode: typeof import('./src/composables/useProductLabels.js')['formatSaleMode']
   const formatStatus: typeof import('./src/composables/useProductLabels.js')['formatStatus']
@@ -187,6 +189,7 @@ declare global {
   const orderStatusLabel: typeof import('./src/composables/useOrderHelpers.js')['orderStatusLabel']
   const passwordValidator: typeof import('./src/@core/utils/validators.js')['passwordValidator']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
+  const paymentModeLabel: typeof import('./src/composables/usePrintTicketFormat.js')['paymentModeLabel']
   const prefixWithPlus: typeof import('./src/@core/utils/formatters.js')['prefixWithPlus']
   const preventNumberWheelScroll: typeof import('./src/composables/usePreventNumberWheel.js')['preventNumberWheelScroll']
   const productActivePrice: typeof import('./src/composables/useProductLabels.js')['productActivePrice']
@@ -222,6 +225,7 @@ declare global {
   const resolveHomeRoute: typeof import('./src/utils/waiterRouting.js')['resolveHomeRoute']
   const resolveHomeRouteName: typeof import('./src/utils/waiterRouting.js')['resolveHomeRouteName']
   const resolveOrderTab: typeof import('./src/composables/useOrderListTabs.js')['resolveOrderTab']
+  const resolvePrintLocationLabel: typeof import('./src/composables/usePrintTicketFormat.js')['resolvePrintLocationLabel']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const resolveVuetifyTheme: typeof import('./src/@core/utils/vuetify.js')['resolveVuetifyTheme']
@@ -425,6 +429,7 @@ declare global {
   const useScriptTag: typeof import('@vueuse/core')['useScriptTag']
   const useScroll: typeof import('@vueuse/core')['useScroll']
   const useScrollLock: typeof import('@vueuse/core')['useScrollLock']
+  const useSecondaryNavMenu: typeof import('./src/composables/useCashierMoreMenu.js')['useSecondaryNavMenu']
   const useServiceCashSession: typeof import('./src/composables/useServiceCashSession.js')['useServiceCashSession']
   const useSessionStorage: typeof import('@vueuse/core')['useSessionStorage']
   const useSettlementPayment: typeof import('./src/composables/useSettlementPayment.js')['useSettlementPayment']
@@ -467,6 +472,7 @@ declare global {
   const useVModels: typeof import('@vueuse/core')['useVModels']
   const useVibrate: typeof import('@vueuse/core')['useVibrate']
   const useVirtualList: typeof import('@vueuse/core')['useVirtualList']
+  const useWaiterMoreMenu: typeof import('./src/composables/useCashierMoreMenu.js')['useWaiterMoreMenu']
   const useWaiterTables: typeof import('./src/composables/useWaiterTables.js')['useWaiterTables']
   const useWakeLock: typeof import('@vueuse/core')['useWakeLock']
   const useWebNotification: typeof import('@vueuse/core')['useWebNotification']
@@ -516,6 +522,7 @@ declare module 'vue' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly ORDER_EMPTY_MESSAGES: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['ORDER_EMPTY_MESSAGES']>
     readonly ORDER_LIST_TABS: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['ORDER_LIST_TABS']>
+    readonly PAYMENT_LABELS: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['PAYMENT_LABELS']>
     readonly PLATFORM_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useStaffSectionTabs.js')['PLATFORM_SECTION_TABS']>
     readonly PUBLIC_ROUTE_PATHS: UnwrapRef<typeof import('./src/utils/routerGuardHelpers.js')['PUBLIC_ROUTE_PATHS']>
     readonly ROOMS_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useRoomsSectionTabs.js')['ROOMS_SECTION_TABS']>
@@ -596,6 +603,7 @@ declare module 'vue' {
     readonly formatCompanionBraceletLine: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['formatCompanionBraceletLine']>
     readonly formatDate: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDateToMonthShort']>
+    readonly formatPrintTime: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['formatPrintTime']>
     readonly formatProductType: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatProductType']>
     readonly formatSaleMode: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatSaleMode']>
     readonly formatStatus: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatStatus']>
@@ -694,6 +702,7 @@ declare module 'vue' {
     readonly orderStatusLabel: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['orderStatusLabel']>
     readonly passwordValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
+    readonly paymentModeLabel: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['paymentModeLabel']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['prefixWithPlus']>
     readonly preventNumberWheelScroll: UnwrapRef<typeof import('./src/composables/usePreventNumberWheel.js')['preventNumberWheelScroll']>
     readonly productActivePrice: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productActivePrice']>
@@ -729,6 +738,7 @@ declare module 'vue' {
     readonly resolveHomeRoute: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['resolveHomeRoute']>
     readonly resolveHomeRouteName: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['resolveHomeRouteName']>
     readonly resolveOrderTab: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['resolveOrderTab']>
+    readonly resolvePrintLocationLabel: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['resolvePrintLocationLabel']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly resolveVuetifyTheme: UnwrapRef<typeof import('./src/@core/utils/vuetify.js')['resolveVuetifyTheme']>
@@ -932,6 +942,7 @@ declare module 'vue' {
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
+    readonly useSecondaryNavMenu: UnwrapRef<typeof import('./src/composables/useCashierMoreMenu.js')['useSecondaryNavMenu']>
     readonly useServiceCashSession: UnwrapRef<typeof import('./src/composables/useServiceCashSession.js')['useServiceCashSession']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
     readonly useSettlementPayment: UnwrapRef<typeof import('./src/composables/useSettlementPayment.js')['useSettlementPayment']>
@@ -1016,6 +1027,7 @@ declare module '@vue/runtime-core' {
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly ORDER_EMPTY_MESSAGES: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['ORDER_EMPTY_MESSAGES']>
     readonly ORDER_LIST_TABS: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['ORDER_LIST_TABS']>
+    readonly PAYMENT_LABELS: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['PAYMENT_LABELS']>
     readonly PLATFORM_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useStaffSectionTabs.js')['PLATFORM_SECTION_TABS']>
     readonly PUBLIC_ROUTE_PATHS: UnwrapRef<typeof import('./src/utils/routerGuardHelpers.js')['PUBLIC_ROUTE_PATHS']>
     readonly ROOMS_SECTION_TABS: UnwrapRef<typeof import('./src/composables/useRoomsSectionTabs.js')['ROOMS_SECTION_TABS']>
@@ -1096,6 +1108,7 @@ declare module '@vue/runtime-core' {
     readonly formatCompanionBraceletLine: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['formatCompanionBraceletLine']>
     readonly formatDate: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDate']>
     readonly formatDateToMonthShort: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['formatDateToMonthShort']>
+    readonly formatPrintTime: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['formatPrintTime']>
     readonly formatProductType: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatProductType']>
     readonly formatSaleMode: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatSaleMode']>
     readonly formatStatus: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['formatStatus']>
@@ -1194,6 +1207,7 @@ declare module '@vue/runtime-core' {
     readonly orderStatusLabel: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['orderStatusLabel']>
     readonly passwordValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
+    readonly paymentModeLabel: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['paymentModeLabel']>
     readonly prefixWithPlus: UnwrapRef<typeof import('./src/@core/utils/formatters.js')['prefixWithPlus']>
     readonly preventNumberWheelScroll: UnwrapRef<typeof import('./src/composables/usePreventNumberWheel.js')['preventNumberWheelScroll']>
     readonly productActivePrice: UnwrapRef<typeof import('./src/composables/useProductLabels.js')['productActivePrice']>
@@ -1229,6 +1243,7 @@ declare module '@vue/runtime-core' {
     readonly resolveHomeRoute: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['resolveHomeRoute']>
     readonly resolveHomeRouteName: UnwrapRef<typeof import('./src/utils/waiterRouting.js')['resolveHomeRouteName']>
     readonly resolveOrderTab: UnwrapRef<typeof import('./src/composables/useOrderListTabs.js')['resolveOrderTab']>
+    readonly resolvePrintLocationLabel: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['resolvePrintLocationLabel']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly resolveVuetifyTheme: UnwrapRef<typeof import('./src/@core/utils/vuetify.js')['resolveVuetifyTheme']>
@@ -1432,6 +1447,7 @@ declare module '@vue/runtime-core' {
     readonly useScriptTag: UnwrapRef<typeof import('@vueuse/core')['useScriptTag']>
     readonly useScroll: UnwrapRef<typeof import('@vueuse/core')['useScroll']>
     readonly useScrollLock: UnwrapRef<typeof import('@vueuse/core')['useScrollLock']>
+    readonly useSecondaryNavMenu: UnwrapRef<typeof import('./src/composables/useCashierMoreMenu.js')['useSecondaryNavMenu']>
     readonly useServiceCashSession: UnwrapRef<typeof import('./src/composables/useServiceCashSession.js')['useServiceCashSession']>
     readonly useSessionStorage: UnwrapRef<typeof import('@vueuse/core')['useSessionStorage']>
     readonly useSettlementPayment: UnwrapRef<typeof import('./src/composables/useSettlementPayment.js')['useSettlementPayment']>

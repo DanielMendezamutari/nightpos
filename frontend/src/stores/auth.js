@@ -9,6 +9,7 @@ const TENANT_SLUG_COOKIE = 'tenantSlug'
 const BRANCH_CODE_COOKIE = 'branchCode'
 const TENANT_NAME_COOKIE = 'tenantName'
 const BRANCH_NAME_COOKIE = 'branchName'
+const LAST_OPERATOR_NAME_COOKIE = 'lastOperatorName'
 /** Alineado con JWT_REFRESH_TTL (14 días) para permitir renovación silenciosa. */
 const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 14
 
@@ -96,6 +97,12 @@ export const useAuthStore = defineStore('auth', {
         const branchNameCookie = useCookie(BRANCH_NAME_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
 
         branchNameCookie.value = branchName
+      }
+
+      if (user?.name) {
+        const operatorCookie = useCookie(LAST_OPERATOR_NAME_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
+
+        operatorCookie.value = user.name
       }
 
       this.syncAbilitiesFromUser(user)

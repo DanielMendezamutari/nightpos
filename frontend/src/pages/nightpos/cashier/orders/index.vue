@@ -1,6 +1,6 @@
 <script setup>
 import { fetchCurrentCashSession } from '@/api/cash'
-import { fetchCashierOrdersByScope, fetchOrder } from '@/api/orders'
+import { fetchCashierOrdersByScope, fetchOrder, printOrderPrecheck } from '@/api/orders'
 import { chargeOrder } from '@/api/sales'
 import ChargeOrderModal from '@/components/nightpos/orders/ChargeOrderModal.vue'
 import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
@@ -8,6 +8,7 @@ import CashierShell from '@/components/nightpos/cashier/CashierShell.vue'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useOnContextChange } from '@/composables/useOnContextChange'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { useOrderOperationalEvents } from '@/composables/useOrderOperationalEvents'
 import { useOperationalPollingFallback } from '@/composables/useOperationalPollingFallback'
 import { formatMoney, itemsNeedingAllocation, orderStatusColor, orderStatusLabel } from '@/composables/useOrderHelpers'
@@ -31,6 +32,7 @@ definePage({
 const router = useRouter()
 const { canChargeOrders } = useNightPosPermissions()
 const { notify } = useNightPosNotify()
+const { openPrintRoute } = useNightPosPrint()
 
 const activeTab = ref('cashier_chargeable')
 const orders = ref([])
@@ -41,6 +43,7 @@ const showChargeDialog = ref(false)
 const chargeOrderDetail = ref(null)
 const chargeSubmitting = ref(false)
 const chargingOrderId = ref(null)
+const precheckOrderId = ref(null)
 const showOpenCash = ref(false)
 
 const emptyMessage = computed(() => orderEmptyMessage(activeTab.value))
@@ -177,9 +180,16 @@ const onChargeConfirm = async payload => {
   chargeSubmitting.value = true
 
   try {
-    await chargeOrder(chargeOrderDetail.value.id, payments)
+    const result = await chargeOrder(chargeOrderDetail.value.id, payments)
     closeChargeDialog()
-    notify('Comanda cobrada.')
+
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else if (result?.print_job?.status === 'FAILED')
+      notify('El cobro se registró, pero falló la impresión del ticket.', 'warning')
+    else
+      notify('Comanda cobrada.')
+
     await loadOrders()
   }
   catch (error) {
@@ -198,9 +208,28 @@ const onCashOpened = async () => {
 const orderChips = order => cashierOrderOperationalChips(order)
 const waitingLabel = order => formatWaitingMinutes(order?.waiting_minutes)
 const isCardLoading = orderId => chargingOrderId.value === orderId
+const isPrecheckLoading = orderId => precheckOrderId.value === orderId
+
+const printPrecheckFromQueue = async order => {
+  if (!order?.id)
+    return
+
+  precheckOrderId.value = order.id
+  try {
+    await printOrderPrecheck(order.id)
+    notify('Precuenta enviada a impresora.')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error) || 'No se pudo enviar a impresora.', 'error')
+    openPrintRoute({ name: 'nightpos-print-precheck-order-id', params: { id: order.id } })
+  }
+  finally {
+    precheckOrderId.value = null
+  }
+}
 
 useOrderOperationalEvents(loadOrders, {
-  toastOnCreated: true,
+  refreshOnCreated: false,
   toastOnSentToBar: true,
   createdDebounceMs: 100,
   updatedDebounceMs: 500,
@@ -378,10 +407,22 @@ useOnContextChange(loadOrders)
                 color="primary"
                 variant="outlined"
                 prepend-icon="ri-edit-line"
-                :disabled="isCardLoading(order.id)"
+                :disabled="isCardLoading(order.id) || isPrecheckLoading(order.id)"
                 @click="goCorrect(order)"
               >
                 Corregir
+              </VBtn>
+
+              <VBtn
+                block
+                size="large"
+                variant="tonal"
+                prepend-icon="ri-file-list-3-line"
+                :loading="isPrecheckLoading(order.id)"
+                :disabled="isCardLoading(order.id)"
+                @click="printPrecheckFromQueue(order)"
+              >
+                Imprimir precuenta
               </VBtn>
             </div>
 

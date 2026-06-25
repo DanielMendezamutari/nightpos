@@ -1,7 +1,7 @@
 <script setup>
 import PrintableCashSessionReport from '@/components/nightpos/print/PrintableCashSessionReport.vue'
-import { fetchCurrentCashSession } from '@/api/cash'
-import { fetchProductReconciliation } from '@/api/reports'
+import { fetchCashSession, fetchCurrentCashSession } from '@/api/cash'
+import { buildShiftLabel } from '@/constants/printTicket'
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
 
 definePage({
@@ -11,40 +11,43 @@ definePage({
   },
 })
 
+const route = useRoute()
 const { triggerAutoPrint } = useNightPosPrint()
 const session = ref(null)
-const reconciliation = ref(null)
+const summary = ref(null)
+const operational = ref(null)
 const loading = ref(true)
+
+const ticketWidth = computed(() => route.query.width === '58' ? '58mm' : '80mm')
 
 const reportData = computed(() => {
   const s = session.value
   if (!s)
     return null
 
-  const byMethod = s.sales_by_method ?? {}
-
   return {
     id: s.id,
-    cashierName: s.cashier_name || '',
+    cashierName: s.cashier_name || s.opened_by_name || '',
     openedAt: s.opened_at,
     closedAt: s.closed_at,
-    openingAmount: s.opening_amount,
-    salesCash: byMethod.cash ?? byMethod.CASH ?? 0,
-    salesQr: byMethod.qr ?? byMethod.QR ?? 0,
-    salesCard: byMethod.card ?? byMethod.CARD ?? 0,
-    income: s.income_total,
-    expense: s.expense_total,
-    expected: s.expected_amount,
-    counted: s.declared_closing_amount,
-    difference: s.difference_amount,
+    openingNotes: s.opening_notes || '',
+    closingNotes: s.closing_notes || '',
+    isForcedClose: !!s.is_forced_close,
   }
 })
 
 onMounted(async () => {
   try {
-    session.value = await fetchCurrentCashSession()
-    if (session.value?.id)
-      reconciliation.value = await fetchProductReconciliation({ cashSessionId: session.value.id }).catch(() => null)
+    const current = await fetchCurrentCashSession()
+    if (current?.id) {
+      const data = await fetchCashSession(current.id)
+      session.value = data?.session ?? current
+      summary.value = data?.summary ?? null
+      operational.value = data?.operational ?? null
+    }
+    else {
+      session.value = current
+    }
   }
   finally {
     loading.value = false
@@ -56,7 +59,10 @@ onMounted(async () => {
 <template>
   <PrintableCashSessionReport
     :data="reportData"
-    :reconciliation="reconciliation"
+    :summary="summary"
+    :operational="operational"
+    :shift-label="buildShiftLabel(session?.official_shift)"
+    :width="ticketWidth"
     :loading="loading"
   />
 </template>

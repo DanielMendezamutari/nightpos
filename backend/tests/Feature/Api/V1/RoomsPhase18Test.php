@@ -101,7 +101,7 @@ it('rejects assigning occupied room', function () {
     ]), nightposOperationalHeaders($token))->assertStatus(422);
 });
 
-it('finishes room service and sets room to cleaning', function () {
+it('finishes room service and releases room for new pieza', function () {
     $token = phase18AdminToken();
     $girlId = phase18GirlId();
     $roomId = phase18RoomId('P3');
@@ -115,7 +115,7 @@ it('finishes room service and sets room to cleaning', function () {
 
     test()->postJson("/api/v1/room-services/{$serviceId}/finish", [], nightposOperationalHeaders($token))->assertOk();
 
-    expect(RoomModel::query()->find($roomId)?->status)->toBe('CLEANING');
+    expect(RoomModel::query()->find($roomId)?->status)->toBe('AVAILABLE');
 });
 
 it('cleaning user marks room available', function () {
@@ -130,7 +130,7 @@ it('cleaning user marks room available', function () {
         'duration_minutes' => 30,
     ]), nightposOperationalHeaders($token))->json('data.room_service.id');
 
-    test()->postJson("/api/v1/room-services/{$serviceId}/finish", [], nightposOperationalHeaders($token));
+    test()->postJson("/api/v1/cleaning/room-services/{$serviceId}/finish", [], nightposOperationalHeaders(nightposLoginPin('3333')));
 
     $cleaningToken = nightposLoginPin('3333');
 

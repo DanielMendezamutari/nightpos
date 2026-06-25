@@ -63,9 +63,16 @@ interface OrderRepositoryInterface extends RepositoryInterface
         ?int $waiterUserId,
         int $openedByUserId,
         ?string $notes,
+        ?string $sourceType = null,
+        ?int $sourceId = null,
     ): Order;
 
-    public function findActiveByServiceTable(int $tenantId, int $branchId, int $serviceTableId): ?Order;
+    public function findActiveByServiceTable(
+        int $tenantId,
+        int $branchId,
+        int $serviceTableId,
+        ?int $officialShiftId = null,
+    ): ?Order;
 
     public function addItem(
         int $tenantId,
@@ -125,4 +132,6 @@ interface OrderRepositoryInterface extends RepositoryInterface
     ): Order;
 
     public function nextOrderNumber(int $branchId): string;
+
+    public function incrementBarCorrectionCount(int $orderId, int $tenantId): int;
 }

@@ -13,6 +13,7 @@ use App\Application\Shift\UseCases\GetOfficialShiftSummaryUseCase;
 use App\Application\Shift\UseCases\GetOfficialShiftUseCase;
 use App\Application\Shift\UseCases\ListOfficialShiftsUseCase;
 use App\Application\Shift\UseCases\OpenOfficialShiftUseCase;
+use App\Application\Printing\UseCases\PrintShiftCloseUseCase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Shift\CloseOfficialShiftRequest;
 use App\Http\Requests\Api\V1\Shift\OpenOfficialShiftRequest;
@@ -30,6 +31,7 @@ final class ShiftController extends Controller
         private readonly GetOfficialShiftUseCase $getShift,
         private readonly GetOfficialShiftSummaryUseCase $getSummary,
         private readonly GetShiftClosureCheckUseCase $getCloseCheck,
+        private readonly PrintShiftCloseUseCase $printClosure,
     ) {
     }
 
@@ -82,5 +84,15 @@ final class ShiftController extends Controller
         ));
 
         return $this->presenter->present($result);
+    }
+
+    public function printClosure(int $id): JsonResponse
+    {
+        $reprint = (bool) request()->boolean('reprint');
+
+        return $this->presenter->present($this->printClosure->execute((object) [
+            'shiftId' => $id,
+            'reprint' => $reprint,
+        ]));
     }
 }

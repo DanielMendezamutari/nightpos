@@ -41,3 +41,9 @@ export async function checkRoomService(id) {
 
   return unwrapNightPosResponse(response)
 }
+
+export async function printRoomService(id, { reprint = false } = {}) {
+  const response = await api.post(`/room-services/${id}/print`, reprint ? { reprint: true } : {})
+
+  return unwrapNightPosResponse(response)
+}

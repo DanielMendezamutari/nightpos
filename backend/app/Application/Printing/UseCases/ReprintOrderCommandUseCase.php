@@ -53,6 +53,7 @@ final class ReprintOrderCommandUseCase implements UseCaseInterface
             requestedByUserId: $this->staffContext->userId(),
             idempotencyKey: $idempotencyKey,
             force: true,
+            isCorrectionReprint: true,
         );
 
         if ($job === null) {

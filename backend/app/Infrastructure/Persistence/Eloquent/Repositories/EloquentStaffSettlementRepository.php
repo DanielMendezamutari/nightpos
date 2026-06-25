@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\StaffSettlement\Repositories\StaffSettlementRepositoryInterface;
+use App\Application\StaffSettlement\Services\SettlementTotalsCalculator;
+use App\Application\StaffSettlement\Services\SettlementWaiterSnapshotResolver;
 use App\Infrastructure\Persistence\Eloquent\Models\BraceletModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CleaningTaskModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
@@ -14,6 +16,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\SaleItemModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SaleModel;
 use App\Infrastructure\Persistence\Eloquent\Models\ShowModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SaleItemAllocationModel;
+use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementAdjustmentModel;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementItemModel;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel;
 use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
@@ -21,6 +24,11 @@ use Illuminate\Support\Facades\DB;
 
 final class EloquentStaffSettlementRepository implements StaffSettlementRepositoryInterface
 {
+    public function __construct(
+        private readonly SettlementTotalsCalculator $totalsCalculator,
+    ) {
+    }
+
     public function saleItemAlreadySettled(int $saleItemId, string $sourceType): bool
     {
         return StaffSettlementItemModel::query()
@@ -860,6 +868,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             return null;
         }
 
+        if ($model->status === 'PENDING') {
+            $this->totalsCalculator->recalculate((int) $model->id);
+            $model->refresh();
+        }
+
         $items = StaffSettlementItemModel::query()
             ->where('staff_settlement_id', $model->id)
             ->orderBy('id')
@@ -879,10 +892,20 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         return [
             'settlement' => $this->mapSettlementSummary($model, $cutNumbers[(int) $model->id] ?? $this->resolveCutNumber($model)),
             'items' => $items,
+            'adjustments' => $this->mapAdjustments((int) $model->id),
         ];
     }
 
-    public function markPaid(int $id, int $tenantId, int $branchId, int $paidByUserId, ?string $notes): array
+    public function markPaid(
+        int $id,
+        int $tenantId,
+        int $branchId,
+        int $paidByUserId,
+        ?string $notes,
+        string $paymentMethod,
+        int $cashMovementId,
+        string $ticketNumber,
+    ): array
     {
         $model = StaffSettlementModel::query()
             ->where('id', $id)
@@ -895,6 +918,9 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             'paid_by_user_id' => $paidByUserId,
             'paid_at' => now(),
             'notes' => $notes ?? $model->notes,
+            'payment_method' => $paymentMethod,
+            'cash_movement_id' => $cashMovementId,
+            'ticket_number' => $ticketNumber,
         ]);
 
         $fresh = $model->fresh(['staffUser', 'paidBy']);
@@ -1075,13 +1101,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
 
     private function recalculateTotal(int $settlementId): void
     {
-        $total = StaffSettlementItemModel::query()
-            ->where('staff_settlement_id', $settlementId)
-            ->sum('amount');
-
-        StaffSettlementModel::query()
-            ->where('id', $settlementId)
-            ->update(['total_amount' => $total]);
+        $this->totalsCalculator->recalculate($settlementId);
     }
 
     /**
@@ -1244,6 +1264,35 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     }
 
     /**
+     * @return list<array<string, mixed>>
+     */
+    private function mapAdjustments(int $settlementId): array
+    {
+        return StaffSettlementAdjustmentModel::query()
+            ->where('staff_settlement_id', $settlementId)
+            ->orderBy('id')
+            ->get()
+            ->map(static fn (StaffSettlementAdjustmentModel $row) => [
+                'id' => $row->id,
+                'adjustment_type' => $row->adjustment_type,
+                'amount' => number_format((float) $row->amount, 2, '.', ''),
+                'discount_mode' => $row->discount_mode,
+                'discount_value' => $row->discount_value !== null
+                    ? number_format((float) $row->discount_value, 2, '.', '')
+                    : null,
+                'calculation_base' => $row->calculation_base !== null
+                    ? number_format((float) $row->calculation_base, 2, '.', '')
+                    : null,
+                'notes' => $row->notes,
+                'dedup_key' => $row->dedup_key,
+                'staff_fine_id' => $row->staff_fine_id,
+                'reason' => $row->notes,
+                'created_at' => $row->created_at?->format('Y-m-d H:i:s'),
+            ])
+            ->all();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function mapSettlementSummary(StaffSettlementModel $model, int $cutNumber = 1): array
@@ -1286,6 +1335,12 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                 : number_format((float) config('nightpos.cleaning.default_room_amount', 10), 2, '.', '');
         }
 
+        $waiterSnapshot = SettlementWaiterSnapshotResolver::resolve(
+            (string) $model->settlement_type,
+            (string) $model->staff_role,
+            $items,
+        );
+
         return [
             'id' => $model->id,
             'cut_number' => $cutNumber,
@@ -1298,13 +1353,28 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             'staff_name' => $model->staffUser?->name,
             'staff_role' => $model->staff_role,
             'settlement_type' => $model->settlement_type,
-            'total_amount' => number_format((float) $model->total_amount, 2, '.', ''),
+            'total_amount' => number_format((float) ($model->net_amount ?? $model->total_amount), 2, '.', ''),
+            'gross_amount' => number_format((float) ($model->gross_amount ?? $model->total_amount), 2, '.', ''),
+            'adjustments_total' => number_format((float) ($model->adjustments_total ?? 0), 2, '.', ''),
+            'net_amount' => number_format((float) ($model->net_amount ?? $model->total_amount), 2, '.', ''),
             'status' => $model->status,
             'paid_by_user_id' => $model->paid_by_user_id,
+            'paid_by_name' => $model->paidBy?->name,
             'paid_at' => $model->paid_at?->format('Y-m-d H:i:s'),
+            'payment_method' => $model->payment_method,
+            'cash_movement_id' => $model->cash_movement_id,
+            'ticket_number' => $model->ticket_number,
+            'print_count' => (int) ($model->print_count ?? 0),
+            'last_printed_at' => $model->last_printed_at?->format('Y-m-d H:i:s'),
+            'last_printed_by_user_id' => $model->last_printed_by_user_id,
+            'print_job_id' => $model->print_job_id,
+            'version' => (int) ($model->version ?? 1),
+            'has_ticket' => $model->ticket_number !== null,
             'notes' => $model->notes,
             'sales_count' => $salesCount,
-            'commission_percent' => $percent,
+            'commission_percent' => $waiterSnapshot['commission_percent'] ?? $percent,
+            'commission_amount' => $waiterSnapshot['commission_amount'] ?? null,
+            'waiter_sales_total' => $waiterSnapshot['sales_total'] ?? null,
             'consumption_total' => number_format($consumption, 2, '.', ''),
             'bracelets_total' => number_format($bracelets, 2, '.', ''),
             'pieces_total' => number_format($pieces, 2, '.', ''),

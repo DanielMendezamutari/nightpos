@@ -4,7 +4,6 @@ import WaiterMobileHeader from '@/components/nightpos/waiter/WaiterMobileHeader.
 import AssignGirlModal from '@/components/nightpos/orders/AssignGirlModal.vue'
 import ComboAllocationDialog from '@/components/nightpos/orders/ComboAllocationDialog.vue'
 import OrderAddProductDialog from '@/components/nightpos/orders/OrderAddProductDialog.vue'
-import QuickGirlCreateDialog from '@/components/nightpos/staff/QuickGirlCreateDialog.vue'
 import { fetchProductPrices } from '@/api/products'
 import {
   addOrderItem,
@@ -55,7 +54,6 @@ const showAddItem = ref(false)
 const showSendDialog = ref(false)
 const showAllocationDialog = ref(false)
 const allocationTarget = ref(null)
-const showQuickGirl = ref(false)
 const pricePreview = ref(null)
 const pricesLoading = ref(false)
 const addPriceContext = ref({ product_id: null, sale_mode: 'SOLO_CLIENTE' })
@@ -469,7 +467,6 @@ onMounted(async () => {
       @submit="submitAddItem"
       @preview-price="onPreviewPrice"
       @toggle-favorite="p => toggleFavorite(p.id)"
-      @quick-create-girl="showQuickGirl = true"
       @girl-created="onGirlCreated"
     />
 
@@ -495,11 +492,6 @@ onMounted(async () => {
       :can-quick-create-girl="can('staff.quick_create_girl')"
       @save="saveAllocation"
       @girl-created="onGirlCreated"
-    />
-
-    <QuickGirlCreateDialog
-      v-model="showQuickGirl"
-      @created="onGirlCreated"
     />
 
     <WaiterBottomNav />

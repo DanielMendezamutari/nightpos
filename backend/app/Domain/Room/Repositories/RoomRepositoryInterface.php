@@ -67,6 +67,11 @@ interface RoomRepositoryInterface
     public function setCleaning(int $roomId, int $tenantId, int $branchId): bool;
 
     /**
+     * Libera habitación tras terminar pieza (OCCUPIED → AVAILABLE).
+     */
+    public function releaseAfterService(int $roomId, int $tenantId, int $branchId): bool;
+
+    /**
      * @return array<string, mixed>|null
      */
     public function markClean(int $roomId, int $tenantId, int $branchId): ?array;

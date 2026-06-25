@@ -58,7 +58,10 @@ final class CleaningController extends Controller
 
     public function finish(int $id): JsonResponse
     {
-        return $this->presenter->present($this->finish->execute((object) ['roomServiceId' => $id]));
+        return $this->presenter->present($this->finish->execute((object) [
+            'roomServiceId' => $id,
+            'releaseRoomImmediately' => false,
+        ]));
     }
 
     public function markClean(int $id): JsonResponse

@@ -9,6 +9,7 @@ use App\Application\Order\Services\BraceletAllocationValidator;
 use App\Application\Order\Services\OrderItemPricing;
 use App\Application\Order\Services\OrderPresentationService;
 use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Application\Printing\UseCases\DispatchBarCorrectionPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Application\Waiter\Services\WaiterOrderAccessPolicy;
 use App\Domain\Order\Exceptions\OrderDomainException;
@@ -19,6 +20,7 @@ use App\Domain\Order\ValueObjects\OrderStatus;
 use App\Domain\Product\Repositories\ProductRepositoryInterface;
 use App\Domain\Product\ValueObjects\AllocationType;
 use App\Shared\Application\DTOs\OperationResult;
+use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 use App\Shared\Contracts\BranchContextInterface;
 use App\Shared\Contracts\TenantContextInterface;
 use App\Shared\Contracts\UseCaseInterface;
@@ -28,6 +30,7 @@ final class SyncOrderItemAllocationsUseCase implements UseCaseInterface
     public function __construct(
         private readonly TenantContextInterface $tenantContext,
         private readonly BranchContextInterface $branchContext,
+        private readonly AuthenticatedStaffContextInterface $staffContext,
         private readonly OrderRepositoryInterface $orders,
         private readonly ProductRepositoryInterface $products,
         private readonly OrderItemAllocationRepositoryInterface $allocations,
@@ -36,6 +39,7 @@ final class SyncOrderItemAllocationsUseCase implements UseCaseInterface
         private readonly WaiterOrderAccessPolicy $waiterAccess,
         private readonly OrderPresentationService $presentation,
         private readonly OperationalEventEmitter $eventEmitter,
+        private readonly DispatchBarCorrectionPrintJobUseCase $dispatchBarCorrectionPrint,
     ) {
     }
 
@@ -119,6 +123,15 @@ final class SyncOrderItemAllocationsUseCase implements UseCaseInterface
                 summary: 'Reparto de manillas actualizado',
             )
         );
+
+        if ($status->value === OrderStatus::SENT_TO_BAR && $updated !== null) {
+            $this->dispatchBarCorrectionPrint->execute(
+                $updated,
+                $tenant->id,
+                $branch->id,
+                $this->staffContext->userId(),
+            );
+        }
 
         return OperationResult::ok('Reparto de manillas guardado.', [
             'order' => $this->presentation->presentOrder($updated ?? $order, $tenant->id),

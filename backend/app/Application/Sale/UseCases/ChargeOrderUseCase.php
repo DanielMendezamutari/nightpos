@@ -15,6 +15,7 @@ use App\Application\Cash\Services\OpenCashSessionResolver;
 use App\Application\Order\Services\OrderItemReadinessChecker;
 
 use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Application\Printing\UseCases\CreateSaleReceiptPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 
 use App\Application\Sale\DTOs\ChargeOrderInput;
@@ -100,6 +101,8 @@ final class ChargeOrderUseCase implements UseCaseInterface
         private readonly AuditLogRecorder $audit,
 
         private readonly OperationalEventEmitter $eventEmitter,
+
+        private readonly CreateSaleReceiptPrintJobUseCase $createSaleReceiptPrintJob,
 
     ) {
 
@@ -562,11 +565,25 @@ final class ChargeOrderUseCase implements UseCaseInterface
 
 
 
+        $printResult = $this->createSaleReceiptPrintJob->execute(
+            sale: $sale,
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            requestedByUserId: $cashierId,
+            order: $order,
+        );
+
+
+
         return OperationResult::ok('Comanda cobrada correctamente.', [
 
             'sale' => SaleMapper::sale($sale),
 
             'order_status' => OrderStatus::BILLED,
+
+            'print_job' => $printResult['job'],
+
+            'print_warning' => $printResult['warning'],
 
         ]);
 

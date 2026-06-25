@@ -1,6 +1,5 @@
 <script setup>
 import PrintableShiftClosureReport from '@/components/nightpos/print/PrintableShiftClosureReport.vue'
-import { fetchProductReconciliation } from '@/api/reports'
 import { fetchShiftSummary } from '@/api/shifts'
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
 
@@ -14,15 +13,14 @@ definePage({
 const route = useRoute()
 const { triggerAutoPrint } = useNightPosPrint()
 const data = ref(null)
-const reconciliation = ref(null)
 const loading = ref(true)
+
+const ticketWidth = computed(() => route.query.width === '58' ? '58mm' : '80mm')
 
 onMounted(async () => {
   try {
     const shiftId = Number(route.params.id)
-
     data.value = await fetchShiftSummary(shiftId)
-    reconciliation.value = await fetchProductReconciliation({ officialShiftId: shiftId }).catch(() => null)
   }
   finally {
     loading.value = false
@@ -35,7 +33,9 @@ onMounted(async () => {
   <PrintableShiftClosureReport
     :shift="data?.shift"
     :summary="data?.summary"
-    :reconciliation="reconciliation"
+    :managerial="data?.managerial"
+    :tenant-name="data?.shift?.tenant_name || ''"
+    :width="ticketWidth"
     :loading="loading"
   />
 </template>

@@ -15,6 +15,7 @@ type Config struct {
 	PollIntervalMS int    `json:"poll_interval_ms"`
 	DryRun         bool   `json:"dry_run"`
 	DryRunDir      string `json:"dry_run_dir"`
+	LogLevel       string `json:"log_level"`
 }
 
 func Default() Config {
@@ -22,6 +23,7 @@ func Default() Config {
 		PollIntervalMS: 1500,
 		DryRun:         false,
 		DryRunDir:      paths.ProgramDataRoot() + `\dry-run-output`,
+		LogLevel:       "info",
 	}
 }
 
@@ -36,6 +38,9 @@ func Load() (Config, error) {
 	}
 	if cfg.PollIntervalMS <= 0 {
 		cfg.PollIntervalMS = 1500
+	}
+	if cfg.LogLevel == "" {
+		cfg.LogLevel = "info"
 	}
 	return cfg, nil
 }

@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/nightpos/print-agent/internal/paths"
@@ -16,9 +17,21 @@ var (
 	file        *os.File
 	std         *log.Logger
 	initialized bool
+	level       = "info"
 )
 
+var levelRank = map[string]int{
+	"debug": 10,
+	"info":  20,
+	"warn":  30,
+	"error": 40,
+}
+
 func Init() error {
+	return InitWithLevel("info")
+}
+
+func InitWithLevel(logLevel string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	if initialized {
@@ -34,6 +47,7 @@ func Init() error {
 	file = f
 	mw := io.MultiWriter(f)
 	std = log.New(mw, "", log.LstdFlags|log.Lmicroseconds)
+	level = normalizeLevel(logLevel)
 	initialized = true
 	return nil
 }
@@ -52,18 +66,34 @@ func Close() {
 	initialized = false
 }
 
-func Info(format string, args ...any)  { write("INFO", format, args...) }
-func Warn(format string, args ...any)  { write("WARN", format, args...) }
-func Error(format string, args ...any) { write("ERROR", format, args...) }
-func Debug(format string, args ...any) { write("DEBUG", format, args...) }
+func Info(format string, args ...any)  { write("info", format, args...) }
+func Warn(format string, args ...any)  { write("warn", format, args...) }
+func Error(format string, args ...any) { write("error", format, args...) }
+func Debug(format string, args ...any) { write("debug", format, args...) }
 
-func write(level, format string, args ...any) {
+func write(lvl, format string, args ...any) {
 	mu.Lock()
 	defer mu.Unlock()
-	if std == nil {
+	if std == nil || !shouldLog(lvl) {
 		return
 	}
-	std.Printf("[%s] "+format, append([]any{level}, args...)...)
+	std.Printf("[%s] "+format, append([]any{strings.ToUpper(lvl)}, args...)...)
+}
+
+func shouldLog(lvl string) bool {
+	current, ok := levelRank[normalizeLevel(level)]
+	if !ok {
+		current = levelRank["info"]
+	}
+	incoming, ok := levelRank[normalizeLevel(lvl)]
+	if !ok {
+		incoming = levelRank["info"]
+	}
+	return incoming >= current
+}
+
+func normalizeLevel(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func Path() string {
@@ -79,7 +109,7 @@ func OpenLogFile() error {
 }
 
 func Banner(version string) {
-	Info("NightPOS Print Agent %s starting", version)
+	Info("NightPOS Agent iniciado v%s", version)
 	Info("Config: %s", paths.ConfigPath())
 	Info("Logs: %s", paths.LogFilePath())
 	fmt.Println()

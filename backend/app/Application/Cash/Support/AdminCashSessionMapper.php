@@ -14,7 +14,7 @@ final class AdminCashSessionMapper
      */
     public static function listItem(CashSessionModel $model, array $financials): array
     {
-        return [
+        return array_merge([
             'id' => (int) $model->id,
             'tenant' => $model->tenant ? [
                 'id' => (int) $model->tenant->id,
@@ -50,6 +50,37 @@ final class AdminCashSessionMapper
             'total_manual_expense' => $financials['total_manual_expense'],
             'opened_at' => $model->opened_at?->toIso8601String(),
             'closed_at' => $model->closed_at?->toIso8601String(),
+        ], self::forceCloseMeta($model));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function forceCloseMeta(CashSessionModel $model): array
+    {
+        $blockers = is_array($model->close_blockers_snapshot)
+            ? ($model->close_blockers_snapshot['blockers'] ?? [])
+            : [];
+
+        $meta = [
+            'is_forced_close' => (bool) $model->is_forced_close,
+            'forced_close_reason' => $model->forced_close_reason,
+            'forced_close_notes' => $model->forced_close_notes,
+            'forced_closed_at' => $model->forced_closed_at?->toIso8601String(),
+            'forced_closed_by' => $model->forcedCloser ? [
+                'id' => (int) $model->forcedCloser->id,
+                'name' => $model->forcedCloser->name,
+            ] : null,
+            'close_blockers_snapshot' => $model->close_blockers_snapshot,
+            'financial_summary_snapshot' => $model->financial_summary_snapshot,
+            'closed_with_observations' => (bool) $model->is_forced_close && $blockers !== [],
         ];
+
+        if ($model->is_forced_close) {
+            $meta['counted_cash'] = null;
+            $meta['cash_difference'] = null;
+        }
+
+        return $meta;
     }
 }

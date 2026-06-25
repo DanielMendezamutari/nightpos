@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use App\Application\Cash\DTOs\ForceCloseCashSessionAdminInput;
 use App\Application\Cash\DTOs\ListCashSessionsAdminInput;
+use App\Application\Cash\UseCases\ForceCloseCashSessionAdminUseCase;
 use App\Application\Cash\UseCases\GetCashSessionAdminUseCase;
+use App\Application\Cash\UseCases\GetCashSessionCloseCheckAdminUseCase;
 use App\Application\Cash\UseCases\GetCashSessionsSummaryAdminUseCase;
 use App\Application\Cash\UseCases\ListCashSessionsAdminUseCase;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\V1\Admin\ForceCloseCashSessionRequest;
 use App\Infrastructure\Presentation\Http\Contracts\ApiResponsePresenterInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +24,8 @@ final class AdminCashSessionController extends Controller
         private readonly ListCashSessionsAdminUseCase $listSessions,
         private readonly GetCashSessionAdminUseCase $getSession,
         private readonly GetCashSessionsSummaryAdminUseCase $getSummary,
+        private readonly GetCashSessionCloseCheckAdminUseCase $closeCheck,
+        private readonly ForceCloseCashSessionAdminUseCase $forceClose,
     ) {
     }
 
@@ -36,6 +42,20 @@ final class AdminCashSessionController extends Controller
     public function show(int $id): JsonResponse
     {
         return $this->presenter->present($this->getSession->execute((object) ['sessionId' => $id]));
+    }
+
+    public function closeCheck(int $id): JsonResponse
+    {
+        return $this->presenter->present($this->closeCheck->execute((object) ['sessionId' => $id]));
+    }
+
+    public function forceClose(int $id, ForceCloseCashSessionRequest $request): JsonResponse
+    {
+        return $this->presenter->present($this->forceClose->execute(new ForceCloseCashSessionAdminInput(
+            sessionId: $id,
+            forcedCloseReason: (string) $request->validated('forced_close_reason'),
+            forcedCloseNotes: (string) $request->validated('forced_close_notes'),
+        )));
     }
 
     private function inputFromRequest(Request $request): ListCashSessionsAdminInput

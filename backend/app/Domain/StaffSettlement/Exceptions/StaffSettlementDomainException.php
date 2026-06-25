@@ -57,4 +57,39 @@ final class StaffSettlementDomainException extends DomainException
     {
         return new self('Debe indicar el método de pago para registrar la liquidación.');
     }
+
+    public static function cannotModifyPaidSettlement(): self
+    {
+        return new self('No se puede modificar una liquidación pagada.');
+    }
+
+    public static function manualDiscountReasonRequired(): self
+    {
+        return new self('Debe indicar el motivo del descuento manual.');
+    }
+
+    public static function manualDiscountExceedsAvailable(): self
+    {
+        return new self('El descuento supera el saldo disponible.');
+    }
+
+    public static function invalidDiscountMode(): self
+    {
+        return new self('El tipo de descuento debe ser PERCENT o AMOUNT.');
+    }
+
+    public static function invalidDiscountValue(): self
+    {
+        return new self('El valor del descuento debe ser mayor a cero.');
+    }
+
+    public static function manualDiscountNotFound(): self
+    {
+        return new self('No hay descuento manual para cancelar.');
+    }
+
+    public static function settlementNotPaid(): self
+    {
+        return new self('La liquidación debe estar pagada para imprimir el comprobante.');
+    }
 }

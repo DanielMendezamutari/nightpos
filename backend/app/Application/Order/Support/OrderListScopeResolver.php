@@ -19,7 +19,7 @@ final class OrderListScopeResolver
     /** Solo barra/cocina futura — KPI garzón sin duplicar SENT_TO_BAR. */
     public const PENDING_CHARGE_BAR_ONLY = ['IN_PREPARATION', 'READY'];
 
-    public const CASHIER_CHARGEABLE = ['OPEN', 'SENT_TO_BAR'];
+    public const CASHIER_CHARGEABLE = ['SENT_TO_BAR'];
 
     public const BILLED_RECENT_LIMIT = 50;
 

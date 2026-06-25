@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\V1\Admin\PlatformSetupController;
 use App\Http\Controllers\Api\V1\CashController;
 use App\Http\Controllers\Api\V1\SaleController;
 use App\Http\Controllers\Api\V1\SettlementController;
+use App\Http\Controllers\Api\V1\StaffFineController;
 use App\Http\Controllers\Api\V1\BraceletController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\StaffController;
@@ -177,6 +178,11 @@ Route::prefix('v1')->group(function () {
                 Route::middleware('nightpos.permission:admin.cash_sessions.view')->group(function () {
                     Route::get('cash-sessions/{id}', [AdminCashSessionController::class, 'show'])->whereNumber('id');
                 });
+
+                Route::middleware('nightpos.permission:admin.cash_sessions.force_close')->group(function () {
+                    Route::get('cash-sessions/{id}/close-check', [AdminCashSessionController::class, 'closeCheck'])->whereNumber('id');
+                    Route::post('cash-sessions/{id}/force-close', [AdminCashSessionController::class, 'forceClose'])->whereNumber('id');
+                });
             });
         });
 
@@ -241,6 +247,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shifts.close'])->group(function () {
             Route::get('shifts/current/close-check', [ShiftController::class, 'closeCheck']);
             Route::post('shifts/{id}/close', [ShiftController::class, 'close'])->whereNumber('id');
+            Route::post('shifts/{id}/print-closure', [ShiftController::class, 'printClosure'])->whereNumber('id');
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:waiter.dashboard'])->group(function () {
@@ -346,7 +353,11 @@ Route::prefix('v1')->group(function () {
             Route::get('cash/movement-reasons', [CashMovementReasonController::class, 'index']);
             Route::post('cash/session/open', [CashController::class, 'open']);
             Route::post('cash/movements', [CashController::class, 'registerMovement']);
+            Route::get('cash/movements/{id}', [CashController::class, 'showMovement'])->whereNumber('id');
+            Route::post('cash/movements/{id}/print', [CashController::class, 'printMovement'])->whereNumber('id');
+            Route::get('cash/sessions/{id}', [CashController::class, 'showSession'])->whereNumber('id');
             Route::post('cash/session/close', [CashController::class, 'close']);
+            Route::post('cash/sessions/{id}/print-close', [CashController::class, 'printClose'])->whereNumber('id');
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.access'])->group(function () {
@@ -370,7 +381,18 @@ Route::prefix('v1')->group(function () {
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.pay'])->group(function () {
+            Route::get('settlements/{id}/pay-preview', [SettlementController::class, 'payPreview'])->whereNumber('id');
             Route::post('settlements/{id}/mark-paid', [SettlementController::class, 'markPaid'])->whereNumber('id');
+            Route::post('settlements/{id}/print', [SettlementController::class, 'print'])->whereNumber('id');
+        });
+
+        Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.fines.manage'])->group(function () {
+            Route::post('settlements/{id}/manual-discount', [SettlementController::class, 'applyManualDiscount'])->whereNumber('id');
+            Route::post('settlements/{id}/manual-discount/preview', [SettlementController::class, 'previewManualDiscount'])->whereNumber('id');
+            Route::delete('settlements/{id}/manual-discount', [SettlementController::class, 'cancelManualDiscount'])->whereNumber('id');
+            Route::get('staff-fines', [StaffFineController::class, 'index']);
+            Route::post('staff-fines', [StaffFineController::class, 'store']);
+            Route::post('staff-fines/{id}/cancel', [StaffFineController::class, 'cancel'])->whereNumber('id');
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:staff.quick_create_girl'])->group(function () {
@@ -417,6 +439,7 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:room_services.create'])->group(function () {
             Route::post('room-services', [RoomServiceController::class, 'store']);
+            Route::post('room-services/{id}/print', [RoomServiceController::class, 'print'])->whereNumber('id');
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:room_services.finish'])->group(function () {
@@ -465,6 +488,7 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:shows.create'])->group(function () {
             Route::post('shows', [ShowController::class, 'store']);
+            Route::post('shows/{id}/print', [ShowController::class, 'print'])->whereNumber('id');
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settings.cash_reasons'])->group(function () {
@@ -539,6 +563,7 @@ Route::prefix('v1')->group(function () {
             Route::post('print-devices/register', [PrintDeviceController::class, 'register']);
             Route::patch('print-devices/{id}', [PrintDeviceController::class, 'update'])->whereNumber('id');
             Route::post('print-devices/{id}/rotate-key', [PrintDeviceController::class, 'rotateKey'])->whereNumber('id');
+            Route::post('print-devices/{id}/test-print', [PrintDeviceController::class, 'testPrint'])->whereNumber('id');
             Route::patch('print-settings', [PrintDeviceController::class, 'updateSettings']);
         });
 

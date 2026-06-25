@@ -91,7 +91,7 @@ func (r *Runtime) tick(ctx context.Context) {
 	}
 
 	if err := r.client.Heartbeat(r.cfg.PrinterName, Version, ""); err != nil {
-		logger.Warn("Heartbeat failed: %v", err)
+		logger.Warn("Error conexión backend: %v", err)
 		if api.IsNetworkError(err) {
 			status.Update(func(s *status.Snapshot) {
 				s.State = status.StateNoInternet
@@ -116,6 +116,7 @@ func (r *Runtime) tick(ctx context.Context) {
 			s.LastError = ""
 		}
 	})
+	logger.Debug("Device online — backend OK")
 
 	jobs, err := r.client.Pending(5)
 	if err != nil {
@@ -141,16 +142,17 @@ func (r *Runtime) tick(ctx context.Context) {
 }
 
 func (r *Runtime) processJob(job api.PrintJob) {
-	logger.Info("Processing job #%d (%s)", job.ID, job.Type)
+	logger.Info("Job #%d %s recibido", job.ID, job.Type)
 
 	if err := r.client.Claim(job.ID); err != nil {
-		logger.Error("Claim job #%d failed: %v", job.ID, err)
+		logger.Error("Job #%d claim failed: %v", job.ID, err)
 		return
 	}
+	logger.Info("Job #%d CLAIMED", job.ID)
 
 	printErr := r.print(job)
 	if printErr != nil {
-		logger.Error("Print job #%d failed: %v", job.ID, printErr)
+		logger.Error("Job #%d FAILED — impresora: %v", job.ID, printErr)
 		_ = r.client.Failed(job.ID, printErr.Error())
 		status.Update(func(s *status.Snapshot) {
 			s.State = status.StatePrinterError
@@ -193,11 +195,12 @@ func (r *Runtime) print(job api.PrintJob) error {
 		return nil
 	}
 
+	logger.Info("Imprimiendo job #%d en %s", job.ID, r.cfg.PrinterName)
 	n, err := printer.PrintRawEscPos(r.cfg.PrinterName, content)
 	if err != nil {
 		return err
 	}
-	logger.Info("Spooler RAW OK job #%d — %d bytes", job.ID, n)
+	logger.Info("Job #%d PRINTED (%d bytes)", job.ID, n)
 	return nil
 }
 

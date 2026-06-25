@@ -26,6 +26,13 @@ final class CashSessionModel extends Model
         'difference_amount',
         'opening_notes',
         'closing_notes',
+        'is_forced_close',
+        'forced_closed_by_user_id',
+        'forced_closed_at',
+        'forced_close_reason',
+        'forced_close_notes',
+        'close_blockers_snapshot',
+        'financial_summary_snapshot',
         'opened_at',
         'closed_at',
     ];
@@ -39,6 +46,10 @@ final class CashSessionModel extends Model
             'difference_amount' => 'decimal:2',
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
+            'is_forced_close' => 'boolean',
+            'forced_closed_at' => 'datetime',
+            'close_blockers_snapshot' => 'array',
+            'financial_summary_snapshot' => 'array',
         ];
     }
 
@@ -55,6 +66,11 @@ final class CashSessionModel extends Model
     public function closer(): BelongsTo
     {
         return $this->belongsTo(UserModel::class, 'closed_by_user_id');
+    }
+
+    public function forcedCloser(): BelongsTo
+    {
+        return $this->belongsTo(UserModel::class, 'forced_closed_by_user_id');
     }
 
     public function tenant(): BelongsTo

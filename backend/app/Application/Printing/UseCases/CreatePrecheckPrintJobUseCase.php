@@ -57,11 +57,14 @@ final class CreatePrecheckPrintJobUseCase
 
         $branchName = (string) (BranchModel::query()->where('id', $branchId)->value('name') ?? '');
 
+        $printedAt = now()->toIso8601String();
+
         $payload = [
             'order' => $presented,
             'waiter_name' => $waiterName,
             'service_area_name' => $serviceAreaName,
             'branch_name' => $branchName !== '' ? $branchName : null,
+            'printed_at' => $printedAt,
         ];
 
         $contentText = $this->contentBuilder->buildPrecheck(
@@ -69,6 +72,7 @@ final class CreatePrecheckPrintJobUseCase
             $branchName !== '' ? $branchName : null,
             $waiterName,
             $serviceAreaName,
+            printedAt: $printedAt,
         );
 
         $job = $this->jobs->create([

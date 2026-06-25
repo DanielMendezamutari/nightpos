@@ -19,20 +19,20 @@ type program struct {
 }
 
 func (p *program) Start(s service.Service) error {
-	if err := logger.Init(); err != nil {
-		return err
-	}
-	logger.Banner(agent.Version)
-
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Error("Config load failed: %v", err)
 		return err
 	}
 	if err := config.Validate(cfg); err != nil {
-		logger.Error("Config invalid: %v", err)
 		return err
 	}
+	if err := logger.InitWithLevel(cfg.LogLevel); err != nil {
+		return err
+	}
+	logger.Banner(agent.Version)
+	logger.Info("Backend: %s", cfg.BackendURL)
+	logger.Info("Impresora: %s", cfg.PrinterName)
+	logger.Info("dry_run=%v poll_interval_ms=%d", cfg.DryRun, cfg.PollIntervalMS)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	p.cancel = cancel
@@ -136,7 +136,9 @@ func StatusText() (string, error) {
 		return "RUNNING", nil
 	case service.StatusStopped:
 		return "STOPPED", nil
+	case service.StatusUnknown:
+		return "UNKNOWN", nil
 	default:
-		return st.String(), nil
+		return fmt.Sprintf("%v", st), nil
 	}
 }

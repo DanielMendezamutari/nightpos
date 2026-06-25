@@ -16,4 +16,13 @@ final class BranchPrintSettingsReader
 
         return $value === null ? true : (bool) $value;
     }
+
+    public function isAutoPrintSaleReceiptEnabled(int $branchId): bool
+    {
+        $value = BranchModel::query()
+            ->where('id', $branchId)
+            ->value('auto_print_sale_receipt');
+
+        return $value === null ? true : (bool) $value;
+    }
 }

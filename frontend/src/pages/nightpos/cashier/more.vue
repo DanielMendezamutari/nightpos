@@ -6,6 +6,8 @@ import CashierShell from '@/components/nightpos/cashier/CashierShell.vue'
 
 import { useCashierMoreMenu } from '@/composables/useCashierMoreMenu'
 
+import { useAuthStore } from '@/stores/auth'
+
 
 
 definePage({
@@ -20,7 +22,19 @@ definePage({
 
 
 
+const authStore = useAuthStore()
+
 const { visibleSections, hasItems } = useCashierMoreMenu()
+
+
+
+onMounted(async () => {
+
+  if (authStore.isAuthenticated)
+
+    await authStore.fetchMe().catch(() => {})
+
+})
 
 </script>
 
@@ -90,9 +104,9 @@ const { visibleSections, hasItems } = useCashierMoreMenu()
 
               v-for="item in section.items"
 
-              :key="item.to"
+              :key="item.to || item.action"
 
-              :to="{ name: item.to }"
+              :to="item.to ? { name: item.to } : undefined"
 
               :prepend-icon="item.icon"
 

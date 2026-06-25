@@ -1,6 +1,8 @@
 <script setup>
 import SettlementsCashBanner from '@/components/nightpos/settlements/SettlementsCashBanner.vue'
 import SettlementPayDialog from '@/components/nightpos/settlements/SettlementPayDialog.vue'
+import StaffFineDialog from '@/components/nightpos/settlements/StaffFineDialog.vue'
+import SettlementListRowActions from '@/components/nightpos/settlements/SettlementListRowActions.vue'
 import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
@@ -13,14 +15,17 @@ definePage({ meta: { permission: 'settlements.access' } })
 
 const settlementTabs = useFilteredSettlementTabs()
 const router = useRouter()
-const { can } = useNightPosPermissions()
+const { can, canManageSettlementFines } = useNightPosPermissions()
 const { loading, shift, cleaning, reload } = useCurrentShiftSettlements()
 const { paySettlement, showOpenCash, refreshCashSession } = useSettlementPayment({ onPaid: reload })
 
 const canPay = computed(() => can('settlements.pay'))
 const paying = ref(false)
 const showPayDialog = ref(false)
+const showFineDialog = ref(false)
 const payingItem = ref(null)
+const finePrefill = ref(null)
+const payDialogRef = ref(null)
 
 const headers = [
   { title: 'Personal limpieza', key: 'staff_name' },
@@ -48,12 +53,12 @@ const openPayDialog = async item => {
   showPayDialog.value = true
 }
 
-const confirmPay = async ({ payment_method, notes }) => {
+const confirmPay = async ({ payment_method, notes, applied_fine_ids }) => {
   if (!payingItem.value)
     return
   paying.value = true
   try {
-    const result = await paySettlement(payingItem.value.id, { payment_method, notes })
+    const result = await paySettlement(payingItem.value.id, { payment_method, notes, applied_fine_ids })
     if (result.ok) {
       showPayDialog.value = false
       payingItem.value = null
@@ -62,6 +67,22 @@ const confirmPay = async ({ payment_method, notes }) => {
   finally {
     paying.value = false
   }
+}
+
+const openFineDialog = item => {
+  finePrefill.value = item
+  showFineDialog.value = true
+}
+
+const openFineFromPay = () => {
+  if (!payingItem.value)
+    return
+  openFineDialog(payingItem.value)
+}
+
+const onFineCreated = async () => {
+  await reload()
+  await payDialogRef.value?.reloadPreview?.()
 }
 </script>
 
@@ -113,36 +134,35 @@ const confirmPay = async ({ payment_method, notes }) => {
           </VChip>
         </template>
         <template #item.actions="{ item }">
-          <div class="d-flex gap-1">
-            <VBtn
-              v-if="canPay && item.status === 'PENDING'"
-              size="small"
-              color="success"
-              variant="tonal"
-              prepend-icon="ri-check-line"
-              @click="openPayDialog(item)"
-            >
-              Pagar
-            </VBtn>
-            <VBtn
-              size="small"
-              variant="text"
-              @click="router.push({ name: 'nightpos-settlements-id', params: { id: item.id } })"
-            >
-              Ver detalle
-            </VBtn>
-          </div>
+          <SettlementListRowActions
+            :item="item"
+            :can-pay="canPay"
+            :can-multar="canManageSettlementFines"
+            @pay="openPayDialog"
+            @multar="openFineDialog"
+            @detail="item => router.push({ name: 'nightpos-settlements-id', params: { id: item.id } })"
+          />
         </template>
       </VDataTable>
     </VCard>
 
     <SettlementPayDialog
+      ref="payDialogRef"
       v-model="showPayDialog"
       :settlement="payingItem"
       title="Confirmar pago limpieza"
       type-label="Limpieza"
       :loading="paying"
       @confirm="confirmPay"
+      @register-fine="openFineFromPay"
+    />
+
+    <StaffFineDialog
+      v-model="showFineDialog"
+      :staff-user-id="finePrefill?.staff_user_id"
+      staff-role="CLEANING"
+      :staff-name="finePrefill?.staff_name"
+      @created="onFineCreated"
     />
 
     <QuickOpenCashDialog v-model="showOpenCash" @opened="refreshCashSession" />

@@ -99,8 +99,8 @@ it('PRECHECK content includes manilla for CON_ACOMPANANTE item', function () {
 it('PRECHECK content includes combo allocation distribution', function () {
     precheckPrintRegisterDevice();
     $waiter = precheckPrintWaiterToken();
-    $productId = cba6SeedCombo();
-    $girlId = cba6GirlId();
+    $productId = precheckSeedCombo();
+    $girlId = precheckGirlId();
     $girlName = (string) UserModel::query()->where('id', $girlId)->value('name');
 
     $orderId = (int) test()->postJson('/api/v1/orders', [
@@ -219,7 +219,7 @@ it('PRECHECK print job stores requested_by_user_id of current user', function ()
     expect($requestedBy)->toBe($meId);
 });
 
-function cba6SeedCombo(int $braceletUnits = 6): int
+function precheckSeedCombo(int $braceletUnits = 6): int
 {
     $tenantId = (int) \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()
         ->where('slug', 'casa-demo')->value('id');
@@ -253,7 +253,7 @@ function cba6SeedCombo(int $braceletUnits = 6): int
     return (int) $product->id;
 }
 
-function cba6GirlId(): int
+function precheckGirlId(): int
 {
     return (int) UserModel::query()->where('username', 'chica.centro')->value('id');
 }

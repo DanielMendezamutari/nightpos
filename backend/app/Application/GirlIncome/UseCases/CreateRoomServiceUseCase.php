@@ -15,6 +15,8 @@ use App\Application\Cash\Services\ServiceIncomeCashRecorder;
 use App\Application\GirlIncome\DTOs\CreateRoomServiceInput;
 
 use App\Application\GirlIncome\Services\GirlStaffValidator;
+use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Application\Printing\UseCases\CreateRoomServicePrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 
 use App\Application\GirlIncome\Support\RoomServiceAmountCalculator;
@@ -24,6 +26,10 @@ use App\Application\Shift\UseCases\EnsureOperationalShiftUseCase;
 use App\Domain\GirlIncome\Exceptions\GirlIncomeDomainException;
 
 use App\Domain\GirlIncome\Repositories\RoomServiceRepositoryInterface;
+
+use App\Domain\Order\Repositories\OrderRepositoryInterface;
+
+use App\Domain\Order\ValueObjects\OrderStatus;
 
 use App\Domain\Room\Exceptions\RoomNotFoundException;
 
@@ -69,7 +75,11 @@ final class CreateRoomServiceUseCase implements UseCaseInterface
 
         private readonly ServiceIncomeCashRecorder $serviceCash,
 
+        private readonly OrderRepositoryInterface $orders,
+
         private readonly OperationalEventEmitter $eventEmitter,
+
+        private readonly CreateRoomServicePrintJobUseCase $createRoomServicePrintJob,
 
     ) {
 
@@ -351,6 +361,27 @@ final class CreateRoomServiceUseCase implements UseCaseInterface
 
             $created['payment_method'] = $paymentMethod;
 
+            $orderLabel = 'Pieza '.($label !== '' ? $label : '—');
+
+            $order = $this->orders->create(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                officialShiftId: $shift->id,
+                orderNumber: $this->orders->nextOrderNumber($branch->id),
+                tableLabel: $orderLabel,
+                serviceAreaId: null,
+                serviceTableId: null,
+                waiterUserId: $userId,
+                openedByUserId: $userId,
+                notes: $input->notes,
+                sourceType: 'ROOM_SERVICE',
+                sourceId: (int) $created['id'],
+            );
+
+            $this->roomServices->linkOrder((int) $created['id'], $tenant->id, $order->id);
+
+            $created['order_id'] = $order->id;
+
 
 
             return $created;
@@ -370,9 +401,32 @@ final class CreateRoomServiceUseCase implements UseCaseInterface
             ]
         );
 
+        if (! empty($entry['order_id'])) {
+            $this->eventEmitter->emit(
+                $tenant->id,
+                $branch->id,
+                'order.created',
+                OrderOperationalEventPayload::build(
+                    orderId: (int) $entry['order_id'],
+                    status: OrderStatus::OPEN,
+                    source: 'room_service',
+                    summary: 'Comanda pieza: '.($entry['room_label'] ?? $entry['room_number'] ?? ''),
+                )
+            );
+        }
+
+        $presented = $this->roomServices->findById((int) $entry['id'], $tenant->id) ?? $entry;
+
+        $printResult = $this->createRoomServicePrintJob->execute(
+            roomServiceId: (int) $entry['id'],
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            requestedByUserId: $userId,
+        );
+
         return OperationResult::ok('Pieza registrada correctamente.', [
 
-            'room_service' => $entry,
+            'room_service' => $presented,
 
             'shift' => [
 
@@ -383,6 +437,10 @@ final class CreateRoomServiceUseCase implements UseCaseInterface
                 'business_date' => $shift->businessDate,
 
             ],
+
+            'print_job' => $printResult['job'],
+
+            'print_warning' => $printResult['warning'],
 
         ]);
 

@@ -41,7 +41,7 @@ La brecha hacia V1 ya **no es construir el núcleo**, sino:
 | Sin impresión barra/caja si el local la exige | Mitigado | ✅ V1-97 vista imprimible (térmica vía navegador); auto-print en V2 |
 | Backups / despliegue / HTTPS no formalizados | Alto | V1-99 |
 | Caja **por usuario** (no caja física compartida) | Medio | Capacitación + V2 |
-| Habitaciones atascadas en CLEANING bloquean piezas | Medio | Mitigado; reforzar en QA |
+| Habitaciones atascadas en CLEANING bloquean piezas | Mitigado | Terminar desde cajera libera AVAILABLE (2026-06-22) |
 | Sin auditoría global de acciones sensibles | Medio | V2 (mínimo documentar en V1) |
 
 ---
@@ -67,6 +67,7 @@ Criterio de "completado": API + reglas de negocio + UI mínima + tests o cobertu
 | **Limpieza móvil / control piezas** | ✅ | Fase 17, `CLEANING_MOBILE_MODE_REPORT.md`; polling + sonido |
 | **Liquidaciones** | ✅ | Fase 14, 16; garzones/chicas/manillas/piezas/shows, anti-duplicado, EXPENSE en caja |
 | **Fiscalización multicaja (admin)** | ✅ | `ADMIN_CASH_SESSIONS_REPORT.md`; sesiones por sucursal |
+| **Cierre administrativo de caja** | ✅ | `CASH_SESSION_FORCE_CLOSE_IMPLEMENTATION_REPORT.md` (be+fe) |
 | **Turnos oficiales + consola** | ✅ | Fase 13, C2; OPEN/CLOSE, auto-turno, KPIs cierre |
 | **Navegación operativa** | ✅ | R1–R4, `NAVIGATION_UX_FINAL_REPORT.md` |
 | **Notificaciones in-app** | ✅ (sin push) | Fase 17; list/read API |
@@ -85,8 +86,9 @@ Criterio de "completado": API + reglas de negocio + UI mínima + tests o cobertu
 | **P0 Feedback visual** | ✅ completado | Snackbar global Pinia, loading acciones críticas — `P0_FEEDBACK_VISUAL_REPORT.md` |
 | **P1 SSE piezas/habitaciones** | ✅ completado | 4 pantallas + fix `useOperationalEvents` — `P1_SSE_ROOMS_REPORT.md` |
 | **Reportes** | ✅ V1-96 | Cierre turno, 6 tabs reportes, CSV; falta PDF/Excel en V2 |
-| **Impresión / tickets** | ✅ V1-97 (vista imprimible) | Comanda/ventas/caja/turno imprimibles; auto-print + agente local → V2 |
+| **Impresión / tickets** | ✅ base + ⏳ UX redesign | V1-97 browser + agente Go + `print_jobs` (ORDER_COMMAND, PRECHECK); rediseño UX auditado — ver `PRINTING_SYSTEM_UX_REDESIGN_REPORT.md` |
 | **Producción / despliegue** | ⏳ parcial | `.env` prod, migraciones limpias, backups, HTTPS, build, checklist primera noche |
+| **Cierre administrativo de caja** | ✅ | `POST /admin/cash-sessions/{id}/force-close`, UI fiscalización, 14 tests — `backend/CASH_SESSION_FORCE_CLOSE_IMPLEMENTATION_REPORT.md` |
 
 ---
 
@@ -284,7 +286,7 @@ Logros:
 
 Logros:
 - 5 rutas imprimibles con layout `blank` (sin nav, fondo blanco, botones Imprimir/Volver): `print/order/:id`, `print/sale/:id`, `print/cash`, `print/cash-session/:id`, `print/shift/:id`.
-- 5 componentes: `PrintableTicketShell`, `PrintableOrderTicket`, `PrintableSaleTicket`, `PrintableCashSessionReport`, `PrintableShiftClosureReport` (ancho térmico 58/80 mm).
+- 5 componentes: `PrintableTicketShell`, `PrintableOrderTicket`, `PrintableSaleTicket`, `PrintableCashSessionReport` (cajera/arqueo), `PrintableShiftClosureReport` (gerencial admin) (ancho térmico 58/80 mm).
 - Botones "Ver imprimible/ticket" en detalle comanda, venta, Mi Caja, fiscalización caja, cierre e historial de turno.
 - Backend: endpoints reutilizados; único cambio = `cashier_name`/`waiter_name` en `GetSaleUseCase` y `waiter_name` en `GetOrderUseCase`. **Sin `print_jobs`.**
 - Suite **376 verde** (sin tests nuevos; endpoints reutilizados).
@@ -511,6 +513,7 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Liquidaciones | `backend/CLEANING_SETTLEMENTS_REPORT.md`, `frontend/SETTLEMENTS_CASH_UI_FIX_REPORT.md` |
 | Liquidaciones parciales / cortes | `backend/PARTIAL_SETTLEMENTS_IMPLEMENTATION_REPORT.md`, `frontend/PARTIAL_SETTLEMENTS_IMPLEMENTATION_REPORT.md` |
 | Liquidaciones parciales post-Mis mesas | `backend/PARTIAL_SETTLEMENTS_AFTER_TABLES_FIX_REPORT.md`, `frontend/PARTIAL_SETTLEMENTS_AFTER_TABLES_FIX_REPORT.md` |
+| **Motor ajustes liquidaciones (diseño V1)** | `backend/SETTLEMENT_ADJUSTMENTS_ENGINE_AUDIT.md`, `frontend/SETTLEMENT_ADJUSTMENTS_ENGINE_AUDIT.md` |
 | Comandas | `ORDERS_COMPLETE_AUDIT.md`, `CASHIER_ORDER_AND_DIRECT_SALE_AUDIT.md` |
 | Garzón | `frontend/WAITER_MOBILE_*`, `backend/PHASE_C4_WAITER_REPORT.md` |
 | Limpieza | `backend/CLEANING_MOBILE_MODE_REPORT.md`, `ROOM_SERVICE_NOTIFICATIONS_REPORT.md` |
@@ -821,21 +824,104 @@ Diseño de módulo kardex para cerrar V1 operativo con control de stock. **Sin i
 
 ---
 
-## AUDITORÍA PLANIFICADA — Impresión local automática (2026-06-17)
+## Impresión local automática — estado real (2026-06-17 implementado)
 
-Diseño agente local + cola `print_jobs`. **Sin implementación aún.**
+> La sección anterior decía “sin print_jobs”. **Implementado:** migraciones `2026_06_17_*`, agente Go en `agent/`, cola `print_jobs`, settings impresoras, precuenta garzón.
 
-| Documento | Contenido |
-|-----------|-----------|
-| `backend/LOCAL_PRINTING_AGENT_AUDIT.md` | Modelo datos, API, hooks send-to-bar, seguridad device_key, fases PRINT-1…6 |
-| `frontend/LOCAL_PRINTING_AGENT_AUDIT.md` | UI admin impresoras, badges estado, reimpresión |
-| `agent/LOCAL_PRINTING_AGENT_AUDIT.md` | Agente Node.js Windows, polling, ESC/POS, dry-run |
+| Entregable | Estado |
+|------------|--------|
+| Agente Go + `device_key` | ✅ |
+| `ORDER_COMMAND` al enviar barra | ✅ |
+| `PRECHECK` precuenta garzón | ✅ |
+| Reimpresión manual comanda | ✅ |
+| Browser fallback V1-97 | ✅ |
+| `SALE_RECEIPT` auto al cobrar | ✅ P1 2026-06-21 |
+| Comanda barra sin precios (builder) | ✅ P2 |
+| Reimpresión auto corrección | ✅ P2 |
+| Precuenta cajera (cola + detalle) | ✅ P2 |
+| Browser fallback alineado agente | ✅ P2 |
+| Pieza/show ticket operativo auto | ✅ 2026-06-21 |
+| Movimientos caja + cierres print | ✅ 2026-06-21 |
+| Servicio Windows agente + scripts `.bat` | ✅ 2026-06-25 |
+| Admin test-print + queue summary | ✅ 2026-06-25 |
+| Debug ORDER_COMMAND operativo | ✅ 2026-06-25 |
+| **Documentación oficial agente (INSTALL / TROUBLESHOOT / CHECKLIST)** | ✅ 2026-06-25 |
+| Plantillas configurables | ❌ pendiente P3 |
+| Firma Ribersoft configurable | ❌ pendiente P3 |
 
-**Estado actual:** V1-97 solo `window.print()`; sin `print_jobs` en DB; `settings/printers` placeholder.
+**Docs P1:** `backend/OPERATIONAL_CONSOLIDATION_P1_REPORT.md`, `frontend/OPERATIONAL_CONSOLIDATION_P1_REPORT.md`
 
-**Recomendación V1:** Agente Node + polling 1,5s + `content_text` generado en backend + auto print al enviar a barra.
+**Docs P2:** `backend/PRINTING_P2_OPERATIONAL_FORMATS_REPORT.md`, `frontend/PRINTING_P2_OPERATIONAL_FORMATS_REPORT.md`
 
-**Estimado MVP comanda auto:** ~11–15 días dev + QA impresora real.
+**Docs pieza/show print:** `backend/ROOM_SERVICE_SHOW_PRINT_FIX_REPORT.md`, `frontend/ROOM_SERVICE_SHOW_PRINT_FIX_REPORT.md`
+
+**Docs movimientos/cierres print:** `backend/CASH_MOVEMENT_AND_CLOSURE_PRINT_AUDIT.md`, `frontend/CASH_MOVEMENT_AND_CLOSURE_PRINT_AUDIT.md`, `backend/CASH_MOVEMENT_AND_CLOSURE_PRINT_FIX_REPORT.md`, `frontend/CASH_MOVEMENT_AND_CLOSURE_PRINT_FIX_REPORT.md`, `backend/CASH_MOVEMENT_CLOSURE_PRINT_BACKEND_BOOT_FIX_REPORT.md`
+
+**Docs agente Windows + debug ORDER_COMMAND (2026-06-25):** `agent/README_WINDOWS.md`, `agent/WINDOWS_SERVICE_INSTALLATION_REPORT.md`, `backend/PRINT_AGENT_ORDER_COMMAND_DEBUG_REPORT.md`, `frontend/PRINT_AGENT_ORDER_COMMAND_DEBUG_REPORT.md`
+
+**Docs oficiales agente V1 — técnicos Ribersoft (2026-06-25):** `agent/INSTALLATION_GUIDE.md`, `agent/TROUBLESHOOTING_GUIDE.md`, `agent/DEPLOYMENT_CHECKLIST.md`, `agent/README.md`
+
+**Docs cierre caja/turno (auditoría previa):** `backend/CASH_SHIFT_REPORTS_AUDIT.md`
+
+**Rediseño V1 cierre caja/turno (2026-06-21):** ✅ `backend/CASH_AND_SHIFT_REPORT_REDESIGN_IMPLEMENTATION_REPORT.md`, `frontend/CASH_AND_SHIFT_REPORT_REDESIGN_IMPLEMENTATION_REPORT.md` — builders compartidos (`CashCloseReportSectionsBuilder`, `ShiftManagerialSummaryBuilder`), tickets térmicos y vistas browser separados (cajera vs admin), tests print 11/11.
+
+**Prioridad implementación:** (1) plantillas + Ribersoft P3.
+
+---
+
+## Documentación oficial — Agente de impresión (Ribersoft)
+
+Documentación para técnicos de campo **sin depender del desarrollador**:
+
+| Archivo | Contenido |
+|---------|-----------|
+| `agent/INSTALLATION_GUIDE.md` | Guía definitiva de instalación y configuración |
+| `agent/TROUBLESHOOTING_GUIDE.md` | Errores reales, diagnóstico y FAQ |
+| `agent/DEPLOYMENT_CHECKLIST.md` | Checklist sucursal nueva / reinstalación |
+| `agent/README.md` | Índice y resumen del componente |
+
+---
+
+## Pre-QA — Permisos, scopes y menús (2026-06-25)
+
+| Parte | Tema | Fix |
+|-------|------|-----|
+| 1 | Garzón ve comandas antiguas | Filtro turno obligatorio en API garzón |
+| 2 | Alta rápida de chica | **Flujo inline en comanda** — menú «Más» garzón descartado por UX |
+| 3 | «Más» cajera estático | Catálogo único `nightposSecondaryNavCatalog.js` |
+
+**Docs:** `backend/PRE_QA_PERMISSION_SCOPE_AUDIT.md`, `frontend/PRE_QA_PERMISSION_SCOPE_AUDIT.md`
+
+### Ajuste UX — sin menú «Más» garzón (2026-06-25)
+
+Decisión operativa: el garzón mantiene bottom nav **Mesas | Comandas** únicamente. «+ Nueva chica» sigue en el flujo Con compañía dentro de la comanda, gated por `staff.quick_create_girl`. No se agrega shell secundario al garzón.
+
+---
+
+## UX — Multas en liquidaciones (2026-06-25)
+
+| Entrega | Detalle |
+|---------|---------|
+| Filas Chicas/Garzones | Botón **Multar** visible por fila (`SettlementListRowActions`) |
+| Hub liquidaciones | Tarjetas Ver chicas / garzones + **Registrar multa** (`SettlementHubQuickNav`) |
+| Detalle liquidación | Banda de acciones con Agregar multa + Marcar pagado |
+| Permiso | `settlements.fines.manage` (cajera básica: asignar en admin) |
+
+**Docs:** `frontend/SETTLEMENT_ADJUSTMENTS_ENGINE_PHASE2_FINES_REPORT.md`
+
+---
+
+## Ticket liquidación garzón — venta total y comisión (2026-06-25)
+
+| Entrega | Detalle |
+|---------|---------|
+| Backend | `SettlementWaiterSnapshotResolver` — snapshot desde ítems `WAITER_COMMISSION` (`base_amount`, `percent`, `amount`) |
+| Ticket agente | `PrintTicketContentBuilder::buildSettlementPayment()` — bloque **VENTA GARZÓN** |
+| Ticket navegador | `PrintableSettlementTicket.vue` — mismo bloque solo WAITER |
+| Detalle | `settlements/[id].vue` — tarjeta Venta total / Porcentaje / Comisión |
+| Tests | `SettlementPaymentAuditTest` — 19 passed |
+
+**Docs:** `backend/SETTLEMENT_PAYMENT_AUDITABLE_IMPLEMENTATION_REPORT.md`, `frontend/SETTLEMENT_PAYMENT_AUDITABLE_IMPLEMENTATION_REPORT.md`
 
 ---
 
@@ -894,6 +980,20 @@ Diseño agente local + cola `print_jobs`. **Sin implementación aún.**
 **Tests:** `SettlementCloseCheckConsistencyTest` (7).
 
 **Pendiente:** Fase 2B cajera (en pausa).
+
+---
+
+## BUGFIX — Terminar pieza + close-check vs cola cobro (2026-06-22)
+
+**Problema 1:** Terminar pieza desde cajera dejaba habitación en limpieza → bloqueaba nueva venta.  
+**Fix:** `POST /room-services/{id}/finish` libera habitación (`AVAILABLE`); limpieza sigue opcional vía `/cleaning/.../finish`.
+
+**Problema 2:** Close-check contaba comandas que la cola de cobro no mostraba (turno sesión ≠ turno abierto; contaba `OPEN`).  
+**Fix:** `CashierChargeableOrdersScope::countForCashierScope()` — mismo criterio que `GET /orders?scope=cashier_chargeable&cashier_scope=1`.
+
+**Docs:** `backend/ROOM_FINISH_AND_CASH_CLOSE_CHECK_FIX_REPORT.md`, `frontend/ROOM_FINISH_AND_CASH_CLOSE_CHECK_FIX_REPORT.md`
+
+**Tests:** `RoomFinishAndCashCloseCheckFixTest` (13), `CashierCloseCheckTest` actualizado.
 
 ---
 
@@ -957,4 +1057,100 @@ Diseño agente local + cola `print_jobs`. **Sin implementación aún.**
 
 ---
 
-*Documento de planificación. Próxima acción SaaS: **SAAS-2 Suscripciones**.*
+## PLANNED — Motor de liquidaciones con ajustes V1 simplificado (diseño aprobado 2026-06-21)
+
+**Estado:** Fase 1 backend **completada** — Fase 2 **backend + frontend completados** — Fase 3 descuento manual **✅** — Fase 4 pago auditable **✅** — Fase 5 polish pendiente.  
+**Docs:** `backend/SETTLEMENT_PAYMENT_AUDITABLE_IMPLEMENTATION_REPORT.md`, `frontend/SETTLEMENT_PAYMENT_AUDITABLE_IMPLEMENTATION_REPORT.md`
+
+### Objetivo operativo
+
+Liquidaciones con **neto correcto**: bruto generado, limpieza única chica (100/10), multas independientes (aplicación opcional al pagar), descuento manual opcional (Fase 3), ticket al pagar (Fase 4), egreso en caja por neto.
+
+### Incluido en V1
+
+| Entrega | Descripción |
+|---------|-------------|
+| Motor ajustes | `SettlementAdjustmentEngine` + `staff_settlement_adjustments` |
+| Totales | `gross_amount`, `adjustments_total`, `net_amount` |
+| Limpieza única | Solo chicas; ≥100 Bs → −10 Bs; dedup turno+caja+persona (Fase 1 ✅) |
+| Multas | `staff_fines` independientes; PENDING/APPLIED/CANCELLED; aplicación opcional al pagar |
+| Descuento manual | Fase 3 — PERCENT o AMOUNT; motivo obligatorio |
+| Pago | `mark-paid` con `applied_fine_ids`; egreso por neto final |
+| Ticket | Solo multas aplicadas + desglose (Fase 4) |
+| Frontend | Resumen Fase 1; multas CRUD + checkboxes al pagar (Fase 2) |
+
+### Orden de cálculo V1
+
+1. Bruto → 2. Limpieza (automática al generar) → 3. Descuento manual (Fase 3) → 4. Multas seleccionadas al pagar (Fase 2) → 5. Neto
+
+**Fase 2 sin descuento:** `neto = bruto + limpieza − multas_seleccionadas`
+
+### Fuera de V1 (V1.1/V2)
+
+Garzón manillando, manillas multi-rol, descuentos automáticos por origen (admin 3%, garzón 5%), `income_origin`, reglas configurables admin.
+
+### Fases de implementación
+
+| Fase | Backend | Frontend | Estado |
+|------|---------|----------|--------|
+| 1 | Motor + limpieza + gross/net | `SettlementAdjustmentSummary` + constants | **Backend ✅** |
+| 2 | `staff_fines` + API + pay-preview + `MANUAL_FINE` al pagar | `StaffFineDialog`, `SettlementPayFinesSelector` | **✅ Backend + Frontend** |
+| 3 | Descuento manual API | `SettlementManualDiscountDialog` | **✅ Backend + Frontend** |
+| 4 | Pago auditable + ticket + reprint | Pay + `print/settlement/:id` | **✅ Backend + Frontend** |
+| 5 | — | Historial, reports, polish | Pendiente |
+
+### Tests obligatorios
+
+**Fase 1 (✅):** limpieza 80/100, dedup regeneración y corte parcial, PAID inmutable, neto en caja.
+
+**Fase 2 (✅):** multa antes de generate; no aplicada → PENDING; aplicada → APPLIED; varias parciales; cancelar; pay-preview recalcula.
+
+---
+
+## IMPLEMENTADO — Pago auditable + descuento manual (2026-06-21)
+
+**Estado:** ✅ Backend + Frontend  
+**Tests:** `SettlementPaymentAuditTest.php` — 15 passed  
+**Docs:** `backend/SETTLEMENT_PAYMENT_AUDITABLE_IMPLEMENTATION_REPORT.md`, `frontend/SETTLEMENT_PAYMENT_AUDITABLE_IMPLEMENTATION_REPORT.md`
+
+### Entregado
+
+- Campos pago en `staff_settlements` (sin tabla snapshot)
+- Descuento manual PERCENT/AMOUNT con base bruto + limpieza
+- Ticket consecutivo `{CODE}-{YYYY}-{000001}`
+- Print job `SETTLEMENT_PAYMENT` al pagar
+- Reimpresión trazada + audit logs
+- UI: descuento, detalle PAID, historial, comprobante navegador
+
+---
+
+## QA OPERATIVO — Motor liquidaciones (2026-06-21)
+
+**Estado:** ✅ **APROBADO** (módulo liquidaciones)  
+**Docs:** `backend/SETTLEMENT_ADJUSTMENTS_QA_REPORT.md`, `frontend/SETTLEMENT_ADJUSTMENTS_QA_REPORT.md`
+
+### Resultados automatizados
+
+| Suite | Resultado |
+|-------|-----------|
+| `SettlementPaymentAuditTest` | ✅ 15/15 |
+| `SettlementAdjustmentsEnginePhase2FinesTest` | ✅ 15/15 |
+| `SettlementAdjustmentsEnginePhase1Test` | ✅ 6/6 |
+| **Subtotal liquidaciones** | ✅ **36/36** |
+| `php artisan test` (global) | ⚠️ 678 pass, 5 fail (ajenos a liquidaciones) |
+| `npm run build` | ✅ OK |
+
+### Casos operativos 1–9
+
+Todos **PASS** en backend (tests + código). Smoke manual UI recomendado: Caso 9 cierre caja, ticket visual Caso 2.
+
+### Pendiente entorno
+
+- `php artisan migrate` con MySQL activo (XAMPP)
+- Corregir 5 tests globales preexistentes (Auth, SSE, etc.)
+
+**No nuevas features** hasta smoke manual opcional en staging.
+
+---
+
+*Documento de planificación. Módulo liquidaciones: **QA aprobado** — Fase 5 polish (export, anulación V1.1) cuando se priorice.*

@@ -4,6 +4,9 @@ import SettlementsCashBanner from '@/components/nightpos/settlements/Settlements
 import CashMovementDialog from '@/components/nightpos/cash/CashMovementDialog.vue'
 import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
 
+import StaffFineDialog from '@/components/nightpos/settlements/StaffFineDialog.vue'
+import StaffFinesList from '@/components/nightpos/settlements/StaffFinesList.vue'
+import SettlementHubQuickNav from '@/components/nightpos/settlements/SettlementHubQuickNav.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
@@ -34,7 +37,7 @@ definePage({ meta: { permission: 'settlements.access' } })
 
 const settlementTabs = useFilteredSettlementTabs()
 
-const { can } = useNightPosPermissions()
+const { can, canManageSettlementFines } = useNightPosPermissions()
 
 const { notify } = useNightPosNotify()
 
@@ -56,6 +59,8 @@ const {
 
 const generating = ref(false)
 const showCashMovement = ref(false)
+const showFineDialog = ref(false)
+const finesListRef = ref(null)
 
 const {
   cashSessionOpen,
@@ -265,6 +270,17 @@ onUnmounted(() => { stopSse() })
 
       <template #actions>
         <VBtn
+          v-if="canManageSettlementFines"
+          color="warning"
+          variant="flat"
+          prepend-icon="ri-error-warning-line"
+          class="me-2"
+          @click="showFineDialog = true"
+        >
+          Registrar multa
+        </VBtn>
+
+        <VBtn
           v-if="can('cash.access')"
           variant="tonal"
           prepend-icon="ri-exchange-dollar-line"
@@ -301,7 +317,7 @@ onUnmounted(() => { stopSse() })
 
     <NightPosSectionTabs :tabs="settlementTabs" />
 
-
+    <SettlementHubQuickNav @register-fine="showFineDialog = true" />
 
     <SettlementsCashBanner @cash-opened="onCashOpened" />
 
@@ -614,6 +630,16 @@ onUnmounted(() => { stopSse() })
 
 
 
+    <StaffFinesList
+      v-if="canManageSettlementFines && shift?.id"
+      ref="finesListRef"
+      class="mt-4"
+      title="Multas pendientes del turno"
+      status="PENDING"
+      :official-shift-id="shift.id"
+      @changed="finesListRef?.reload?.()"
+    />
+
     <p
 
       v-if="pendingLoading"
@@ -625,6 +651,11 @@ onUnmounted(() => { stopSse() })
       Actualizando fuentes pendientes…
 
     </p>
+
+    <StaffFineDialog
+      v-model="showFineDialog"
+      @created="finesListRef?.reload?.()"
+    />
 
     <CashMovementDialog
       v-model="showCashMovement"

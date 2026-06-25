@@ -80,7 +80,7 @@ const onFinish = async item => {
   await run(keyFor(item.id, 'finish'), async () => {
     try {
       await finishRoomService(item.id)
-      notify('Pieza terminada')
+      notify('Pieza terminada. Habitación disponible para nueva pieza.')
       await load()
     }
     catch (error) {

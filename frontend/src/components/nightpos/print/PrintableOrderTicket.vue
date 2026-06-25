@@ -1,6 +1,7 @@
 <script setup>
 import PrintableTicketShell from '@/components/nightpos/print/PrintableTicketShell.vue'
-import { formatCompanionBraceletLine, formatMoney, shouldShowCompanionBraceletLine } from '@/composables/useOrderHelpers'
+import { formatCompanionBraceletLine, shouldShowCompanionBraceletLine } from '@/composables/useOrderHelpers'
+import { formatPrintTime, resolvePrintLocationLabel } from '@/composables/usePrintTicketFormat'
 import { saleModeLabel } from '@/composables/useProductSaleModeLabels'
 
 const props = defineProps({
@@ -20,40 +21,60 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  isReprint: {
+    type: Boolean,
+    default: false,
+  },
+  correctionNumber: {
+    type: Number,
+    default: null,
+  },
 })
-
-const formatDateTime = value => {
-  if (!value)
-    return '—'
-  try {
-    return new Date(value).toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })
-  }
-  catch {
-    return value
-  }
-}
 
 const visibleItems = computed(() =>
   (props.order?.items ?? []).filter(i => i.item_status !== 'CANCELLED'),
+)
+
+const headerTitle = computed(() => {
+  if (!props.order)
+    return 'Comanda'
+
+  if (props.isReprint && props.correctionNumber)
+    return `REIMPRESIÓN #${props.order.order_number}-${props.correctionNumber}`
+
+  if (props.isReprint)
+    return 'REIMPRESIÓN'
+
+  return `COMANDA #${props.order.order_number}`
+})
+
+const headerSubtitle = computed(() => {
+  if (props.isReprint && props.correctionNumber)
+    return `Corrección #${props.correctionNumber}`
+
+  return props.serviceAreaName || ''
+})
+
+const locationLabel = computed(() =>
+  resolvePrintLocationLabel(props.order?.table_label || props.serviceAreaName),
 )
 </script>
 
 <template>
   <PrintableTicketShell
     width="80mm"
-    title="Comanda a barra"
-    :subtitle="order ? order.order_number : ''"
+    :title="headerTitle"
+    :subtitle="headerSubtitle"
     :loading="loading"
   >
     <template v-if="order">
-      <div class="nightpos-print-row">
-        <span>Comanda</span>
-        <span>{{ order.order_number }}</span>
+      <div
+        v-if="order.table_label || serviceAreaName"
+        class="nightpos-print-hero"
+      >
+        {{ locationLabel }}: {{ order.table_label || serviceAreaName }}
       </div>
-      <div class="nightpos-print-row">
-        <span>Mesa / Ambiente</span>
-        <span>{{ order.table_label || serviceAreaName || '—' }}</span>
-      </div>
+
       <div
         v-if="waiterName"
         class="nightpos-print-row"
@@ -61,83 +82,71 @@ const visibleItems = computed(() =>
         <span>Garzón</span>
         <span>{{ waiterName }}</span>
       </div>
+
       <div class="nightpos-print-row">
-        <span>Fecha/Hora</span>
-        <span>{{ formatDateTime(order.sent_to_bar_at || order.opened_at) }}</span>
+        <span>Creada</span>
+        <span>{{ formatPrintTime(order.opened_at) }}</span>
       </div>
       <div class="nightpos-print-row">
-        <span>Estado</span>
-        <span>{{ order.status }}</span>
+        <span>Impresa</span>
+        <span>{{ formatPrintTime(order.sent_to_bar_at || order.opened_at) }}</span>
       </div>
-
-      <hr class="nightpos-print-divider">
-
-      <table class="nightpos-print-line-table">
-        <thead>
-          <tr>
-            <th>Producto</th>
-            <th class="text-end">
-              Cant
-            </th>
-            <th class="text-end">
-              Total
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="item in visibleItems"
-            :key="item.id"
-          >
-            <td>
-              {{ item.product_name }}
-              <span class="nightpos-print-muted d-block">{{ saleModeLabel(item.sale_mode) }}</span>
-              <span
-                v-if="shouldShowCompanionBraceletLine(item)"
-                class="nightpos-print-muted d-block"
-              >{{ formatCompanionBraceletLine(item) }}</span>
-              <span
-                v-if="item.requires_allocation"
-                class="nightpos-print-muted d-block"
-              >
-                Manillas: {{ item.allocated_bracelet_units ?? 0 }}/{{ item.required_bracelet_units ?? 0 }}
-              </span>
-              <span
-                v-if="item.allocations?.length"
-                class="nightpos-print-muted d-block"
-              >
-                <span
-                  v-for="alloc in item.allocations"
-                  :key="alloc.id"
-                  class="d-block"
-                >{{ alloc.girl_name }} ×{{ alloc.units }}</span>
-              </span>
-              <span
-                v-if="item.notes"
-                class="nightpos-print-muted d-block"
-              >Nota: {{ item.notes }}</span>
-            </td>
-            <td class="text-end">
-              {{ item.quantity }}
-            </td>
-            <td class="text-end">
-              {{ formatMoney(item.line_total) }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <hr class="nightpos-print-divider">
-
       <div class="nightpos-print-row nightpos-print-row--strong">
-        <span>TOTAL</span>
-        <span>{{ formatMoney(order.total) }} {{ order.currency || 'BOB' }}</span>
+        <span>Estado</span>
+        <span>EN BARRA</span>
+      </div>
+
+      <hr class="nightpos-print-divider">
+
+      <div
+        v-for="item in visibleItems"
+        :key="item.id"
+        class="nightpos-print-item"
+      >
+        <div class="nightpos-print-row nightpos-print-row--strong">
+          <span>{{ item.quantity }}x</span>
+          <span>{{ item.product_name }}</span>
+        </div>
+        <div
+          v-if="saleModeLabel(item.sale_mode)"
+          class="nightpos-print-muted"
+        >
+          {{ saleModeLabel(item.sale_mode) }}
+        </div>
+        <div
+          v-if="shouldShowCompanionBraceletLine(item)"
+          class="nightpos-print-muted"
+        >
+          {{ formatCompanionBraceletLine(item) }}
+        </div>
+        <div
+          v-if="item.requires_allocation"
+          class="nightpos-print-muted"
+        >
+          Manillas: {{ item.allocated_bracelet_units ?? 0 }}/{{ item.required_bracelet_units ?? 0 }}
+        </div>
+        <div
+          v-if="item.allocations?.length"
+          class="nightpos-print-muted"
+        >
+          <span
+            v-for="alloc in item.allocations"
+            :key="alloc.id"
+            class="d-block"
+          >{{ alloc.girl_name }} ×{{ alloc.units }}</span>
+        </div>
+        <div
+          v-if="item.notes"
+          class="nightpos-print-muted"
+        >
+          Nota: {{ item.notes }}
+        </div>
       </div>
 
       <template v-if="order.notes">
         <hr class="nightpos-print-divider">
         <div class="nightpos-print-muted">
-          Notas: {{ order.notes }}
+          Observaciones: {{ order.notes }}
         </div>
       </template>
     </template>
@@ -147,3 +156,16 @@ const visibleItems = computed(() =>
     </template>
   </PrintableTicketShell>
 </template>
+
+<style scoped>
+.nightpos-print-hero {
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  margin-block-end: 8px;
+}
+
+.nightpos-print-item + .nightpos-print-item {
+  margin-block-start: 6px;
+}
+</style>

@@ -33,7 +33,16 @@ interface StaffSettlementRepositoryInterface
      */
     public function findById(int $id, int $tenantId, int $branchId, ?int $onlyStaffUserId): ?array;
 
-    public function markPaid(int $id, int $tenantId, int $branchId, int $paidByUserId, ?string $notes): array;
+    public function markPaid(
+        int $id,
+        int $tenantId,
+        int $branchId,
+        int $paidByUserId,
+        ?string $notes,
+        string $paymentMethod,
+        int $cashMovementId,
+        string $ticketNumber,
+    ): array;
 
     /**
      * @param  array{

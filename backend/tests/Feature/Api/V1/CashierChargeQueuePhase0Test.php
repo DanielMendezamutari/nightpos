@@ -101,7 +101,21 @@ function phase0ComboProductId(int $braceletUnits = 6): int
     return (int) $product->id;
 }
 
-function phase0CreateOrderWithItem(string $waiterToken, int $productId, string $saleMode = 'SOLO_CLIENTE'): int
+function phase0SendToBar(string $waiterToken, int $orderId): void
+{
+    test()->postJson("/api/v1/orders/{$orderId}/send-to-bar", [], nightposOperationalHeaders($waiterToken))
+        ->assertOk();
+}
+
+function phase0MarkSentToBar(int $orderId): void
+{
+    OrderModel::query()->where('id', $orderId)->update([
+        'status' => 'SENT_TO_BAR',
+        'sent_to_bar_at' => now(),
+    ]);
+}
+
+function phase0CreateOrderWithItem(string $waiterToken, int $productId, string $saleMode = 'SOLO_CLIENTE', bool $sendToBar = false): int
 {
     nightposEnsureShiftOpen();
     $waiterId = (int) UserModel::query()->where('username', 'garzon.demo')->value('id');
@@ -119,8 +133,25 @@ function phase0CreateOrderWithItem(string $waiterToken, int $productId, string $
         'quantity' => 1,
     ], nightposOperationalHeaders($waiterToken))->assertCreated();
 
+    if ($sendToBar)
+        phase0SendToBar($waiterToken, $orderId);
+
     return $orderId;
 }
+
+it('cashier_chargeable excludes OPEN drafts', function () {
+    nightposEnsureShiftOpen();
+    $waiterToken = phase0WaiterToken();
+    $cashierToken = phase0CashierToken();
+    $productId = (int) test()->getJson('/api/v1/products', nightposOperationalHeaders($waiterToken))
+        ->json('data.products.0.id');
+
+    $openId = phase0CreateOrderWithItem($waiterToken, $productId, 'SOLO_CLIENTE', false);
+
+    $ids = collect(phase0ChargeableOrders($cashierToken)->json('data.orders'))->pluck('id')->all();
+
+    expect($ids)->not->toContain($openId);
+});
 
 it('cashier_chargeable returns waiting_minutes', function () {
     nightposEnsureShiftOpen();
@@ -147,6 +178,7 @@ it('cashier_chargeable returns has_companion_items for CON_ACOMPANANTE lines', f
     $cashierToken = phase0CashierToken();
     $productId = phase0CompanionProductId();
     $orderId = phase0CreateOrderWithItem($waiterToken, $productId, 'CON_ACOMPANANTE');
+    phase0MarkSentToBar($orderId);
 
     $row = phase0FindOrderRow(phase0ChargeableOrders($cashierToken), $orderId);
 
@@ -159,6 +191,7 @@ it('cashier_chargeable returns has_combo_items for combo products', function () 
     $cashierToken = phase0CashierToken();
     $productId = phase0ComboProductId();
     $orderId = phase0CreateOrderWithItem($waiterToken, $productId, 'CON_ACOMPANANTE');
+    phase0MarkSentToBar($orderId);
 
     $row = phase0FindOrderRow(phase0ChargeableOrders($cashierToken), $orderId);
 
@@ -171,6 +204,7 @@ it('cashier_chargeable returns allocation_incomplete for incomplete combo', func
     $cashierToken = phase0CashierToken();
     $productId = phase0ComboProductId();
     $orderId = phase0CreateOrderWithItem($waiterToken, $productId, 'CON_ACOMPANANTE');
+    phase0MarkSentToBar($orderId);
 
     $row = phase0FindOrderRow(phase0ChargeableOrders($cashierToken), $orderId);
 
@@ -185,6 +219,7 @@ it('cashier_chargeable returns girl_missing_count when companion line has no gir
     $cashierToken = phase0CashierToken();
     $productId = phase0CompanionProductId();
     $orderId = phase0CreateOrderWithItem($waiterToken, $productId, 'CON_ACOMPANANTE');
+    phase0MarkSentToBar($orderId);
 
     $row = phase0FindOrderRow(phase0ChargeableOrders($cashierToken), $orderId);
 
@@ -201,8 +236,7 @@ it('cashier_chargeable returns charge_blocked false when order is ready', functi
         ->json('data.products.0.id');
 
     $orderId = phase0CreateOrderWithItem($waiterToken, $productId);
-    test()->postJson("/api/v1/orders/{$orderId}/send-to-bar", [], nightposOperationalHeaders($waiterToken))
-        ->assertOk();
+    phase0SendToBar($waiterToken, $orderId);
 
     $row = phase0FindOrderRow(phase0ChargeableOrders($cashierToken), $orderId);
 
@@ -241,6 +275,7 @@ it('cashier_chargeable keeps legacy list fields for existing clients', function 
         ->json('data.products.0.id');
 
     $orderId = phase0CreateOrderWithItem($waiterToken, $productId);
+    phase0MarkSentToBar($orderId);
 
     $row = phase0FindOrderRow(phase0ChargeableOrders($cashierToken), $orderId);
 
@@ -264,6 +299,7 @@ it('cashier_chargeable respects tenant isolation', function () {
         ->json('data.products.0.id');
 
     $orderId = phase0CreateOrderWithItem($waiterToken, $productId);
+    phase0MarkSentToBar($orderId);
 
     $otherTenant = TenantModel::query()->create([
         'name' => 'Otra Casa Phase0',
@@ -299,6 +335,7 @@ it('cashier_chargeable respects branch isolation', function () {
         ->json('data.products.0.id');
 
     $orderId = phase0CreateOrderWithItem($waiterToken, $productId);
+    phase0MarkSentToBar($orderId);
     $branchId = (int) BranchModel::query()->where('code', 'CENTRO')->value('id');
 
     $rows = phase0ChargeableOrders($cashierToken)->json('data.orders');

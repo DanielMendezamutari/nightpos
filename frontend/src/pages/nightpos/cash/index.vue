@@ -10,6 +10,8 @@ import {
 
   openCashSession,
 
+  printCashClose,
+
 } from '@/api/cash'
 import { fetchProductReconciliation } from '@/api/reports'
 import { fetchCurrentShiftSettlements } from '@/api/settlements'
@@ -67,6 +69,10 @@ const showOpen = ref(false)
 const showMovement = ref(false)
 
 const showClose = ref(false)
+
+const lastClosedSession = ref(null)
+
+const closeReprintLoading = ref(false)
 
 const openForm = ref({ opening_amount: 0, opening_notes: '' })
 
@@ -350,8 +356,9 @@ const methodBalanceRows = computed(() => {
   }))
 })
 
-const onMovementRegistered = updatedSession => {
-  session.value = updatedSession
+const onMovementRegistered = result => {
+  if (result?.session)
+    session.value = result.session
 }
 
 const movementHeaders = [
@@ -485,7 +492,7 @@ const submitClose = async () => {
       .filter(Boolean)
       .join(' | ') || null
 
-    await closeCashSession({
+    const result = await closeCashSession({
 
       declared_closing_amount: Number(form.declared_closing_amount),
 
@@ -493,11 +500,25 @@ const submitClose = async () => {
 
     })
 
+    lastClosedSession.value = {
+      ...(result?.session ?? {}),
+      print_job: result?.print_job ?? null,
+      print_warning: result?.print_warning ?? null,
+    }
+
     showClose.value = false
 
     session.value = null
 
-    notify('Caja cerrada')
+    if (result?.print_warning) {
+      notify(result.print_warning, 'warning')
+    }
+    else if (result?.print_job) {
+      notify('Caja cerrada y comprobante enviado a impresora.')
+    }
+    else {
+      notify('Caja cerrada')
+    }
 
   }
 
@@ -513,6 +534,36 @@ const submitClose = async () => {
 
   }
 
+}
+
+
+
+const openCloseReceipt = () => {
+  if (!lastClosedSession.value?.id)
+    return
+
+  openPrintRoute({ name: 'nightpos-print-my-cash-session-id', params: { id: lastClosedSession.value.id } })
+}
+
+const reprintCloseReceipt = async () => {
+  if (!lastClosedSession.value?.id)
+    return
+
+  closeReprintLoading.value = true
+  try {
+    const result = await printCashClose(lastClosedSession.value.id, { reprint: true })
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else
+      notify('Comprobante de cierre reenviado a impresora.')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error) || 'No se pudo reimprimir. Puede abrir la vista imprimible.', 'error')
+    openCloseReceipt()
+  }
+  finally {
+    closeReprintLoading.value = false
+  }
 }
 
 
@@ -729,6 +780,41 @@ useOnContextChange(async () => {
 
 
     <template v-else-if="!session">
+
+      <VAlert
+        v-if="lastClosedSession?.id"
+        :type="lastClosedSession.print_warning ? 'warning' : 'success'"
+        variant="tonal"
+        class="mb-4"
+        max-width="640"
+      >
+        <div class="mb-3">
+          {{
+            lastClosedSession.print_warning
+              ? 'Caja cerrada, pero no se pudo imprimir.'
+              : 'Caja cerrada y comprobante enviado a impresora.'
+          }}
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <VBtn
+            size="small"
+            variant="tonal"
+            prepend-icon="ri-file-text-line"
+            @click="openCloseReceipt"
+          >
+            Ver cierre
+          </VBtn>
+          <VBtn
+            size="small"
+            variant="tonal"
+            prepend-icon="ri-printer-line"
+            :loading="closeReprintLoading"
+            @click="reprintCloseReceipt"
+          >
+            Reimprimir cierre
+          </VBtn>
+        </div>
+      </VAlert>
 
       <VCard max-width="520">
 

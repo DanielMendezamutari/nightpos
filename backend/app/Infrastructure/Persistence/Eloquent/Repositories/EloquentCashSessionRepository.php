@@ -155,6 +155,46 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
         return $this->mapSession($model->fresh()->load(['movements.reason']));
     }
 
+    public function forceClose(
+        int $sessionId,
+        int $tenantId,
+        int $forcedClosedByUserId,
+        string $expectedAmount,
+        string $forcedCloseReason,
+        string $forcedCloseNotes,
+        array $closeBlockersSnapshot,
+        array $financialSummarySnapshot,
+    ): CashSession {
+        $model = CashSessionModel::query()
+            ->where('id', $sessionId)
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        if ($model === null) {
+            throw new CashSessionNotFoundException();
+        }
+
+        $now = Carbon::now();
+
+        $model->update([
+            'status' => CashSessionStatus::CLOSED,
+            'closed_by_user_id' => $forcedClosedByUserId,
+            'expected_amount' => $expectedAmount,
+            'declared_closing_amount' => null,
+            'difference_amount' => null,
+            'closed_at' => $now,
+            'is_forced_close' => true,
+            'forced_closed_by_user_id' => $forcedClosedByUserId,
+            'forced_closed_at' => $now,
+            'forced_close_reason' => $forcedCloseReason,
+            'forced_close_notes' => $forcedCloseNotes,
+            'close_blockers_snapshot' => $closeBlockersSnapshot,
+            'financial_summary_snapshot' => $financialSummarySnapshot,
+        ]);
+
+        return $this->mapSession($model->fresh()->load(['movements.reason']));
+    }
+
     public function sumMovements(int $cashSessionId): array
     {
         $income = (float) CashMovementModel::query()
@@ -230,7 +270,7 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
         ?string $dateTo = null,
     ): array {
         $query = CashSessionModel::query()
-            ->with(['opener', 'branch', 'tenant', 'officialShift', 'closer'])
+            ->with(['opener', 'closer', 'forcedCloser', 'branch', 'tenant', 'officialShift'])
             ->where('tenant_id', $tenantId);
 
         if ($branchId !== null) {
@@ -266,7 +306,7 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
     public function findModelForAdmin(int $id, int $tenantId): ?CashSessionModel
     {
         return CashSessionModel::query()
-            ->with(['opener', 'closer', 'branch', 'tenant', 'officialShift', 'movements.reason'])
+            ->with(['opener', 'closer', 'forcedCloser', 'branch', 'tenant', 'officialShift', 'movements.reason'])
             ->where('id', $id)
             ->where('tenant_id', $tenantId)
             ->first();

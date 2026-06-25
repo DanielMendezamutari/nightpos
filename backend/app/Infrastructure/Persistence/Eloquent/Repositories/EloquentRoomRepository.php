@@ -199,6 +199,18 @@ final class EloquentRoomRepository implements RoomRepositoryInterface
         return $updated === 1;
     }
 
+    public function releaseAfterService(int $roomId, int $tenantId, int $branchId): bool
+    {
+        $updated = RoomModel::query()
+            ->where('id', $roomId)
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('status', RoomStatus::Occupied->value)
+            ->update(['status' => RoomStatus::Available->value]);
+
+        return $updated === 1;
+    }
+
     public function markClean(int $roomId, int $tenantId, int $branchId): ?array
     {
         $model = RoomModel::query()

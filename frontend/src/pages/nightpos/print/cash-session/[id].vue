@@ -1,7 +1,7 @@
 <script setup>
 import PrintableCashSessionReport from '@/components/nightpos/print/PrintableCashSessionReport.vue'
-import { fetchAdminCashSession } from '@/api/adminCashSessions'
-import { fetchProductReconciliation } from '@/api/reports'
+import { fetchAdminCashSession, forceCloseReasonLabel } from '@/api/adminCashSessions'
+import { buildShiftLabel } from '@/constants/printTicket'
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
 
 definePage({
@@ -16,39 +16,41 @@ const { triggerAutoPrint } = useNightPosPrint()
 const loading = ref(true)
 const session = ref(null)
 const summary = ref(null)
-const reconciliation = ref(null)
+const operational = ref(null)
+
+const ticketWidth = computed(() => route.query.width === '58' ? '58mm' : '80mm')
 
 const reportData = computed(() => {
   const s = session.value
-  const sum = summary.value ?? {}
   if (!s)
     return null
 
   return {
     id: s.id,
-    cashierName: s.cashier?.name || '',
+    cashierName: s.cashier?.name || s.opened_by || '',
     openedAt: s.opened_at,
     closedAt: s.closed_at,
-    openingAmount: s.opening_amount,
-    salesCash: sum.total_cash,
-    salesQr: sum.total_qr,
-    salesCard: sum.total_card,
-    income: sum.total_manual_income,
-    expense: sum.total_manual_expense,
-    expected: sum.expected_cash,
-    counted: s.counted_cash,
-    difference: sum.cash_difference,
+    isForcedClose: !!s.is_forced_close,
+    forcedClosedBy: s.forced_closed_by?.name || '',
+    forcedCloseReason: forceCloseReasonLabel(s.forced_close_reason),
+    forcedCloseNotes: s.forced_close_notes || '',
+    openingNotes: s.opening_notes || '',
+    closingNotes: s.closing_notes || '',
+    blockerMessages: (s.close_blockers_snapshot?.blockers ?? []).map(b => b.message).filter(Boolean),
   }
+})
+
+const adminName = computed(() => {
+  const s = session.value
+  return s?.forced_closed_by?.name || s?.closed_by?.name || ''
 })
 
 onMounted(async () => {
   try {
     const data = await fetchAdminCashSession(route.params.id)
-
     session.value = data.session
     summary.value = data.summary
-    if (session.value?.id)
-      reconciliation.value = await fetchProductReconciliation({ cashSessionId: session.value.id }).catch(() => null)
+    operational.value = data.operational ?? null
   }
   finally {
     loading.value = false
@@ -60,7 +62,13 @@ onMounted(async () => {
 <template>
   <PrintableCashSessionReport
     :data="reportData"
-    :reconciliation="reconciliation"
+    :summary="summary"
+    :operational="operational"
+    :branch-name="session?.branch?.name || ''"
+    :tenant-name="session?.tenant?.name || ''"
+    :shift-label="buildShiftLabel(session?.official_shift)"
+    :admin-name="adminName"
+    :width="ticketWidth"
     :loading="loading"
   />
 </template>

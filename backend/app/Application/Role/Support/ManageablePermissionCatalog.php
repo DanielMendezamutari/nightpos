@@ -84,6 +84,7 @@ final class ManageablePermissionCatalog
                 'settlements.pay',
                 'settlements.history',
                 'settlements.pending_sources',
+                'settlements.fines.manage',
             ],
             'reports' => [
                 'reports.access',
@@ -144,6 +145,7 @@ final class ManageablePermissionCatalog
                 'audits.list',
                 'admin.cash_sessions.list',
                 'admin.cash_sessions.view',
+                'admin.cash_sessions.force_close',
             ],
         ];
     }
@@ -216,6 +218,7 @@ final class ManageablePermissionCatalog
             'settlements.pay' => 'Pagar liquidaciones',
             'settlements.history' => 'Historial de liquidaciones',
             'settlements.pending_sources' => 'Fuentes pendientes de liquidación',
+            'settlements.fines.manage' => 'Gestionar multas de liquidación',
             'reports.access' => 'Acceso a reportes',
             'products.list' => 'Listar productos',
             'products.create' => 'Crear productos',
@@ -264,6 +267,7 @@ final class ManageablePermissionCatalog
             'audits.list' => 'Ver bitácora de auditoría',
             'admin.cash_sessions.list' => 'Listar sesiones de caja',
             'admin.cash_sessions.view' => 'Ver detalle de sesión de caja',
+            'admin.cash_sessions.force_close' => 'Cierre administrativo de caja',
         ];
     }
 

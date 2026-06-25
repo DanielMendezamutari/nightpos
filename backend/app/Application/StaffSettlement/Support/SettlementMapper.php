@@ -23,12 +23,29 @@ final class SettlementMapper
             'staff_role' => $row['staff_role'],
             'settlement_type' => $row['settlement_type'],
             'total_amount' => $row['total_amount'],
+            'gross_amount' => $row['gross_amount'] ?? $row['total_amount'],
+            'adjustments_total' => $row['adjustments_total'] ?? '0.00',
+            'net_amount' => $row['net_amount'] ?? $row['total_amount'],
             'status' => $row['status'],
             'paid_by_user_id' => $row['paid_by_user_id'],
             'paid_at' => $row['paid_at'],
+            'paid_by_name' => $row['paid_by_name'] ?? null,
+            'payment_method' => $row['payment_method'] ?? null,
+            'cash_movement_id' => $row['cash_movement_id'] ?? null,
+            'ticket_number' => $row['ticket_number'] ?? null,
+            'print_count' => $row['print_count'] ?? 0,
+            'last_printed_at' => $row['last_printed_at'] ?? null,
+            'last_printed_by_user_id' => $row['last_printed_by_user_id'] ?? null,
+            'print_job_id' => $row['print_job_id'] ?? null,
+            'version' => $row['version'] ?? 1,
+            'has_ticket' => $row['has_ticket'] ?? false,
+            'cut_number' => $row['cut_number'] ?? null,
+            'cut_label' => $row['cut_label'] ?? null,
             'notes' => $row['notes'],
             'sales_count' => $row['sales_count'] ?? null,
             'commission_percent' => $row['commission_percent'] ?? null,
+            'commission_amount' => $row['commission_amount'] ?? null,
+            'waiter_sales_total' => $row['waiter_sales_total'] ?? null,
             'consumption_total' => $row['consumption_total'] ?? null,
             'bracelets_total' => $row['bracelets_total'] ?? null,
             'shift_name' => $row['shift_name'] ?? null,
@@ -38,6 +55,27 @@ final class SettlementMapper
             'shows_total' => $row['shows_total'] ?? null,
             'created_at' => $row['created_at'],
             'updated_at' => $row['updated_at'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    public static function adjustment(array $row): array
+    {
+        return [
+            'id' => $row['id'],
+            'adjustment_type' => $row['adjustment_type'],
+            'amount' => $row['amount'],
+            'discount_mode' => $row['discount_mode'] ?? null,
+            'discount_value' => $row['discount_value'] ?? null,
+            'calculation_base' => $row['calculation_base'] ?? null,
+            'notes' => $row['notes'] ?? null,
+            'dedup_key' => $row['dedup_key'] ?? null,
+            'fine_id' => $row['staff_fine_id'] ?? null,
+            'reason' => $row['reason'] ?? null,
+            'created_at' => $row['created_at'] ?? null,
         ];
     }
 

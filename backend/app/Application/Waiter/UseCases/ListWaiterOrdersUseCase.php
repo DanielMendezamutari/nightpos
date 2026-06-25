@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Application\Waiter\UseCases;
 
 use App\Application\Order\Support\OrderListScopeResolver;
+use App\Application\Shift\UseCases\EnsureOperationalShiftUseCase;
 use App\Application\Waiter\Services\WaiterOrderAccessPolicy;
 use App\Application\Waiter\Support\WaiterOrderMapper;
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
-use App\Domain\Shift\Repositories\OfficialShiftRepositoryInterface;
 use App\Domain\User\Exceptions\UserDomainException;
 use App\Shared\Application\DTOs\OperationResult;
+use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 use App\Shared\Contracts\BranchContextInterface;
 use App\Shared\Contracts\TenantContextInterface;
 use App\Shared\Contracts\UseCaseInterface;
@@ -18,13 +19,12 @@ use Illuminate\Http\Request;
 
 final class ListWaiterOrdersUseCase implements UseCaseInterface
 {
-    private const ACTIVE_STATUSES = ['OPEN', 'SENT_TO_BAR', 'IN_PREPARATION', 'READY'];
-
     public function __construct(
         private readonly TenantContextInterface $tenantContext,
         private readonly BranchContextInterface $branchContext,
+        private readonly AuthenticatedStaffContextInterface $staffContext,
+        private readonly EnsureOperationalShiftUseCase $ensureOperationalShift,
         private readonly OrderRepositoryInterface $orders,
-        private readonly OfficialShiftRepositoryInterface $shifts,
         private readonly WaiterOrderAccessPolicy $access,
         private readonly Request $request,
     ) {
@@ -35,8 +35,9 @@ final class ListWaiterOrdersUseCase implements UseCaseInterface
         $tenant = $this->tenantContext->tenant();
         $branch = $this->branchContext->branch();
         $waiterId = $this->access->waiterUserId();
+        $userId = $this->staffContext->userId();
 
-        if ($tenant === null || $branch === null || $waiterId === null) {
+        if ($tenant === null || $branch === null || $waiterId === null || $userId === null) {
             throw UserDomainException::branchNotInTenant();
         }
 
@@ -44,7 +45,7 @@ final class ListWaiterOrdersUseCase implements UseCaseInterface
             return OperationResult::fail('Solo disponible para garzones.');
         }
 
-        $shiftId = $this->shifts->findOpenForBranch($tenant->id, $branch->id)?->id;
+        $shift = $this->ensureOperationalShift->execute($tenant->id, $branch->id, $userId);
         $scope = (string) $this->request->query('scope', 'active');
 
         [$status, $statuses] = $this->resolveScope($scope);
@@ -55,7 +56,7 @@ final class ListWaiterOrdersUseCase implements UseCaseInterface
             $waiterId,
             $status,
             $statuses,
-            $shiftId,
+            $shift->id,
         );
 
         $data = array_map(
@@ -78,8 +79,8 @@ final class ListWaiterOrdersUseCase implements UseCaseInterface
             'open' => ['OPEN', null],
             'sent_to_bar' => ['SENT_TO_BAR', null],
             'pending_charge' => [null, OrderListScopeResolver::PENDING_CHARGE_BAR_ONLY],
-            'active' => [null, self::ACTIVE_STATUSES],
-            default => [null, self::ACTIVE_STATUSES],
+            'active' => [null, OrderListScopeResolver::OPERATIONAL_ACTIVE],
+            default => [null, OrderListScopeResolver::OPERATIONAL_ACTIVE],
         };
     }
 }

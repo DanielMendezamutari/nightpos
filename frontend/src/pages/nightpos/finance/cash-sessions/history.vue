@@ -184,21 +184,31 @@ onMounted(() => {
             {{ item.branch?.name || '—' }}
           </template>
           <template #item.status="{ item }">
-            <VChip
-              :color="item.status === 'OPEN' ? 'success' : 'secondary'"
-              size="small"
-            >
-              {{ item.status === 'OPEN' ? 'Abierta' : 'Cerrada' }}
-            </VChip>
+            <div class="d-flex flex-wrap gap-1">
+              <VChip
+                :color="item.status === 'OPEN' ? 'success' : 'secondary'"
+                size="small"
+              >
+                {{ item.status === 'OPEN' ? 'Abierta' : 'Cerrada' }}
+              </VChip>
+              <VChip
+                v-if="item.is_forced_close"
+                color="warning"
+                size="small"
+                label
+              >
+                Cierre administrativo
+              </VChip>
+            </div>
           </template>
           <template #item.opening_amount="{ item }">
             {{ formatMoney(item.opening_amount) }}
           </template>
           <template #item.counted_cash="{ item }">
-            {{ item.counted_cash != null ? formatMoney(item.counted_cash) : '—' }}
+            {{ item.is_forced_close ? 'Sin arqueo' : (item.counted_cash != null ? formatMoney(item.counted_cash) : '—') }}
           </template>
           <template #item.cash_difference="{ item }">
-            {{ item.cash_difference != null ? formatMoney(item.cash_difference) : '—' }}
+            {{ item.is_forced_close ? '—' : (item.cash_difference != null ? formatMoney(item.cash_difference) : '—') }}
           </template>
           <template #item.total_sales="{ item }">
             {{ formatMoney(item.total_sales) }}

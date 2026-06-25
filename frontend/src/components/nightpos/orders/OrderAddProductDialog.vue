@@ -1,6 +1,7 @@
 <script setup>
 import ComboAllocationDialog from '@/components/nightpos/orders/ComboAllocationDialog.vue'
 import PosProductPicker from '@/components/nightpos/catalog/PosProductPicker.vue'
+import QuickGirlCreateDialog from '@/components/nightpos/staff/QuickGirlCreateDialog.vue'
 import GirlQuickPicker from '@/components/nightpos/waiter/GirlQuickPicker.vue'
 import WaiterSaleTypeTabs from '@/components/nightpos/waiter/WaiterSaleTypeTabs.vue'
 import { comboRequiredUnits } from '@/composables/useComboAllocation'
@@ -38,6 +39,7 @@ const emit = defineEmits([
 const pickerRef = ref(null)
 const saleTypeIntent = ref(null)
 const showGirlPicker = ref(false)
+const showQuickGirlCreate = ref(false)
 const pendingCompanionProduct = ref(null)
 
 const addForm = ref({
@@ -153,6 +155,27 @@ const onGirlSelected = girl => {
     return
   submitCompanionWithGirl(pendingCompanionProduct.value, girl.id)
   pendingCompanionProduct.value = null
+}
+
+const openQuickGirlCreate = () => {
+  showQuickGirlCreate.value = true
+}
+
+const onQuickGirlCreated = girl => {
+  if (!girl?.id)
+    return
+
+  emit('girl-created', girl)
+
+  if (showGirlPicker.value && pendingCompanionProduct.value) {
+    submitCompanionWithGirl(pendingCompanionProduct.value, girl.id)
+    pendingCompanionProduct.value = null
+    showGirlPicker.value = false
+    return
+  }
+
+  if (addForm.value.sale_mode === 'CON_ACOMPANANTE')
+    addForm.value.girl_user_id = girl.id
 }
 
 watch(() => props.modelValue, open => {
@@ -375,7 +398,7 @@ defineExpose({ refreshPicker })
               variant="text"
               prepend-icon="ri-user-add-line"
               class="mb-4"
-              @click="emit('quick-create-girl')"
+              @click="openQuickGirlCreate"
             >
               Nueva chica
             </VBtn>
@@ -386,7 +409,7 @@ defineExpose({ refreshPicker })
               prepend-icon="ri-user-add-line"
               class="mb-4"
               block
-              @click="emit('quick-create-girl')"
+              @click="openQuickGirlCreate"
             >
               Nueva chica
             </VBtn>
@@ -487,7 +510,14 @@ defineExpose({ refreshPicker })
       v-model="showGirlPicker"
       :girls="girls"
       :loading="loading"
+      :can-quick-create-girl="canQuickCreateGirl"
       @select="onGirlSelected"
+      @quick-create-girl="openQuickGirlCreate"
+    />
+
+    <QuickGirlCreateDialog
+      v-model="showQuickGirlCreate"
+      @created="onQuickGirlCreated"
     />
   </VDialog>
 </template>

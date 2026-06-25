@@ -11,6 +11,7 @@ definePage({ meta: { permission: 'audits.list' } })
 const ACTION_LABELS = {
   'product_price.replaced': 'Precio actualizado',
   'cash_session.closed': 'Caja cerrada',
+  'cash_session.force_closed': 'Cierre administrativo de caja',
   'official_shift.closed': 'Turno cerrado',
   'sale.charged': 'Venta cobrada',
 }

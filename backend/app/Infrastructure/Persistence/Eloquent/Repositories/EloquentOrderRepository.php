@@ -140,15 +140,23 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
         return $query;
     }
 
-    public function findActiveByServiceTable(int $tenantId, int $branchId, int $serviceTableId): ?Order
-    {
-        $model = OrderModel::query()
+    public function findActiveByServiceTable(
+        int $tenantId,
+        int $branchId,
+        int $serviceTableId,
+        ?int $officialShiftId = null,
+    ): ?Order {
+        $query = OrderModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
             ->where('service_table_id', $serviceTableId)
-            ->whereIn('status', self::ACTIVE_TABLE_STATUSES)
-            ->orderByDesc('id')
-            ->first();
+            ->whereIn('status', self::ACTIVE_TABLE_STATUSES);
+
+        if ($officialShiftId !== null) {
+            $query->where('official_shift_id', $officialShiftId);
+        }
+
+        $model = $query->orderByDesc('id')->first();
 
         return $model ? $this->mapOrder($model, false) : null;
     }
@@ -164,6 +172,8 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
         ?int $waiterUserId,
         int $openedByUserId,
         ?string $notes,
+        ?string $sourceType = null,
+        ?int $sourceId = null,
     ): Order {
         $model = OrderModel::query()->create([
             'tenant_id' => $tenantId,
@@ -177,6 +187,8 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
             'waiter_user_id' => $waiterUserId,
             'opened_by_user_id' => $openedByUserId,
             'notes' => $notes,
+            'source_type' => $sourceType,
+            'source_id' => $sourceId,
             'subtotal' => 0,
             'total' => 0,
             'currency' => 'BOB',
@@ -470,5 +482,18 @@ final class EloquentOrderRepository implements OrderRepositoryInterface
             cancellationReason: $model->cancellation_reason,
             cancelledAt: $model->cancelled_at?->toIso8601String(),
         );
+    }
+
+    public function incrementBarCorrectionCount(int $orderId, int $tenantId): int
+    {
+        OrderModel::query()
+            ->where('id', $orderId)
+            ->where('tenant_id', $tenantId)
+            ->increment('bar_correction_count');
+
+        return (int) OrderModel::query()
+            ->where('id', $orderId)
+            ->where('tenant_id', $tenantId)
+            ->value('bar_correction_count');
     }
 }

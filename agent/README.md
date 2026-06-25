@@ -1,140 +1,99 @@
 # NightPOS Print Agent (Windows EXE)
 
-Agente de impresión local **un solo ejecutable**, sin Node.js, sin NSSM, sin PowerShell.
-
-- Servicio Windows nativo (inicio automático, reinicio si falla)
-- Bandeja del sistema (🟢 / 🟡 / 🔴)
-- Impresión RAW/ESC-POS vía WinSpool API
-- Logs en `C:\ProgramData\NightPOS\PrintAgent\logs\`
+**Ribersoft — NightPOS V1**  
+Agente de impresión local: un solo ejecutable Go, servicio Windows nativo, impresión térmica USB ESC/POS.
 
 ---
 
-## Requisitos para compilar
+## Documentación oficial (técnicos Ribersoft)
 
-- Windows 10/11
-- [Go 1.22+](https://go.dev/dl/)
+| Documento | Para qué sirve |
+|-----------|----------------|
+| **[INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md)** | Instalación paso a paso (desarrollo, producción, sucursales) |
+| **[TROUBLESHOOTING_GUIDE.md](./TROUBLESHOOTING_GUIDE.md)** | Solución de problemas + FAQ |
+| **[DEPLOYMENT_CHECKLIST.md](./DEPLOYMENT_CHECKLIST.md)** | Checklist de despliegue en nueva sucursal |
+| [README_WINDOWS.md](./README_WINDOWS.md) | Resumen operativo rápido |
+| [WINDOWS_SERVICE_INSTALLATION_REPORT.md](./WINDOWS_SERVICE_INSTALLATION_REPORT.md) | Notas técnicas del servicio |
 
-```powershell
-cd agent
-.\build.ps1
-```
-
-Genera `NightPOSPrintAgent.exe`.
-
----
-
-## Instalación en el local (sin consola)
-
-1. Copie `NightPOSPrintAgent.exe` a la PC del local.
-2. **Clic derecho → Ejecutar como administrador:**
-
-```powershell
-NightPOSPrintAgent.exe --install
-```
-
-3. Edite la configuración (se abre desde bandeja o manualmente):
-
-```
-C:\ProgramData\NightPOS\PrintAgent\config.json
-```
-
-```json
-{
-  "backend_url": "https://su-dominio.com/api/v1",
-  "device_key": "npd_live_...",
-  "printer_name": "CAJA",
-  "poll_interval_ms": 1500,
-  "dry_run": false
-}
-```
-
-4. Reinicie el servicio desde bandeja o:
-
-```powershell
-NightPOSPrintAgent.exe --restart
-```
-
-El icono aparece en la bandeja. **El usuario no necesita consola.**
+> **Empezar aquí:** [INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md)
 
 ---
 
-## Comandos
+## Resumen del componente
+
+- Servicio Windows (`NightPOSPrintAgent`) — inicio automático, sin consola
+- Bandeja del sistema (🟢 conectado / 🟡 sin red / 🔴 error impresora)
+- Polling backend ~1,5 s → heartbeat → cola `print_jobs` → impresión RAW
+- Config y logs en `C:\ProgramData\NightPOS\PrintAgent\`
+- **No requiere** Node.js, .NET ni NSSM
+
+---
+
+## Compilar (solo desarrollo / nueva versión)
+
+Requisito: Go 1.22+ en PATH.
+
+```powershell
+cd C:\xampp\htdocs\nightpos\agent
+.\build.bat
+```
+
+Alternativa: `go build -ldflags "-s -w" -o NightPOSPrintAgent.exe .`
+
+Genera `NightPOSPrintAgent.exe` en esta carpeta.
+
+---
+
+## Instalar en sucursal (resumen)
+
+1. **Administrador:** `.\install-service.bat` o `.\NightPOSPrintAgent.exe --install`
+2. Editar `C:\ProgramData\NightPOS\PrintAgent\config.json`
+3. Registrar dispositivo en NightPOS → copiar `device_key`
+4. `.\restart-service.bat`
+5. Verificar Online + Probar impresión
+
+Detalle completo: [INSTALLATION_GUIDE.md](./INSTALLATION_GUIDE.md)
+
+---
+
+## Comandos CLI
 
 | Comando | Descripción |
 |---------|-------------|
-| `--install` | Copia a Program Files, instala servicio, autostart bandeja, inicia |
-| `--uninstall` | Quita servicio y bandeja |
-| `--start` | Inicia servicio |
-| `--stop` | Detiene servicio |
-| `--restart` | Reinicia servicio |
-| `--status` | Estado del servicio + rutas |
-| `--tray` | Modo bandeja (uso interno) |
+| `--install` | Instala servicio + bandeja |
+| `--uninstall` | Desinstala servicio |
+| `--start` / `--stop` / `--restart` | Control del servicio |
+| `--status` | Estado RUNNING/STOPPED + rutas |
+| `--run` | Modo consola (debug) |
+| `--dry-run` | Consola sin imprimir (archivos en dry-run-output) |
 
 ---
 
-## Bandeja del sistema
-
-| Icono | Estado |
-|-------|--------|
-| 🟢 Verde | Conectado al backend |
-| 🟡 Amarillo | Sin internet |
-| 🔴 Rojo | Error impresora / configuración |
-
-Menú:
-
-- **Reiniciar agente** — reinicia servicio Windows
-- **Ver logs** — abre `agent.log`
-- **Cambiar impresora** — abre configuración de impresoras Windows
-- **Abrir configuración** — edita `config.json`
-- **Salir icono bandeja** — cierra solo el icono (servicio sigue)
-
----
-
-## Comportamiento del servicio
-
-- Inicio **automático** con Windows (`start=auto`)
-- **Reinicio** si falla (3 reintentos vía `sc failure`)
-- Polling backend cada 1,5 s (configurable)
-- **Heartbeat** → actualiza `last_seen` en NightPOS
-- Sin internet → estado 🟡, reintenta solo
-- Al volver internet → imprime jobs pendientes
-- **No marca PRINTED** si WinSpool rechaza el job
-
----
-
-## Rutas
+## Rutas importantes
 
 | Qué | Ruta |
 |-----|------|
 | EXE instalado | `C:\Program Files\NightPOS\PrintAgent\NightPOSPrintAgent.exe` |
-| Config | `C:\ProgramData\NightPOS\PrintAgent\config.json` |
+| **Config activa** | `C:\ProgramData\NightPOS\PrintAgent\config.json` |
 | Logs | `C:\ProgramData\NightPOS\PrintAgent\logs\agent.log` |
-| Estado (bandeja) | `C:\ProgramData\NightPOS\PrintAgent\status.json` |
 
 ---
 
-## Impresora USB
+## Scripts de mantenimiento
 
-`printer_name` debe coincidir **exactamente** con el nombre en Windows (ej. `CAJA`).
-
-Impresión vía **RAW ESC/POS** (no comando `print` de CMD).
-
-Si no imprime con spooler OK:
-
-1. Driver ESC/POS del fabricante
-2. Puerto USB correcto
-3. Cola de impresión sin errores
+| Script | Acción |
+|--------|--------|
+| `build.bat` | Compilar EXE |
+| `install-service.bat` | Instalar servicio |
+| `restart-service.bat` | Reiniciar tras cambiar config |
+| `uninstall-service.bat` | Desinstalar servicio |
 
 ---
 
-## Desinstalar
+## Legacy
 
-```powershell
-NightPOSPrintAgent.exe --uninstall
-```
+La versión Node.js en `agent/src/` está **obsoleta**. Usar solo `NightPOSPrintAgent.exe` (Go).
 
 ---
 
-## Legacy Node.js
-
-La versión anterior Node (`agent/src/`) quedó obsoleta. Use solo el EXE Go.
+**Ribersoft © NightPOS V1**

@@ -34,7 +34,7 @@ Respuesta:
 
 | Código | Condición |
 |--------|-----------|
-| `active_orders` | Comandas `OPEN` o `SENT_TO_BAR` en turno actual |
+| `active_orders` | Comandas `SENT_TO_BAR` del turno oficial abierto (mismo criterio que `cashier_chargeable`) |
 | `active_room_services` | Piezas `ACTIVE` / `DUE` |
 | `settlements_not_generated` | Hay fuentes sin liquidar o liquidaciones no generadas (`SETTLEMENTS_NOT_GENERATED`) |
 | `settlements_pending_payment` | Liquidaciones `PENDING` en scope de caja (`SETTLEMENTS_PENDING_PAYMENT`) |
@@ -74,7 +74,9 @@ Query params en `GET /orders`:
 | `cashier_scope=1` | Filtra por turno oficial abierto |
 | `current_session=1` | En `billed_recent`, filtra ventas de la caja/cajera actual |
 
-Scope `cashier_chargeable`: estados `OPEN`, `SENT_TO_BAR` (sin `IN_PREPARATION`/`READY`).
+Scope `cashier_chargeable`: solo `SENT_TO_BAR` (sin borradores `OPEN`).
+
+**2026-06-22:** close-check usa `CashierChargeableOrdersScope::countForCashierScope()` — mismo turno que `cashier_scope=1`, no el `official_shift_id` de la sesión si difiere del turno abierto. Ver `ROOM_FINISH_AND_CASH_CLOSE_CHECK_FIX_REPORT.md`.
 
 ---
 
@@ -90,7 +92,8 @@ Scope `cashier_chargeable`: estados `OPEN`, `SENT_TO_BAR` (sin `IN_PREPARATION`/
 | Archivo | Rol |
 |---------|-----|
 | `CashSessionCloseCheckBuilder.php` | Reglas de bloqueo caja |
-| `GetCashSessionCloseCheckUseCase.php` | API close-check caja (usa `cash_session.official_shift_id`) |
+| `CashierChargeableOrdersScope.php` | Conteo compartido cola + close-check |
+| `GetCashSessionCloseCheckUseCase.php` | API close-check caja |
 | `CloseCashSessionUseCase.php` | Enforcement server-side |
 | `ListOrdersUseCase.php` | Scope turno/caja cajera |
 | `EloquentReportReadRepository.php` | Blockers turno ampliados |
@@ -99,7 +102,8 @@ Scope `cashier_chargeable`: estados `OPEN`, `SENT_TO_BAR` (sin `IN_PREPARATION`/
 
 ## 7. Tests
 
-`tests/Feature/Api/V1/CashierCloseCheckTest.php` — 9 tests, 62 assertions.
+`tests/Feature/Api/V1/CashierCloseCheckTest.php` — 9 tests  
+`tests/Feature/Api/V1/RoomFinishAndCashCloseCheckFixTest.php` — pieza + close-check alineado
 
 ---
 
@@ -137,3 +141,18 @@ Close-check y liquidaciones usan el mismo scope de caja (`cash_session_id` + tur
 Blockers tipados: `SETTLEMENTS_NOT_GENERATED` vs `SETTLEMENTS_PENDING_PAYMENT` con `route` a pantallas de pago.
 
 Ver: `backend/SETTLEMENT_CLOSE_CHECK_CONSISTENCY_FIX_REPORT.md`
+
+---
+
+## 12. Cierre administrativo (implementado 2026-06-21)
+
+Admin / cajera senior con `admin.cash_sessions.force_close` puede cerrar una sesión `OPEN` ajena sin resolver blockers.
+
+| Endpoint | Uso |
+|----------|-----|
+| `GET /admin/cash-sessions/{id}/close-check` | Preview blockers |
+| `POST /admin/cash-sessions/{id}/force-close` | Cierre administrativo |
+
+Audit: `cash_session.force_closed`. SSE: `cash.session.closed` con `forced: true`.
+
+Ver: `backend/CASH_SESSION_FORCE_CLOSE_IMPLEMENTATION_REPORT.md`

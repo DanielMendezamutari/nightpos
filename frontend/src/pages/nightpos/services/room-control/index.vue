@@ -104,7 +104,7 @@ const onFinish = async item => {
     try {
       await finishRoomService(item.id)
       markItemReviewed(item.id)
-      notify('Servicio finalizado. Habitación en limpieza.')
+      notify('Pieza terminada. Habitación disponible para nueva pieza.')
       await refresh()
     }
     catch (error) {

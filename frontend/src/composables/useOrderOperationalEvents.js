@@ -20,8 +20,10 @@ export function useOrderOperationalEvents(reloadFn, options = {}) {
     toastOnCreated = false,
     toastOnUpdated = false,
     toastOnSentToBar = false,
+    refreshOnCreated = true,
     createdDebounceMs = 100,
     updatedDebounceMs = 500,
+    pauseRefresh = () => false,
     onTerminalStatus = null,
   } = options
 
@@ -30,6 +32,7 @@ export function useOrderOperationalEvents(reloadFn, options = {}) {
 
   let createdTimer = null
   let updatedTimer = null
+  let pendingRefresh = false
 
   const scopedOrderId = orderId != null ? Number(orderId) : null
 
@@ -40,25 +43,46 @@ export function useOrderOperationalEvents(reloadFn, options = {}) {
     return resolveOrderId(data) === scopedOrderId
   }
 
+  const runRefresh = () => {
+    if (pauseRefresh()) {
+      pendingRefresh = true
+
+      return
+    }
+
+    pendingRefresh = false
+    reloadFn()
+  }
+
+  const flushPendingRefresh = () => {
+    if (! pendingRefresh)
+      return
+
+    pendingRefresh = false
+    reloadFn()
+  }
+
   const scheduleCreated = () => {
     clearTimeout(createdTimer)
-    createdTimer = setTimeout(() => reloadFn(), createdDebounceMs)
+    createdTimer = setTimeout(() => runRefresh(), createdDebounceMs)
   }
 
   const scheduleUpdated = () => {
     clearTimeout(updatedTimer)
-    updatedTimer = setTimeout(() => reloadFn(), updatedDebounceMs)
+    updatedTimer = setTimeout(() => runRefresh(), updatedDebounceMs)
   }
 
-  on('order.created', (data) => {
-    if (!shouldRefresh(data))
-      return
+  if (refreshOnCreated) {
+    on('order.created', (data) => {
+      if (!shouldRefresh(data))
+        return
 
-    if (toastOnCreated)
-      notify('Nueva comanda recibida.', 'info')
+      if (toastOnCreated)
+        notify('Nueva comanda recibida.', 'info')
 
-    scheduleCreated()
-  })
+      scheduleCreated()
+    })
+  }
 
   on('order.updated', (data) => {
     if (!shouldRefresh(data))
@@ -101,5 +125,5 @@ export function useOrderOperationalEvents(reloadFn, options = {}) {
     stop()
   })
 
-  return { connected, reconnecting }
+  return { connected, reconnecting, flushPendingRefresh }
 }

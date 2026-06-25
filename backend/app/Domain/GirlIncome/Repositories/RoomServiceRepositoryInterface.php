@@ -71,6 +71,8 @@ interface RoomServiceRepositoryInterface
 
     public function attachCashMovement(int $id, int $tenantId, int $cashMovementId): void;
 
+    public function linkOrder(int $id, int $tenantId, int $orderId): void;
+
     public function markAlertSent(int $roomServiceId): void;
 
     public function markDue(int $roomServiceId): void;

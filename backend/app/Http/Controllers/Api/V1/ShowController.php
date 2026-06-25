@@ -8,6 +8,7 @@ use App\Application\GirlIncome\DTOs\CreateShowInput;
 use App\Application\GirlIncome\UseCases\CreateShowUseCase;
 use App\Application\GirlIncome\UseCases\GetShowUseCase;
 use App\Application\GirlIncome\UseCases\ListCurrentShiftShowsUseCase;
+use App\Application\Printing\UseCases\PrintShowUseCase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\GirlIncome\CreateShowRequest;
 use App\Infrastructure\Presentation\Http\Contracts\ApiResponsePresenterInterface;
@@ -20,6 +21,7 @@ final class ShowController extends Controller
         private readonly ListCurrentShiftShowsUseCase $listCurrent,
         private readonly CreateShowUseCase $create,
         private readonly GetShowUseCase $get,
+        private readonly PrintShowUseCase $printShow,
     ) {
     }
 
@@ -45,5 +47,15 @@ final class ShowController extends Controller
     public function show(int $id): JsonResponse
     {
         return $this->presenter->present($this->get->execute((object) ['showId' => $id]));
+    }
+
+    public function print(int $id): JsonResponse
+    {
+        $reprint = (bool) request()->boolean('reprint');
+
+        return $this->presenter->present($this->printShow->execute((object) [
+            'showId' => $id,
+            'reprint' => $reprint,
+        ]));
     }
 }

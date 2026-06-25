@@ -1,11 +1,20 @@
 <script setup>
+import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
+
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   girls: { type: Array, default: () => [] },
   loading: { type: Boolean, default: false },
+  canQuickCreateGirl: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['update:modelValue', 'select', 'cancel'])
+const emit = defineEmits(['update:modelValue', 'select', 'cancel', 'quick-create-girl'])
+
+const { can } = useNightPosPermissions()
+
+const allowQuickCreate = computed(() =>
+  props.canQuickCreateGirl || can('staff.quick_create_girl'),
+)
 
 const search = ref('')
 const searchInputRef = ref(null)
@@ -15,6 +24,11 @@ const normalizedGirls = computed(() =>
     id: g.id ?? g.value,
     name: g.name ?? g.title ?? '',
   })).filter(g => g.id && g.name),
+)
+
+const showNoResultsSupport = computed(() =>
+  !allowQuickCreate.value
+  && (search.value.trim().length > 0 || !normalizedGirls.value.length),
 )
 
 const filteredGirls = computed(() => {
@@ -88,16 +102,25 @@ const selectGirl = girl => {
         />
 
         <VAlert
-          v-else-if="!normalizedGirls.length"
+          v-else-if="showNoResultsSupport"
           type="info"
           variant="tonal"
           class="mb-4"
         >
-          No hay chicas disponibles.
+          No se encontró la chica. Pide apoyo a caja.
         </VAlert>
 
         <VAlert
-          v-else-if="!filteredGirls.length"
+          v-else-if="allowQuickCreate && !normalizedGirls.length"
+          type="info"
+          variant="tonal"
+          class="mb-4"
+        >
+          No hay chicas registradas. Puedes crear una nueva.
+        </VAlert>
+
+        <VAlert
+          v-else-if="allowQuickCreate && search.trim() && !filteredGirls.length"
           type="info"
           variant="tonal"
           class="mb-4"
@@ -105,7 +128,7 @@ const selectGirl = girl => {
           Ninguna chica coincide con «{{ search }}».
         </VAlert>
 
-        <VRow v-else>
+        <VRow v-if="filteredGirls.length">
           <VCol
             v-for="girl in filteredGirls"
             :key="girl.id"
@@ -132,6 +155,19 @@ const selectGirl = girl => {
             </VCard>
           </VCol>
         </VRow>
+
+        <VBtn
+          v-if="allowQuickCreate"
+          block
+          size="large"
+          color="primary"
+          variant="tonal"
+          prepend-icon="ri-user-add-line"
+          class="mt-4"
+          @click="emit('quick-create-girl')"
+        >
+          + Nueva chica
+        </VBtn>
 
         <VBtn
           block

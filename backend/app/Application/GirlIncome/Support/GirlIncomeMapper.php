@@ -44,6 +44,7 @@ final class GirlIncomeMapper
         }
 
         return self::mapEntry($model, [
+            'order_id' => $model->order_id,
             'room_id' => $model->room_id,
             'room_number' => $model->room_number,
             'room_label' => $model->room_label ?? $model->room_number,
@@ -139,6 +140,11 @@ final class GirlIncomeMapper
         if ($table === 'bracelets') {
             $base['waiter_user_id'] = $model->waiter_user_id;
             $base['waiter_name'] = $model->waiter?->name;
+        }
+
+        if ($table === 'room_services' || $table === 'shows') {
+            $base['cash_session_id'] = $model->cash_session_id;
+            $base['payment_method'] = $model->payment_method;
         }
 
         return array_merge($base, $extra);

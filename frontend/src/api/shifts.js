@@ -53,3 +53,9 @@ export async function downloadShiftCsv(id) {
   link.click()
   URL.revokeObjectURL(url)
 }
+
+export async function printShiftClosure(id, { reprint = false } = {}) {
+  const response = await api.post(`/shifts/${id}/print-closure`, reprint ? { reprint: true } : {})
+
+  return unwrapNightPosResponse(response)
+}

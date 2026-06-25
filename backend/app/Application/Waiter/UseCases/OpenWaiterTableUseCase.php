@@ -72,7 +72,12 @@ final class OpenWaiterTableUseCase implements UseCaseInterface
         }
 
         $result = DB::transaction(function () use ($tenant, $branch, $table, $tableId, $userId, $shift) {
-            $existing = $this->orders->findActiveByServiceTable($tenant->id, $branch->id, $tableId);
+            $existing = $this->orders->findActiveByServiceTable(
+                $tenant->id,
+                $branch->id,
+                $tableId,
+                $shift->id,
+            );
 
             if ($existing !== null) {
                 return ['order' => $existing, 'created' => false, 'status' => 'OCCUPIED'];

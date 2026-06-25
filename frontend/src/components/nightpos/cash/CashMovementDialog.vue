@@ -1,7 +1,8 @@
 <script setup>
-import { registerCashMovement } from '@/api/cash'
+import { registerCashMovement, printCashMovement } from '@/api/cash'
 import { fetchCashMovementReasonsForCash, createCashMovementReason } from '@/api/cashMovementReasons'
 import { PAYMENT_METHOD_OPTIONS } from '@/constants/paymentMethods'
+import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
 import { useDialogKeyboardShortcuts } from '@/composables/useDialogKeyboardShortcuts'
@@ -13,8 +14,11 @@ const model = defineModel({ type: Boolean, default: false })
 
 const { can } = useNightPosPermissions()
 const { notify } = useNightPosNotify()
+const { openPrintRoute } = useNightPosPrint()
 
 const loading = ref(false)
+const reprintLoading = ref(false)
+const lastRegistered = ref(null)
 const movementReasons = ref([])
 const showQuickReason = ref(false)
 const quickReasonSaving = ref(false)
@@ -59,6 +63,7 @@ function resetForm() {
   }
   showQuickReason.value = false
   quickReasonForm.value = { name: '' }
+  lastRegistered.value = null
 }
 
 watch(model, open => {
@@ -111,7 +116,7 @@ async function submit() {
 
   loading.value = true
   try {
-    const session = await registerCashMovement({
+    const result = await registerCashMovement({
       movement_type: form.value.movement_type,
       amount: Number(form.value.amount),
       cash_movement_reason_id: form.value.cash_movement_reason_id,
@@ -119,9 +124,24 @@ async function submit() {
       notes: form.value.notes || null,
     })
 
-    model.value = false
-    notify('Movimiento registrado')
-    emit('registered', session)
+    lastRegistered.value = {
+      ...(result?.movement ?? {}),
+      print_job: result?.print_job ?? null,
+      print_warning: result?.print_warning ?? null,
+    }
+
+    if (result?.session)
+      emit('registered', result)
+
+    if (result?.print_warning) {
+      notify(result.print_warning, 'warning')
+    }
+    else if (result?.print_job) {
+      notify('Movimiento registrado y comprobante enviado a impresora.')
+    }
+    else {
+      notify('Movimiento registrado.')
+    }
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -131,11 +151,43 @@ async function submit() {
   }
 }
 
+const openReceipt = () => {
+  if (!lastRegistered.value?.id)
+    return
+
+  openPrintRoute({ name: 'nightpos-print-cash-movement-id', params: { id: lastRegistered.value.id } })
+}
+
+const reprintReceipt = async () => {
+  if (!lastRegistered.value?.id)
+    return
+
+  reprintLoading.value = true
+  try {
+    const result = await printCashMovement(lastRegistered.value.id, { reprint: true })
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else
+      notify('Comprobante reenviado a impresora.')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error) || 'No se pudo reimprimir. Puede abrir la vista imprimible.', 'error')
+    openReceipt()
+  }
+  finally {
+    reprintLoading.value = false
+  }
+}
+
+const closeDialog = () => {
+  model.value = false
+}
+
 useDialogKeyboardShortcuts({
   active: model,
   onConfirm: submit,
   onCancel: () => { model.value = false },
-  canConfirm: () => Boolean(form.value.amount) && Boolean(form.value.cash_movement_reason_id),
+  canConfirm: () => Boolean(form.value.amount) && Boolean(form.value.cash_movement_reason_id) && !lastRegistered.value,
   loading,
 })
 </script>
@@ -145,8 +197,41 @@ useDialogKeyboardShortcuts({
     v-model="model"
     max-width="440"
   >
-    <VCard title="Registrar movimiento">
+    <VCard :title="lastRegistered ? 'Movimiento registrado' : 'Registrar movimiento'">
       <VCardText>
+        <template v-if="lastRegistered">
+          <VAlert
+            :type="lastRegistered.print_warning ? 'warning' : 'success'"
+            variant="tonal"
+            class="mb-4"
+          >
+            {{
+              lastRegistered.print_warning
+                ? 'Movimiento registrado, pero no se pudo imprimir.'
+                : 'Movimiento registrado y comprobante enviado a impresora.'
+            }}
+          </VAlert>
+
+          <div class="d-flex flex-wrap gap-2">
+            <VBtn
+              variant="tonal"
+              prepend-icon="ri-file-text-line"
+              @click="openReceipt"
+            >
+              Ver comprobante
+            </VBtn>
+            <VBtn
+              variant="tonal"
+              prepend-icon="ri-printer-line"
+              :loading="reprintLoading"
+              @click="reprintReceipt"
+            >
+              Reimprimir comprobante
+            </VBtn>
+          </div>
+        </template>
+
+        <template v-else>
         <VSelect
           v-model="form.movement_type"
           :items="[
@@ -245,16 +330,18 @@ useDialogKeyboardShortcuts({
           v-model="form.notes"
           label="Notas adicionales"
         />
+        </template>
       </VCardText>
       <VCardActions>
         <VBtn
           variant="text"
-          @click="model = false"
+          @click="closeDialog"
         >
-          Cancelar
+          {{ lastRegistered ? 'Cerrar' : 'Cancelar' }}
         </VBtn>
         <VSpacer />
         <VBtn
+          v-if="!lastRegistered"
           color="primary"
           :loading="loading"
           :disabled="loading || !form.amount || !form.cash_movement_reason_id"

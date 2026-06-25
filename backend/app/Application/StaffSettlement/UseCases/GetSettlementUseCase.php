@@ -62,6 +62,10 @@ final class GetSettlementUseCase implements UseCaseInterface
                 ),
                 $detail['items'],
             ),
+            'adjustments' => array_map(
+                static fn (array $row) => SettlementMapper::adjustment($row),
+                $detail['adjustments'] ?? [],
+            ),
         ]);
     }
 

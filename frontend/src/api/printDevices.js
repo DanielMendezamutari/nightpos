@@ -36,6 +36,12 @@ export async function rotatePrintDeviceKey(id) {
   return unwrapNightPosResponse(response)
 }
 
+export async function testPrintDevice(id) {
+  const response = await api.post(`/print-devices/${id}/test-print`)
+
+  return unwrapNightPosResponse(response)
+}
+
 export async function fetchPrintJobs(params = {}) {
   const response = await api.get('/print-jobs', { params })
 

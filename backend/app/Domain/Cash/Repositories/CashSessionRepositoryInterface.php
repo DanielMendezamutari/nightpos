@@ -52,6 +52,21 @@ interface CashSessionRepositoryInterface extends RepositoryInterface
         ?string $closingNotes,
     ): CashSession;
 
+    /**
+     * @param  array<string, mixed>  $closeBlockersSnapshot
+     * @param  array<string, mixed>  $financialSummarySnapshot
+     */
+    public function forceClose(
+        int $sessionId,
+        int $tenantId,
+        int $forcedClosedByUserId,
+        string $expectedAmount,
+        string $forcedCloseReason,
+        string $forcedCloseNotes,
+        array $closeBlockersSnapshot,
+        array $financialSummarySnapshot,
+    ): CashSession;
+
     public function sumMovements(int $cashSessionId): array;
 
     /**

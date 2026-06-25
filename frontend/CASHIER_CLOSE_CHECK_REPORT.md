@@ -43,6 +43,8 @@ API: `fetchCashSessionCloseCheck()` en `api/cash.js`.
 
 Acciones sugeridas: Cobrar comandas, Control de piezas, Liquidaciones, **Generar liquidaciones** (fuentes huérfanas).
 
+**2026-06-22:** el contador de comandas pendientes en close-check usa el mismo criterio que la cola (`SENT_TO_BAR`, turno abierto). Si Cobrar muestra 0, Mi Caja no debe bloquear por comandas.
+
 Nuevo bloqueante (2026-06-16): `unsettled_settlement_sources` — actividad liquidable sin `settlement_item` (ej. chica cobró y volvió con ventas nuevas sin regenerar).
 
 ---
@@ -88,3 +90,22 @@ Mi Caja muestra ingresos/egresos/esperado por Efectivo, QR y Tarjeta. Al pagar l
 - Generate: mensaje si no crea nuevas pero hay PENDING.
 
 Ver: `frontend/SETTLEMENT_CLOSE_CHECK_CONSISTENCY_FIX_REPORT.md`
+
+---
+
+## 9. Cierre administrativo (implementado 2026-06-21)
+
+Botón **Cerrar administrativamente** en Fiscalización de cajas (`finance/cash-sessions/index`, `[id]`). Modal con motivo, notas, preview de blockers y checkbox de confirmación.
+
+Permiso: `admin.cash_sessions.force_close`.
+
+Ver: `frontend/CASH_SESSION_FORCE_CLOSE_IMPLEMENTATION_REPORT.md`
+
+---
+
+## 10. Terminar pieza + close-check alineado (2026-06-22)
+
+- Terminar pieza (cajera): snackbar *Habitación disponible para nueva pieza*.
+- Close-check `active_orders` coincide con pestaña Pendientes de cobro.
+
+Ver: `frontend/ROOM_FINISH_AND_CASH_CLOSE_CHECK_FIX_REPORT.md`

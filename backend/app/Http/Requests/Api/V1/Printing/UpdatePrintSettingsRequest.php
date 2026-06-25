@@ -20,6 +20,7 @@ final class UpdatePrintSettingsRequest extends FormRequest
     {
         return [
             'auto_print_order_command' => ['sometimes', 'boolean'],
+            'auto_print_sale_receipt' => ['sometimes', 'boolean'],
         ];
     }
 }

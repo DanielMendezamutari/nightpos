@@ -9,6 +9,7 @@ use App\Application\Printing\UseCases\GetPrintSettingsUseCase;
 use App\Application\Printing\UseCases\ListPrintDevicesUseCase;
 use App\Application\Printing\UseCases\PrintDeviceHeartbeatUseCase;
 use App\Application\Printing\UseCases\RegisterPrintDeviceUseCase;
+use App\Application\Printing\UseCases\CreateTestPrintJobUseCase;
 use App\Application\Printing\UseCases\RotatePrintDeviceKeyUseCase;
 use App\Application\Printing\UseCases\UpdatePrintDeviceUseCase;
 use App\Application\Printing\UseCases\UpdatePrintSettingsUseCase;
@@ -32,6 +33,7 @@ final class PrintDeviceController extends Controller
         private readonly GetPrintSettingsUseCase $getSettings,
         private readonly UpdatePrintSettingsUseCase $updateSettings,
         private readonly UpdatePrintDeviceUseCase $updateDevice,
+        private readonly CreateTestPrintJobUseCase $createTestPrintJob,
     ) {
     }
 
@@ -62,6 +64,7 @@ final class PrintDeviceController extends Controller
 
         return $this->presenter->present($this->updateSettings->execute((object) [
             'autoPrintOrderCommand' => $validated['auto_print_order_command'] ?? null,
+            'autoPrintSaleReceipt' => $validated['auto_print_sale_receipt'] ?? null,
         ]));
     }
 
@@ -102,5 +105,12 @@ final class PrintDeviceController extends Controller
             'agentVersion' => $validated['agent_version'] ?? null,
             'lastError' => $validated['last_error'] ?? null,
         ]));
+    }
+
+    public function testPrint(int $id): JsonResponse
+    {
+        return $this->presenter->present($this->createTestPrintJob->execute((object) [
+            'deviceId' => $id,
+        ]), 201);
     }
 }

@@ -72,7 +72,7 @@ export function useCashierShell() {
     debounce = setTimeout(refresh, 600)
   }
 
-  on('order.created', debouncedRefresh)
+  on('order.sent_to_bar', debouncedRefresh)
   on('order.billed', debouncedRefresh)
   on('order.updated', debouncedRefresh)
   on('order.cancelled', debouncedRefresh)

@@ -20,6 +20,7 @@ use App\Domain\Product\ValueObjects\SaleMode;
 use App\Shared\Application\DTOs\OperationResult;
 use App\Shared\Application\Support\AuditLogRecorder;
 use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Application\Printing\UseCases\DispatchBarCorrectionPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 use App\Shared\Contracts\BranchContextInterface;
@@ -41,6 +42,7 @@ final class UpdateOrderItemUseCase implements UseCaseInterface
         private readonly OrderPresentationService $presentation,
         private readonly AuditLogRecorder $audit,
         private readonly OperationalEventEmitter $eventEmitter,
+        private readonly DispatchBarCorrectionPrintJobUseCase $dispatchBarCorrectionPrint,
     ) {
     }
 
@@ -193,6 +195,15 @@ final class UpdateOrderItemUseCase implements UseCaseInterface
                 summary: $message,
             )
         );
+
+        if ($isSentToBar && $updated !== null) {
+            $this->dispatchBarCorrectionPrint->execute(
+                $updated,
+                $tenant->id,
+                $branch->id,
+                $this->staffContext->userId(),
+            );
+        }
 
         return OperationResult::ok($message, [
             'order' => $this->presentation->presentOrder($presented, $tenant->id),

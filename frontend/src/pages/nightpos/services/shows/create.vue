@@ -6,7 +6,8 @@ import QuickGirlCreateDialog from '@/components/nightpos/staff/QuickGirlCreateDi
 import QuickShowTypeCreateDialog from '@/components/nightpos/shows/QuickShowTypeCreateDialog.vue'
 import { fetchShowTypes } from '@/api/showTypes'
 import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
-import { createShow } from '@/api/shows'
+import { createShow, printShow } from '@/api/shows'
+import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { useServiceCashSession } from '@/composables/useServiceCashSession'
 import { useFilteredServiceTabs } from '@/composables/useServiceSectionTabs'
 import { appendGirlToSelectList, loadOperationalGirlsForSelect } from '@/composables/useOperationalGirls'
@@ -19,6 +20,7 @@ definePage({ meta: { permission: 'shows.create' } })
 const serviceTabs = useFilteredServiceTabs()
 const { can } = useNightPosPermissions()
 const { notify } = useNightPosNotify()
+const { openPrintRoute } = useNightPosPrint()
 const router = useRouter()
 const { cashSessionOpen, showOpenCash, loadingCash, onCashOpened } = useServiceCashSession()
 
@@ -34,6 +36,8 @@ const saving = ref(false)
 const refForm = ref()
 const showQuickGirl = ref(false)
 const showQuickShowType = ref(false)
+const lastRegistered = ref(null)
+const reprintLoading = ref(false)
 
 const form = ref({
   girl_user_id: null,
@@ -85,7 +89,7 @@ const save = async () => {
 
   saving.value = true
   try {
-    await createShow({
+    const result = await createShow({
       girl_user_id: form.value.girl_user_id,
       show_type: form.value.show_type,
       unit_price: Number(form.value.unit_price),
@@ -93,8 +97,22 @@ const save = async () => {
       registered_at: form.value.registered_at || null,
       notes: form.value.notes || null,
     })
-    notify('Show registrado')
-    await router.push({ name: 'nightpos-services-shows' })
+
+    lastRegistered.value = {
+      ...(result?.show ?? {}),
+      print_job: result?.print_job ?? null,
+      print_warning: result?.print_warning ?? null,
+    }
+
+    if (result?.print_warning) {
+      notify(result.print_warning, 'warning')
+    }
+    else if (result?.print_job) {
+      notify('Show registrado y ticket enviado a impresora.')
+    }
+    else {
+      notify('Show registrado.')
+    }
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -102,6 +120,38 @@ const save = async () => {
   finally {
     saving.value = false
   }
+}
+
+const openTicket = () => {
+  if (!lastRegistered.value?.id)
+    return
+
+  openPrintRoute({ name: 'nightpos-print-show-id', params: { id: lastRegistered.value.id } })
+}
+
+const reprintTicket = async () => {
+  if (!lastRegistered.value?.id)
+    return
+
+  reprintLoading.value = true
+  try {
+    const result = await printShow(lastRegistered.value.id, { reprint: true })
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else
+      notify('Ticket reenviado a impresora.')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error) || 'No se pudo reimprimir. Puede abrir la vista imprimible.', 'error')
+    openTicket()
+  }
+  finally {
+    reprintLoading.value = false
+  }
+}
+
+const goToList = async () => {
+  await router.push({ name: 'nightpos-services-shows' })
 }
 
 onMounted(async () => {
@@ -148,7 +198,43 @@ onMounted(async () => {
       </VBtn>
     </VAlert>
 
-    <VCard>
+    <VAlert
+      v-if="lastRegistered"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+      prominent
+    >
+      Show registrado{{ lastRegistered.print_job ? ' y ticket enviado a impresora' : '' }}.
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <VBtn
+          size="small"
+          variant="tonal"
+          prepend-icon="ri-eye-line"
+          @click="openTicket"
+        >
+          Ver ticket
+        </VBtn>
+        <VBtn
+          size="small"
+          variant="outlined"
+          prepend-icon="ri-printer-line"
+          :loading="reprintLoading"
+          @click="reprintTicket"
+        >
+          Reimprimir ticket
+        </VBtn>
+        <VBtn
+          size="small"
+          variant="text"
+          @click="goToList"
+        >
+          Ir al listado
+        </VBtn>
+      </div>
+    </VAlert>
+
+    <VCard v-if="!lastRegistered">
       <VCardText>
         <VForm
           ref="refForm"

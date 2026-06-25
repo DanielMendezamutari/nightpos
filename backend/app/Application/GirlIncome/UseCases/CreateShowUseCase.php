@@ -16,6 +16,7 @@ use App\Application\GirlIncome\DTOs\CreateShowInput;
 
 use App\Application\GirlIncome\Services\GirlStaffValidator;
 
+use App\Application\Printing\UseCases\CreateShowPrintJobUseCase;
 use App\Application\Shift\UseCases\EnsureOperationalShiftUseCase;
 
 use App\Domain\GirlIncome\Exceptions\GirlIncomeDomainException;
@@ -59,6 +60,8 @@ final class CreateShowUseCase implements UseCaseInterface
         private readonly GirlStaffValidator $girlStaffValidator,
 
         private readonly ServiceIncomeCashRecorder $serviceCash,
+
+        private readonly CreateShowPrintJobUseCase $createShowPrintJob,
 
     ) {
 
@@ -236,9 +239,18 @@ final class CreateShowUseCase implements UseCaseInterface
 
 
 
+        $presented = $this->shows->findById((int) $entry['id'], $tenant->id) ?? $entry;
+
+        $printResult = $this->createShowPrintJob->execute(
+            showId: (int) $entry['id'],
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            requestedByUserId: $userId,
+        );
+
         return OperationResult::ok('Show registrado correctamente.', [
 
-            'show' => $entry,
+            'show' => $presented,
 
             'shift' => [
 
@@ -249,6 +261,10 @@ final class CreateShowUseCase implements UseCaseInterface
                 'business_date' => $shift->businessDate,
 
             ],
+
+            'print_job' => $printResult['job'],
+
+            'print_warning' => $printResult['warning'],
 
         ]);
 

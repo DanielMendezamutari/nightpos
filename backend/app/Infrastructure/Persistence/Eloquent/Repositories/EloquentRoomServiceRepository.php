@@ -169,6 +169,14 @@ final class EloquentRoomServiceRepository implements RoomServiceRepositoryInterf
             ->update(['cash_movement_id' => $cashMovementId]);
     }
 
+    public function linkOrder(int $id, int $tenantId, int $orderId): void
+    {
+        RoomServiceModel::query()
+            ->where('id', $id)
+            ->where('tenant_id', $tenantId)
+            ->update(['order_id' => $orderId]);
+    }
+
     public function markAlertSent(int $roomServiceId): void
     {
         RoomServiceModel::query()

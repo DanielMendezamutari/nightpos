@@ -31,5 +31,6 @@ onMounted(async () => {
     :order="order"
     :loading="loading"
     :waiter-name="order?.waiter_name || ''"
+    :service-area-name="order?.service_area_name || ''"
   />
 </template>

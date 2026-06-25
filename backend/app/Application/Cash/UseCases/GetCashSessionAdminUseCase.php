@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Cash\UseCases;
 
 use App\Application\Cash\Services\CashSessionFinancialSummaryBuilder;
+use App\Application\Reports\Services\CashCloseReportSectionsBuilder;
 use App\Application\Cash\Support\AdminCashSessionMapper;
 use App\Application\Cash\Support\CashMapper;
 use App\Application\Sale\Support\SaleMapper;
@@ -26,6 +27,7 @@ final class GetCashSessionAdminUseCase implements UseCaseInterface
         private readonly CashSessionRepositoryInterface $cashSessions,
         private readonly SaleRepositoryInterface $sales,
         private readonly CashSessionFinancialSummaryBuilder $financials,
+        private readonly CashCloseReportSectionsBuilder $closeSections,
     ) {
     }
 
@@ -114,6 +116,13 @@ final class GetCashSessionAdminUseCase implements UseCaseInterface
             'expense_movements' => $expenseMovements,
             'sales' => $sales,
             'settlements_paid' => $settlements,
+            'operational' => $this->closeSections->forSession(
+                $tenant->id,
+                (int) $model->branch_id,
+                $sessionId,
+                $model->official_shift_id !== null ? (int) $model->official_shift_id : null,
+                (string) ($summary['total_sales'] ?? '0.00'),
+            ),
         ]);
     }
 }

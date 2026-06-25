@@ -8,10 +8,14 @@ use App\Application\Cash\DTOs\CloseCashSessionInput;
 use App\Application\Cash\DTOs\OpenCashSessionInput;
 use App\Application\Cash\DTOs\RegisterCashMovementInput;
 use App\Application\Cash\UseCases\CloseCashSessionUseCase;
+use App\Application\Cash\UseCases\GetCashMovementUseCase;
+use App\Application\Cash\UseCases\GetCashSessionUseCase;
 use App\Application\Cash\UseCases\GetCashSessionCloseCheckUseCase;
 use App\Application\Cash\UseCases\GetCurrentCashSessionUseCase;
 use App\Application\Cash\UseCases\OpenCashSessionUseCase;
 use App\Application\Cash\UseCases\RegisterCashMovementUseCase;
+use App\Application\Printing\UseCases\PrintCashCloseUseCase;
+use App\Application\Printing\UseCases\PrintCashMovementUseCase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Cash\CloseCashSessionRequest;
 use App\Http\Requests\Api\V1\Cash\OpenCashSessionRequest;
@@ -28,6 +32,10 @@ final class CashController extends Controller
         private readonly OpenCashSessionUseCase $openSession,
         private readonly RegisterCashMovementUseCase $registerMovement,
         private readonly CloseCashSessionUseCase $closeSession,
+        private readonly GetCashMovementUseCase $getMovement,
+        private readonly GetCashSessionUseCase $getSession,
+        private readonly PrintCashMovementUseCase $printMovement,
+        private readonly PrintCashCloseUseCase $printClose,
     ) {
     }
 
@@ -80,5 +88,35 @@ final class CashController extends Controller
         ));
 
         return $this->presenter->present($result);
+    }
+
+    public function showMovement(int $id): JsonResponse
+    {
+        return $this->presenter->present($this->getMovement->execute((object) ['movementId' => $id]));
+    }
+
+    public function showSession(int $id): JsonResponse
+    {
+        return $this->presenter->present($this->getSession->execute((object) ['sessionId' => $id]));
+    }
+
+    public function printMovement(int $id): JsonResponse
+    {
+        $reprint = (bool) request()->boolean('reprint');
+
+        return $this->presenter->present($this->printMovement->execute((object) [
+            'movementId' => $id,
+            'reprint' => $reprint,
+        ]));
+    }
+
+    public function printClose(int $id): JsonResponse
+    {
+        $reprint = (bool) request()->boolean('reprint');
+
+        return $this->presenter->present($this->printClose->execute((object) [
+            'sessionId' => $id,
+            'reprint' => $reprint,
+        ]));
     }
 }

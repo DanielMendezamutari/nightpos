@@ -13,6 +13,15 @@ uses(RefreshDatabase::class);
 
 beforeEach(function () {
     $this->seed(NightPosSeeder::class);
+
+    $shiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+
+    if ($shiftId > 0) {
+        OrderModel::query()
+            ->where('official_shift_id', $shiftId)
+            ->where('status', 'SENT_TO_BAR')
+            ->update(['status' => 'CANCELLED', 'cancelled_at' => now()]);
+    }
 });
 
 function cashierToken(): string
@@ -34,21 +43,19 @@ function cashierPrepareSession(?string $token = null): string
     return $token;
 }
 
-it('blocks cash close with OPEN order', function () {
+it('does not block cash close with OPEN draft order', function () {
     $token = cashierPrepareSession();
 
-    nightposCreateOrderWithItem($token, ['table_label' => 'Bloqueo OPEN']);
+    nightposCreateOrderWithItem($token, ['table_label' => 'Borrador OPEN']);
 
-    $response = test()->getJson('/api/v1/cash/session/current/close-check', cashierHeaders($token))
+    test()->getJson('/api/v1/cash/session/current/close-check', cashierHeaders($token))
         ->assertOk()
-        ->assertJsonPath('data.can_close', false);
+        ->assertJsonPath('data.summary.active_orders', 0);
 
-    $codes = collect($response->json('data.blockers'))->pluck('code')->all();
-    expect($codes)->toContain('active_orders');
+    $codes = collect(test()->getJson('/api/v1/cash/session/current/close-check', cashierHeaders($token))
+        ->json('data.blockers'))->pluck('code')->all();
 
-    test()->postJson('/api/v1/cash/session/close', [
-        'declared_closing_amount' => 200,
-    ], cashierHeaders($token))->assertStatus(422);
+    expect($codes)->not->toContain('active_orders');
 });
 
 it('blocks cash close with SENT_TO_BAR order', function () {
@@ -169,7 +176,7 @@ it('cashier scope excludes orders from closed shifts', function () {
     expect($numbers)->not->toContain('OLD-999');
 });
 
-it('cashier chargeable scope only includes OPEN and SENT_TO_BAR', function () {
+it('cashier chargeable scope only includes SENT_TO_BAR', function () {
     $token = cashierPrepareSession();
 
     $shiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');

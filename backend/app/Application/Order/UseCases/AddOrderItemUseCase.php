@@ -17,6 +17,7 @@ use App\Application\Order\Services\OrderItemPricing;
 use App\Application\Order\Services\OrderPresentationService;
 
 use App\Application\Order\Support\OrderOperationalEventPayload;
+use App\Application\Printing\UseCases\DispatchBarCorrectionPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 
 use App\Application\Waiter\Services\WaiterOrderAccessPolicy;
@@ -38,6 +39,8 @@ use App\Shared\Application\DTOs\OperationResult;
 
 use App\Shared\Contracts\BranchContextInterface;
 
+use App\Shared\Contracts\AuthenticatedStaffContextInterface;
+
 use App\Shared\Contracts\TenantContextInterface;
 
 use App\Shared\Contracts\UseCaseInterface;
@@ -54,6 +57,8 @@ final class AddOrderItemUseCase implements UseCaseInterface
 
         private readonly BranchContextInterface $branchContext,
 
+        private readonly AuthenticatedStaffContextInterface $staffContext,
+
         private readonly OrderRepositoryInterface $orders,
 
         private readonly ProductRepositoryInterface $products,
@@ -65,6 +70,8 @@ final class AddOrderItemUseCase implements UseCaseInterface
         private readonly OrderPresentationService $presentation,
 
         private readonly OperationalEventEmitter $eventEmitter,
+
+        private readonly DispatchBarCorrectionPrintJobUseCase $dispatchBarCorrectionPrint,
 
     ) {
 
@@ -123,6 +130,8 @@ final class AddOrderItemUseCase implements UseCaseInterface
 
 
         $status = OrderStatus::fromString($order->status);
+
+        $notifyBarOnSave = $status->value === OrderStatus::SENT_TO_BAR;
 
 
 
@@ -235,6 +244,17 @@ final class AddOrderItemUseCase implements UseCaseInterface
                 summary: 'Comanda actualizada: ' . $order->tableLabel,
             )
         );
+
+
+
+        if ($notifyBarOnSave && $updated !== null) {
+            $this->dispatchBarCorrectionPrint->execute(
+                $updated,
+                $tenant->id,
+                $branch->id,
+                $this->staffContext->userId(),
+            );
+        }
 
 
 

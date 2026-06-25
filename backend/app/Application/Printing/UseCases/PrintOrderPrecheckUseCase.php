@@ -43,7 +43,7 @@ final class PrintOrderPrecheckUseCase implements UseCaseInterface
             throw new OrderNotFoundException();
         }
 
-        $this->waiterAccess->assertCanAccess($order);
+        $this->assertCanPrintPrecheck($order);
 
         if (in_array($order->status, ['BILLED', 'CANCELLED'], true)) {
             return OperationResult::fail('La comanda ya fue cobrada o cancelada.');
@@ -73,5 +73,14 @@ final class PrintOrderPrecheckUseCase implements UseCaseInterface
         return OperationResult::ok('Precuenta enviada a impresora.', [
             'job' => $job,
         ]);
+    }
+
+    private function assertCanPrintPrecheck(\App\Domain\Order\Entities\Order $order): void
+    {
+        if ($this->staffContext->hasPermission('sales.charge')) {
+            return;
+        }
+
+        $this->waiterAccess->assertCanAccess($order);
     }
 }

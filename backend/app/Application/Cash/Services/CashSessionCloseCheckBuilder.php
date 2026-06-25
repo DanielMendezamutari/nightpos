@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Application\Cash\Services;
 
+use App\Application\Order\Support\CashierChargeableOrdersScope;
 use App\Application\Reports\Services\ComboBraceletReportingService;
 use App\Domain\StaffSettlement\Repositories\StaffSettlementRepositoryInterface;
-use App\Infrastructure\Persistence\Eloquent\Models\OrderModel;
 use App\Infrastructure\Persistence\Eloquent\Models\RoomServiceModel;
 
 final class CashSessionCloseCheckBuilder
@@ -14,6 +14,7 @@ final class CashSessionCloseCheckBuilder
     public function __construct(
         private readonly StaffSettlementRepositoryInterface $settlements,
         private readonly ComboBraceletReportingService $comboReporting,
+        private readonly CashierChargeableOrdersScope $chargeableOrders,
     ) {}
 
     /**
@@ -27,12 +28,7 @@ final class CashSessionCloseCheckBuilder
      */
     public function build(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null): array
     {
-        $activeOrders = OrderModel::query()
-            ->where('tenant_id', $tenantId)
-            ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
-            ->whereIn('status', ['OPEN', 'SENT_TO_BAR'])
-            ->count();
+        $activeOrders = $this->chargeableOrders->countForCashierScope($tenantId, $branchId);
 
         $activeRoomServices = RoomServiceModel::query()
             ->where('tenant_id', $tenantId)

@@ -47,8 +47,9 @@ const tenantSlugCookie = useCookie('tenantSlug', COOKIE_OPTS)
 const branchCodeCookie = useCookie('branchCode', COOKIE_OPTS)
 const tenantNameCookie = useCookie('tenantName', COOKIE_OPTS)
 const branchNameCookie = useCookie('branchName', COOKIE_OPTS)
+const lastOperatorNameCookie = useCookie('lastOperatorName', COOKIE_OPTS)
 
-/** 'pin' = ingreso rápido; 'select-context' = elegir empresa/sucursal */
+/** 'pin' | 'select-context' | 'select-tenant' | 'select-branch' */
 const pinStep = ref('pin')
 
 const pinForm = ref({
@@ -103,6 +104,12 @@ const displayBranchName = computed(() =>
   pinForm.value.branch_name || branchNameCookie.value || pinForm.value.branch_code || '—',
 )
 
+const displayUserName = computed(() =>
+  lastOperatorNameCookie.value?.trim() || '—',
+)
+
+const hasSavedUser = computed(() => Boolean(lastOperatorNameCookie.value?.trim()))
+
 const tenantItems = computed(() =>
   tenants.value.map(t => ({ title: t.name, value: t.slug, raw: t })),
 )
@@ -123,10 +130,15 @@ const clearSavedContext = () => {
   branchCodeCookie.value = null
   tenantNameCookie.value = null
   branchNameCookie.value = null
+  lastOperatorNameCookie.value = null
   pinForm.value.tenant_slug = ''
   pinForm.value.branch_code = ''
   pinForm.value.tenant_name = ''
   pinForm.value.branch_name = ''
+}
+
+const clearSavedUser = () => {
+  lastOperatorNameCookie.value = null
 }
 
 const loadTenants = async () => {
@@ -225,6 +237,47 @@ const startChangeContext = async () => {
   await loadTenants()
 }
 
+const startChangeTenant = async () => {
+  errorMessage.value = ''
+  suggestContextChange.value = false
+  pinForm.value.pin = ''
+  branchCodeCookie.value = null
+  branchNameCookie.value = null
+  tenantSlugCookie.value = null
+  tenantNameCookie.value = null
+  lastOperatorNameCookie.value = null
+  pinForm.value.branch_code = ''
+  pinForm.value.branch_name = ''
+  selectedTenantSlug.value = null
+  selectedBranchCode.value = null
+  branches.value = []
+  pinStep.value = 'select-tenant'
+  await loadTenants()
+}
+
+const startChangeBranch = async () => {
+  errorMessage.value = ''
+  suggestContextChange.value = false
+  pinForm.value.pin = ''
+  branchCodeCookie.value = null
+  branchNameCookie.value = null
+  lastOperatorNameCookie.value = null
+  pinForm.value.branch_code = ''
+  pinForm.value.branch_name = ''
+  selectedBranchCode.value = null
+  selectedTenantSlug.value = tenantSlugCookie.value || pinForm.value.tenant_slug || null
+  pinStep.value = 'select-branch'
+  if (selectedTenantSlug.value)
+    await loadBranches(selectedTenantSlug.value)
+}
+
+const startChangeUser = () => {
+  errorMessage.value = ''
+  clearSavedUser()
+  pinForm.value.pin = ''
+  pinStep.value = 'pin'
+}
+
 const confirmContextSelection = () => {
   errorMessage.value = ''
 
@@ -232,7 +285,9 @@ const confirmContextSelection = () => {
   const branch = branches.value.find(b => b.code === selectedBranchCode.value)
 
   if (!tenant || !branch) {
-    errorMessage.value = 'Seleccione empresa y sucursal para continuar.'
+    errorMessage.value = pinStep.value === 'select-branch'
+      ? 'Seleccione sucursal para continuar.'
+      : 'Seleccione empresa y sucursal para continuar.'
 
     return
   }
@@ -249,6 +304,38 @@ const confirmContextSelection = () => {
   pinForm.value.pin = ''
   pinStep.value = 'pin'
   suggestContextChange.value = false
+}
+
+const confirmTenantSelection = async () => {
+  const tenant = tenants.value.find(t => t.slug === selectedTenantSlug.value)
+  if (!tenant) {
+    errorMessage.value = 'Seleccione empresa para continuar.'
+
+    return
+  }
+
+  tenantSlugCookie.value = tenant.slug
+  tenantNameCookie.value = tenant.name
+  pinForm.value.tenant_slug = tenant.slug
+  pinForm.value.tenant_name = tenant.name
+  pinStep.value = 'select-branch'
+  await loadBranches(tenant.slug)
+}
+
+const confirmBranchSelection = () => {
+  const branch = branches.value.find(b => b.code === selectedBranchCode.value)
+  if (!branch) {
+    errorMessage.value = 'Seleccione sucursal para continuar.'
+
+    return
+  }
+
+  branchCodeCookie.value = branch.code
+  branchNameCookie.value = branch.name
+  pinForm.value.branch_code = branch.code
+  pinForm.value.branch_name = branch.name
+  pinForm.value.pin = ''
+  pinStep.value = 'pin'
 }
 
 const isContextRelatedError = (error, message) => {
@@ -346,6 +433,18 @@ const submit = async () => {
 const onSubmit = async () => {
   if (loginMode.value === 'pin' && pinStep.value === 'select-context') {
     confirmContextSelection()
+
+    return
+  }
+
+  if (loginMode.value === 'pin' && pinStep.value === 'select-tenant') {
+    await confirmTenantSelection()
+
+    return
+  }
+
+  if (loginMode.value === 'pin' && pinStep.value === 'select-branch') {
+    confirmBranchSelection()
 
     return
   }
@@ -488,14 +587,39 @@ const onSubmit = async () => {
                       <div class="text-body-2 mt-1">
                         <strong>Sucursal:</strong> {{ displayBranchName }}
                       </div>
-                      <VBtn
-                        variant="text"
-                        size="small"
-                        class="mt-2 px-0"
-                        @click="startChangeContext"
+                      <div
+                        v-if="hasSavedUser"
+                        class="text-body-2 mt-1"
                       >
-                        Cambiar empresa / sucursal
-                      </VBtn>
+                        <strong>Usuario:</strong> {{ displayUserName }}
+                      </div>
+                      <div class="d-flex flex-wrap ga-1 mt-2">
+                        <VBtn
+                          variant="text"
+                          size="small"
+                          class="px-0"
+                          @click="startChangeTenant"
+                        >
+                          Cambiar empresa
+                        </VBtn>
+                        <VBtn
+                          variant="text"
+                          size="small"
+                          class="px-0"
+                          @click="startChangeBranch"
+                        >
+                          Cambiar sucursal
+                        </VBtn>
+                        <VBtn
+                          v-if="hasSavedUser"
+                          variant="text"
+                          size="small"
+                          class="px-0"
+                          @click="startChangeUser"
+                        >
+                          Cambiar usuario
+                        </VBtn>
+                      </div>
                     </VCardText>
                   </VCard>
 
@@ -510,6 +634,67 @@ const onSubmit = async () => {
                     :rules="pinRules"
                     autofocus
                   />
+                </template>
+
+                <template v-else-if="pinStep === 'select-tenant'">
+                  <p class="text-body-2 mb-4">
+                    Elija la empresa donde va a operar.
+                  </p>
+
+                  <VSelect
+                    v-model="selectedTenantSlug"
+                    :items="tenantItems"
+                    label="Empresa"
+                    placeholder="Seleccione empresa"
+                    :loading="loadingTenants"
+                    :disabled="loadingTenants"
+                    class="mb-3"
+                  />
+
+                  <VBtn
+                    variant="text"
+                    size="small"
+                    class="mb-2"
+                    @click="pinStep = 'pin'; syncPinFormFromCookies()"
+                  >
+                    Volver al PIN
+                  </VBtn>
+                </template>
+
+                <template v-else-if="pinStep === 'select-branch'">
+                  <p class="text-body-2 mb-2">
+                    Empresa: <strong>{{ displayTenantName }}</strong>
+                  </p>
+                  <p class="text-body-2 mb-4">
+                    Elija la sucursal donde va a operar.
+                  </p>
+
+                  <VSelect
+                    v-model="selectedBranchCode"
+                    :items="branchItems"
+                    label="Sucursal"
+                    placeholder="Seleccione sucursal"
+                    :loading="loadingBranches"
+                    :disabled="loadingBranches"
+                    class="mb-2"
+                  />
+
+                  <VBtn
+                    variant="text"
+                    size="small"
+                    class="mb-2"
+                    @click="startChangeTenant"
+                  >
+                    Cambiar empresa
+                  </VBtn>
+                  <VBtn
+                    variant="text"
+                    size="small"
+                    class="mb-2 ms-2"
+                    @click="pinStep = 'pin'; syncPinFormFromCookies()"
+                  >
+                    Volver al PIN
+                  </VBtn>
                 </template>
 
                 <template v-else>
@@ -604,7 +789,7 @@ const onSubmit = async () => {
               class="mt-6 login-submit-btn"
               :loading="auth.loading"
             >
-              {{ loginMode === 'pin' && pinStep === 'select-context' ? 'Continuar' : 'Ingresar' }}
+              {{ loginMode === 'pin' && ['select-context', 'select-tenant', 'select-branch'].includes(pinStep) ? 'Continuar' : 'Ingresar' }}
             </VBtn>
           </VForm>
         </VCardText>

@@ -1,14 +1,22 @@
 <script setup>
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
+import AdminForceCloseCashSessionDialog from '@/components/nightpos/finance/AdminForceCloseCashSessionDialog.vue'
 import { useAdminCashSessionsList } from '@/composables/useAdminCashSessionsList'
 import { useFilteredCashSessionTabs } from '@/composables/useCashSessionSectionTabs'
+import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { formatMoney } from '@/composables/useOrderHelpers'
 
 definePage({ meta: { permission: 'admin.cash_sessions.list' } })
 
 const cashSessionTabs = useFilteredCashSessionTabs()
 const router = useRouter()
+const { can } = useNightPosPermissions()
+
+const canForceClose = computed(() => can('admin.cash_sessions.force_close'))
+
+const forceCloseSession = ref(null)
+const showForceClose = ref(false)
 
 const {
   loading,
@@ -45,6 +53,13 @@ const headers = [
 const formatDate = value => value ? new Date(value).toLocaleString('es-BO') : '—'
 
 const viewSession = id => router.push({ name: 'nightpos-finance-cash-sessions-id', params: { id } })
+
+const openForceClose = session => {
+  forceCloseSession.value = session
+  showForceClose.value = true
+}
+
+const onForceClosed = () => reload()
 </script>
 
 <template>
@@ -152,9 +167,24 @@ const viewSession = id => router.push({ name: 'nightpos-finance-cash-sessions-id
             >
               Ver
             </VBtn>
+            <VBtn
+              v-if="canForceClose && item.status === 'OPEN'"
+              size="small"
+              variant="text"
+              color="error"
+              @click="openForceClose(item)"
+            >
+              Cerrar administrativamente
+            </VBtn>
           </template>
         </VDataTable>
       </VCardText>
     </VCard>
+
+    <AdminForceCloseCashSessionDialog
+      v-model="showForceClose"
+      :session="forceCloseSession"
+      @closed="onForceClosed"
+    />
   </div>
 </template>

@@ -31,6 +31,8 @@ use App\Domain\Room\Exceptions\RoomDomainException;
 use App\Domain\Room\Exceptions\RoomNotFoundException;
 use App\Domain\GirlIncome\Exceptions\RoomServiceNotFoundException;
 use App\Domain\GirlIncome\Exceptions\ShowNotFoundException;
+use App\Domain\StaffSettlement\Exceptions\StaffFineDomainException;
+use App\Domain\StaffSettlement\Exceptions\StaffFineNotFoundException;
 use App\Domain\StaffSettlement\Exceptions\StaffSettlementNotFoundException;
 use App\Domain\Shift\Exceptions\ShiftDomainException;
 use App\Domain\StaffSettlement\Exceptions\StaffSettlementDomainException;
@@ -84,6 +86,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof ProductCategoryNotFoundException,
                 $exception instanceof OfficialShiftNotFoundException,
                 $exception instanceof StaffSettlementNotFoundException,
+                $exception instanceof StaffFineNotFoundException,
                 $exception instanceof BraceletNotFoundException,
                 $exception instanceof RoomServiceNotFoundException,
                 $exception instanceof ShowNotFoundException,
@@ -102,6 +105,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof RoomDomainException,
                 $exception instanceof ShowTypeDomainException,
                 $exception instanceof StaffSettlementDomainException,
+                $exception instanceof StaffFineDomainException,
                 $exception instanceof SettlementCashSessionRequiredException => 422,
                 default => 422,
             };

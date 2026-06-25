@@ -6,7 +6,8 @@ import QuickGirlCreateDialog from '@/components/nightpos/staff/QuickGirlCreateDi
 import QuickRoomCreateDialog from '@/components/nightpos/rooms/QuickRoomCreateDialog.vue'
 import { fetchAvailableRooms, fetchCleaningRooms } from '@/api/rooms'
 import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
-import { createRoomService } from '@/api/roomServices'
+import { createRoomService, printRoomService } from '@/api/roomServices'
+import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { useServiceCashSession } from '@/composables/useServiceCashSession'
 import { useFilteredServiceTabs } from '@/composables/useServiceSectionTabs'
 import { appendGirlToSelectList, loadOperationalGirlsForSelect } from '@/composables/useOperationalGirls'
@@ -18,7 +19,7 @@ import { getApiErrorMessage } from '@/services/http'
 
 definePage({ meta: { permission: 'room_services.create' } })
 
-const DEFAULT_GIRL_PERCENT = 50
+const DEFAULT_GIRL_PERCENT = 60
 
 function localDatetimeString(date = new Date()) {
   const pad = n => String(n).padStart(2, '0')
@@ -28,6 +29,7 @@ function localDatetimeString(date = new Date()) {
 const serviceTabs = useFilteredServiceTabs()
 const { can } = useNightPosPermissions()
 const { notify } = useNightPosNotify()
+const { openPrintRoute } = useNightPosPrint()
 const router = useRouter()
 const { cashSessionOpen, showOpenCash, loadingCash, onCashOpened } = useServiceCashSession()
 
@@ -45,6 +47,8 @@ const refForm = ref()
 const showQuickGirl = ref(false)
 const showQuickRoom = ref(false)
 const girlSearch = ref('')
+const lastRegistered = ref(null)
+const reprintLoading = ref(false)
 
 const form = ref({
   girl_user_id: null,
@@ -156,7 +160,7 @@ const save = async () => {
   saving.value = true
 
   try {
-    await createRoomService({
+    const result = await createRoomService({
       girl_user_id: form.value.girl_user_id,
       room_id: form.value.room_id,
       total_amount: Number(form.value.total_amount),
@@ -166,14 +170,25 @@ const save = async () => {
         : 0,
       payment_method: form.value.payment_method,
       duration_minutes: Number(form.value.duration_minutes),
-      // Always send started_at — pre-populated with current local time.
-      // Backend parses this in the configured app timezone (America/La_Paz).
       started_at: form.value.started_at || null,
       notes: form.value.notes || null,
     })
 
-    notify('Pieza registrada')
-    await router.push({ name: 'nightpos-services-room-services' })
+    lastRegistered.value = {
+      ...(result?.room_service ?? {}),
+      print_job: result?.print_job ?? null,
+      print_warning: result?.print_warning ?? null,
+    }
+
+    if (result?.print_warning) {
+      notify(result.print_warning, 'warning')
+    }
+    else if (result?.print_job) {
+      notify('Pieza registrada y ticket enviado a limpieza.')
+    }
+    else {
+      notify('Pieza registrada.')
+    }
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -181,6 +196,38 @@ const save = async () => {
   finally {
     saving.value = false
   }
+}
+
+const openTicket = () => {
+  if (!lastRegistered.value?.id)
+    return
+
+  openPrintRoute({ name: 'nightpos-print-room-service-id', params: { id: lastRegistered.value.id } })
+}
+
+const reprintTicket = async () => {
+  if (!lastRegistered.value?.id)
+    return
+
+  reprintLoading.value = true
+  try {
+    const result = await printRoomService(lastRegistered.value.id, { reprint: true })
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else
+      notify('Ticket reenviado a impresora.')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error) || 'No se pudo reimprimir. Puede abrir la vista imprimible.', 'error')
+    openTicket()
+  }
+  finally {
+    reprintLoading.value = false
+  }
+}
+
+const goToList = async () => {
+  await router.push({ name: 'nightpos-services-room-services' })
 }
 
 onMounted(async () => {
@@ -285,7 +332,43 @@ onMounted(async () => {
       </VBtn>
     </VAlert>
 
-    <VCard>
+    <VAlert
+      v-if="lastRegistered"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+      prominent
+    >
+      Pieza registrada{{ lastRegistered.print_job ? ' y ticket enviado a limpieza' : '' }}.
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <VBtn
+          size="small"
+          variant="tonal"
+          prepend-icon="ri-eye-line"
+          @click="openTicket"
+        >
+          Ver ticket
+        </VBtn>
+        <VBtn
+          size="small"
+          variant="outlined"
+          prepend-icon="ri-printer-line"
+          :loading="reprintLoading"
+          @click="reprintTicket"
+        >
+          Reimprimir ticket
+        </VBtn>
+        <VBtn
+          size="small"
+          variant="text"
+          @click="goToList"
+        >
+          Ir al listado
+        </VBtn>
+      </div>
+    </VAlert>
+
+    <VCard v-if="!lastRegistered">
       <VCardText>
         <VForm
           ref="refForm"

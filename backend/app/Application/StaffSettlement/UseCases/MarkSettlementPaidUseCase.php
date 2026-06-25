@@ -11,7 +11,10 @@ namespace App\Application\StaffSettlement\UseCases;
 
 
 use App\Application\Cash\Services\OpenCashSessionResolver;
+use App\Application\Printing\UseCases\CreateSettlementPaymentPrintJobUseCase;
+use App\Application\StaffSettlement\Services\SettlementFineApplier;
 use App\Application\StaffSettlement\Services\SettlementShiftScopeResolver;
+use App\Application\StaffSettlement\Services\SettlementTicketNumberGenerator;
 
 use App\Application\SSE\Services\OperationalEventEmitter;
 
@@ -36,6 +39,8 @@ use App\Domain\StaffSettlement\Repositories\StaffSettlementRepositoryInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel;
 
 use App\Shared\Application\DTOs\OperationResult;
+
+use App\Shared\Application\Support\AuditLogRecorder;
 
 use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 
@@ -75,6 +80,14 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
         private readonly OperationalEventEmitter $eventEmitter,
 
+        private readonly SettlementFineApplier $fineApplier,
+
+        private readonly SettlementTicketNumberGenerator $ticketNumbers,
+
+        private readonly CreateSettlementPaymentPrintJobUseCase $createPrintJob,
+
+        private readonly AuditLogRecorder $audit,
+
     ) {
 
     }
@@ -102,6 +115,7 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
         $settlementId = (int) ($input->settlementId ?? 0);
 
         $notes = $input->notes ?? null;
+        $appliedFineIds = is_array($input->appliedFineIds ?? null) ? $input->appliedFineIds : [];
 
         $paymentMethod = strtoupper(trim((string) ($input->paymentMethod ?? '')));
 
@@ -178,16 +192,20 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
 
         $sessionId = null;
+        $cashMovementId = null;
+        $ticketNumber = null;
 
 
 
-        $settlement = DB::transaction(function () use ($model, $tenant, $branch, $cashierId, $settlementId, $notes, $paymentMethod, &$sessionId) {
+        $settlement = DB::transaction(function () use ($model, $tenant, $branch, $cashierId, $settlementId, $notes, $paymentMethod, $appliedFineIds, &$sessionId, &$cashMovementId, &$ticketNumber) {
 
             $session = $this->requireOpenCashSession($tenant->id, $branch->id, $cashierId);
 
             $sessionId = $session->id;
 
+            $this->fineApplier->applySelectedFines($model, $appliedFineIds, $cashierId);
 
+            $model->refresh();
 
             $reason    = $this->resolveExpenseReason($model->settlement_type, $tenant->id, $branch->id);
 
@@ -205,7 +223,7 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
 
 
-            $this->cashSessions->addMovement(
+            $movement = $this->cashSessions->addMovement(
 
                 tenantId: $tenant->id,
 
@@ -215,7 +233,7 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
                 movementType: 'EXPENSE',
 
-                amount: (string) $model->total_amount,
+                amount: (string) $model->net_amount,
 
                 description: $description,
 
@@ -233,6 +251,10 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
             );
 
+            $cashMovementId = $movement->id;
+
+            $ticketNumber = $this->ticketNumbers->next($branch->id);
+
 
 
             StaffSettlementModel::query()
@@ -243,9 +265,80 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
 
 
-            return $this->settlements->markPaid($settlementId, $tenant->id, $branch->id, $cashierId, $notes);
+            return $this->settlements->markPaid(
+
+                $settlementId,
+
+                $tenant->id,
+
+                $branch->id,
+
+                $cashierId,
+
+                $notes,
+
+                $paymentMethod,
+
+                $cashMovementId,
+
+                $ticketNumber,
+
+            );
 
         });
+
+
+
+        $printResult = $this->createPrintJob->execute(
+
+            settlementId: $settlementId,
+
+            tenantId: $tenant->id,
+
+            branchId: $branch->id,
+
+            requestedByUserId: $cashierId,
+
+        );
+
+
+
+        if ($printResult['job'] !== null) {
+
+            StaffSettlementModel::query()->whereKey($settlementId)->update([
+
+                'print_job_id' => (int) $printResult['job']['id'],
+
+                'last_printed_at' => now(),
+
+                'last_printed_by_user_id' => $cashierId,
+
+            ]);
+        }
+
+
+
+        $this->audit->record(
+
+            'SETTLEMENT_PAID',
+
+            'staff_settlement',
+
+            $settlementId,
+
+            [
+
+                'ticket_number' => $ticketNumber,
+
+                'payment_method' => $paymentMethod,
+
+                'cash_movement_id' => $cashMovementId,
+
+                'net_amount' => $settlement['net_amount'] ?? null,
+
+            ],
+
+        );
 
 
 
@@ -298,6 +391,14 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
             'settlement' => SettlementMapper::settlement($settlement),
 
             'cash_session_id' => $sessionId,
+
+            'cash_movement_id' => $cashMovementId,
+
+            'ticket_number' => $ticketNumber,
+
+            'print_job' => $printResult['job'],
+
+            'print_warning' => $printResult['warning'],
 
         ]);
 
@@ -440,5 +541,4 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
     }
 
 }
-
 

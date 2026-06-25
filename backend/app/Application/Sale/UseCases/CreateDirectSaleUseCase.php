@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Sale\UseCases;
 
 use App\Application\Cash\Services\OpenCashSessionResolver;
+use App\Application\Printing\UseCases\CreateSaleReceiptPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Application\Order\Services\OrderItemPricing;
 use App\Application\Sale\DTOs\DirectSaleInput;
@@ -42,6 +43,7 @@ final class CreateDirectSaleUseCase implements UseCaseInterface
         private readonly PaymentMethodRepositoryInterface $paymentMethods,
         private readonly AuditLogRecorder $audit,
         private readonly OperationalEventEmitter $eventEmitter,
+        private readonly CreateSaleReceiptPrintJobUseCase $createSaleReceiptPrintJob,
     ) {
     }
 
@@ -256,8 +258,17 @@ final class CreateDirectSaleUseCase implements UseCaseInterface
             ]
         );
 
+        $printResult = $this->createSaleReceiptPrintJob->execute(
+            sale: $sale,
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            requestedByUserId: $cashierId,
+        );
+
         return OperationResult::ok('Venta directa registrada correctamente.', [
             'sale' => SaleMapper::sale($sale),
+            'print_job' => $printResult['job'],
+            'print_warning' => $printResult['warning'],
         ]);
     }
 }

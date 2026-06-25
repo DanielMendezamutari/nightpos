@@ -129,14 +129,15 @@ it('status OPEN remains compatible without scope', function () {
     expect($ids)->toContain($openId);
 });
 
-it('scope cashier_chargeable remains compatible', function () {
+it('scope cashier_chargeable only includes SENT_TO_BAR', function () {
     $openId = scopeFixCreateOrder('OPEN', 'Mesa Cashier Open');
     $barId = scopeFixCreateOrder('SENT_TO_BAR', 'Mesa Cashier Bar');
     scopeFixCreateOrder('BILLED', 'Mesa Cashier Billed');
 
     $ids = scopeFixOrderIds('cashier_chargeable');
 
-    expect($ids)->toContain($openId, $barId);
+    expect($ids)->toContain($barId)
+        ->and($ids)->not->toContain($openId);
 });
 
 it('isolates orders by tenant', function () {

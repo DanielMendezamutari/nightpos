@@ -1,7 +1,10 @@
 <script setup>
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
+import AdminForceCloseCashSessionDialog from '@/components/nightpos/finance/AdminForceCloseCashSessionDialog.vue'
+import AdminForcedCloseSessionPanel from '@/components/nightpos/finance/AdminForcedCloseSessionPanel.vue'
 import { fetchAdminCashSession } from '@/api/adminCashSessions'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { formatMoney } from '@/composables/useOrderHelpers'
 import { getApiErrorMessage } from '@/services/http'
@@ -12,6 +15,10 @@ const route = useRoute('nightpos-finance-cash-sessions-id')
 const router = useRouter()
 const { notify } = useNightPosNotify()
 const { openPrintRoute } = useNightPosPrint()
+const { can } = useNightPosPermissions()
+
+const canForceClose = computed(() => can('admin.cash_sessions.force_close'))
+const showForceClose = ref(false)
 
 const loading = ref(true)
 const session = ref(null)
@@ -54,7 +61,7 @@ const summaryCards = computed(() => {
     { title: 'Ventas totales', value: formatMoney(s.total_sales), color: 'success' },
     { title: 'Ingresos manuales', value: formatMoney(s.total_manual_income), color: 'success' },
     { title: 'Egresos', value: formatMoney(s.total_manual_expense), color: 'error' },
-    { title: 'Diferencia', value: s.cash_difference != null ? formatMoney(s.cash_difference) : '—', color: 'error' },
+    { title: 'Diferencia', value: session.value?.is_forced_close ? 'Sin arqueo — cierre administrativo' : (s.cash_difference != null ? formatMoney(s.cash_difference) : '—'), color: 'error' },
   ]
 })
 
@@ -100,6 +107,16 @@ onMounted(load)
     >
       <template #actions>
         <VBtn
+          v-if="session && canForceClose && session.status === 'OPEN'"
+          color="error"
+          variant="tonal"
+          prepend-icon="ri-shield-keyhole-line"
+          class="me-2"
+          @click="showForceClose = true"
+        >
+          Cerrar administrativamente
+        </VBtn>
+        <VBtn
           v-if="session"
           variant="tonal"
           prepend-icon="ri-printer-line"
@@ -117,6 +134,11 @@ onMounted(load)
     />
 
     <template v-else-if="session">
+      <AdminForcedCloseSessionPanel
+        :session="session"
+        :summary="summary"
+      />
+
       <VCard class="mb-4">
         <VCardText>
           <VRow>
@@ -124,7 +146,18 @@ onMounted(load)
               cols="12"
               md="6"
             >
-              <div><strong>Estado:</strong> {{ session.status === 'OPEN' ? 'Abierta' : 'Cerrada' }}</div>
+              <div class="d-flex align-center gap-2 mb-1">
+                <strong>Estado:</strong>
+                <span>{{ session.status === 'OPEN' ? 'Abierta' : 'Cerrada' }}</span>
+                <VChip
+                  v-if="session.is_forced_close"
+                  color="warning"
+                  size="x-small"
+                  label
+                >
+                  Cierre administrativo
+                </VChip>
+              </div>
               <div><strong>Sucursal:</strong> {{ session.branch?.name }}</div>
               <div><strong>Turno:</strong>
                 <span v-if="session.official_shift">{{ session.official_shift.shift_type }} · {{ session.official_shift.business_date }}</span>
@@ -138,7 +171,8 @@ onMounted(load)
               md="6"
             >
               <div><strong>Monto inicial:</strong> {{ formatMoney(session.opening_amount) }} BOB</div>
-              <div v-if="session.counted_cash != null"><strong>Contado:</strong> {{ formatMoney(session.counted_cash) }} BOB</div>
+              <div v-if="session.counted_cash != null && !session.is_forced_close"><strong>Contado:</strong> {{ formatMoney(session.counted_cash) }} BOB</div>
+              <div v-else-if="session.is_forced_close"><strong>Contado:</strong> Sin arqueo — cierre administrativo</div>
               <div v-if="session.opening_notes"><strong>Notas apertura:</strong> {{ session.opening_notes }}</div>
               <div v-if="session.closing_notes"><strong>Notas cierre:</strong> {{ session.closing_notes }}</div>
             </VCol>
@@ -235,5 +269,11 @@ onMounted(load)
         </VCardText>
       </VCard>
     </template>
+
+    <AdminForceCloseCashSessionDialog
+      v-model="showForceClose"
+      :session="session"
+      @closed="load"
+    />
   </div>
 </template>

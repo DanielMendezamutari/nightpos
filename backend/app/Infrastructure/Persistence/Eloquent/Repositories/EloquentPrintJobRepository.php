@@ -154,6 +154,48 @@ final class EloquentPrintJobRepository implements PrintJobRepositoryInterface
         return $model ? $this->map($model) : null;
     }
 
+    public function branchQueueSummary(int $tenantId, int $branchId): array
+    {
+        $base = PrintJobModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId);
+
+        $lastJob = (clone $base)->orderByDesc('id')->first();
+
+        return [
+            'pending_count' => (int) (clone $base)->where('status', PrintJobStatus::Pending->value)->count(),
+            'failed_count' => (int) (clone $base)->where('status', PrintJobStatus::Failed->value)->count(),
+            'claimed_count' => (int) (clone $base)->where('status', PrintJobStatus::Claimed->value)->count(),
+            'last_job' => $lastJob !== null ? $this->map($lastJob) : null,
+        ];
+    }
+
+    public function deviceJobSummary(int $tenantId, int $branchId, int $deviceId): array
+    {
+        $lastJob = PrintJobModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('device_id', $deviceId)
+            ->orderByDesc('id')
+            ->first();
+
+        if ($lastJob === null) {
+            return [
+                'last_job_id' => null,
+                'last_job_status' => null,
+                'last_job_at' => null,
+            ];
+        }
+
+        return [
+            'last_job_id' => (int) $lastJob->id,
+            'last_job_status' => $lastJob->status,
+            'last_job_at' => $lastJob->printed_at?->toIso8601String()
+                ?? $lastJob->failed_at?->toIso8601String()
+                ?? $lastJob->created_at?->toIso8601String(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */

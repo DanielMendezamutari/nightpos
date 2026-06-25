@@ -45,11 +45,12 @@ final class GetWaiterMyTablesUseCase implements UseCaseInterface
             $shift->id,
         );
 
-        $payload = array_map(function (array $table) use ($tenant, $branch) {
+        $payload = array_map(function (array $table) use ($tenant, $branch, $shift) {
             $activeOrder = $this->orders->findActiveByServiceTable(
                 $tenant->id,
                 $branch->id,
                 (int) $table['id'],
+                $shift->id,
             );
 
             $row = [

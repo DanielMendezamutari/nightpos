@@ -31,6 +31,7 @@ export function useNightPosPermissions() {
     canAccessSettlements: computed(() => can('settlements.access')),
     canGenerateSettlements: computed(() => can('settlements.generate')),
     canPaySettlements: computed(() => can('settlements.pay')),
+    canManageSettlementFines: computed(() => can('settlements.fines.manage')),
     canListSettlementHistory: computed(() => can('settlements.history')),
     canAccessRoles: computed(() => can('roles.access')),
     canCreateRole: computed(() => can('roles.create')),

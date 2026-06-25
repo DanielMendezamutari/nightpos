@@ -1,0 +1,8 @@
+{
+  "backend_url": "http://nightpos.test/api/v1",
+  "device_key": "npd_live_5cs5o2d2w1vbtophslvktmpog2ssimap",
+  "printer_name": "prueba",
+  "poll_interval_ms": 100,
+  "dry_run": false,
+  "dry_run_dir": "C:\\ProgramData\\NightPOS\\PrintAgent\\dry-run-output"
+}

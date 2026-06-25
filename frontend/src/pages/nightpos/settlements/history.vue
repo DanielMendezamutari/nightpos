@@ -6,6 +6,13 @@ import { fetchShifts, fetchCurrentShift } from '@/api/shifts'
 import { useOnContextChange } from '@/composables/useOnContextChange'
 import { useFilteredSettlementTabs } from '@/composables/useSettlementSectionTabs'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import { useSettlementPayment } from '@/composables/useSettlementPayment'
+import { paymentMethodLabel } from '@/constants/paymentMethods'
+import {
+  formatBob,
+  settlementHasAdjustments,
+  settlementTypeLabel,
+} from '@/constants/settlements'
 import { getApiErrorMessage } from '@/services/http'
 
 definePage({ meta: { permission: 'settlements.history' } })
@@ -13,6 +20,8 @@ definePage({ meta: { permission: 'settlements.history' } })
 const settlementTabs = useFilteredSettlementTabs()
 const { notify } = useNightPosNotify()
 const router = useRouter()
+const { reprintReceipt } = useSettlementPayment()
+const reprintLoadingId = ref(null)
 
 const loading = ref(true)
 const settlements = ref([])
@@ -47,23 +56,32 @@ const headers = [
   { title: 'Personal', key: 'staff_name' },
   { title: 'Tipo', key: 'settlement_type' },
   { title: 'Corte', key: 'cut_label' },
-  { title: 'Total', key: 'total_amount' },
+  { title: 'Bruto', key: 'gross_amount' },
+  { title: 'Neto pagado', key: 'net_amount' },
+  { title: 'Método', key: 'payment_method' },
+  { title: 'Ticket', key: 'ticket_number' },
   { title: 'Estado', key: 'status' },
   { title: 'Pagado por', key: 'paid_by_name' },
   { title: 'Fecha pago', key: 'paid_at' },
   { title: 'Acciones', key: 'actions', sortable: false },
 ]
 
+async function handleReprint(item) {
+  reprintLoadingId.value = item.id
+
+  try {
+    await reprintReceipt(item.id)
+  }
+  finally {
+    reprintLoadingId.value = null
+  }
+}
+
 const statusColor = status => ({
   PENDING: 'warning',
   PAID: 'success',
   CANCELLED: 'secondary',
 }[status] || 'default')
-
-const typeLabel = type => ({
-  WAITER: 'Garzón',
-  GIRL: 'Chica',
-}[type] || type)
 
 const load = async () => {
   loading.value = true
@@ -262,8 +280,38 @@ useOnContextChange(load)
             size="small"
             variant="tonal"
           >
-            {{ typeLabel(item.settlement_type) }}
+            {{ settlementTypeLabel(item.settlement_type) }}
           </VChip>
+        </template>
+        <template #item.gross_amount="{ item }">
+          {{ formatBob(item.gross_amount ?? item.total_amount) }}
+        </template>
+        <template #item.net_amount="{ item }">
+          <div class="d-flex align-center flex-wrap gap-1">
+            <span>{{ formatBob(item.net_amount ?? item.total_amount) }}</span>
+            <VChip
+              v-if="settlementHasAdjustments(item)"
+              size="x-small"
+              color="info"
+              variant="tonal"
+            >
+              Con ajustes
+            </VChip>
+            <VChip
+              v-if="item.has_ticket || item.ticket_number"
+              size="x-small"
+              color="success"
+              variant="tonal"
+            >
+              Con ticket
+            </VChip>
+          </div>
+        </template>
+        <template #item.payment_method="{ item }">
+          {{ item.payment_method ? paymentMethodLabel(item.payment_method) : '—' }}
+        </template>
+        <template #item.ticket_number="{ item }">
+          {{ item.ticket_number || '—' }}
         </template>
         <template #item.status="{ item }">
           <VChip
@@ -287,6 +335,15 @@ useOnContextChange(load)
             @click="router.push({ name: 'nightpos-settlements-id', params: { id: item.id } })"
           >
             Detalle
+          </VBtn>
+          <VBtn
+            v-if="item.status === 'PAID'"
+            size="small"
+            variant="text"
+            :loading="reprintLoadingId === item.id"
+            @click="handleReprint(item)"
+          >
+            Reimprimir
           </VBtn>
         </template>
       </VDataTable>

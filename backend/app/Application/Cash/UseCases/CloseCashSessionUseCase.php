@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace App\Application\Cash\UseCases;
 
 use App\Application\Cash\DTOs\CloseCashSessionInput;
-use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Application\Cash\Services\CashSessionCloseCheckBuilder;
 use App\Application\Cash\Support\CashMapper;
+use App\Application\Printing\UseCases\CreateCashClosePrintJobUseCase;
+use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Domain\Cash\Exceptions\CashDomainException;
 use App\Domain\Cash\Repositories\CashSessionRepositoryInterface;
 use App\Shared\Application\DTOs\OperationResult;
@@ -26,6 +27,7 @@ final class CloseCashSessionUseCase implements UseCaseInterface
         private readonly CashSessionRepositoryInterface $sessions,
         private readonly CashSessionCloseCheckBuilder $closeCheckBuilder,
         private readonly AuditLogRecorder $audit,
+        private readonly CreateCashClosePrintJobUseCase $createCashClosePrintJob,
         private readonly OperationalEventEmitter $eventEmitter,
     ) {
     }
@@ -96,8 +98,17 @@ final class CloseCashSessionUseCase implements UseCaseInterface
             ]
         );
 
+        $printResult = $this->createCashClosePrintJob->execute(
+            session: $closed,
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            requestedByUserId: $userId,
+        );
+
         return OperationResult::ok('Caja cerrada correctamente.', [
             'session' => CashMapper::session($closed),
+            'print_job' => $printResult['job'],
+            'print_warning' => $printResult['warning'],
         ]);
     }
 }

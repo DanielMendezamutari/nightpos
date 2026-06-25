@@ -24,8 +24,54 @@ export async function fetchSettlement(id) {
   return unwrapNightPosResponse(response)
 }
 
+export async function fetchSettlementPayPreview(id, appliedFineIds = []) {
+  const response = await api.get(`/settlements/${id}/pay-preview`, {
+    params: {
+      applied_fine_ids: appliedFineIds.length ? appliedFineIds : undefined,
+    },
+  })
+
+  return unwrapNightPosResponse(response)
+}
+
 export async function markSettlementPaid(id, payload = {}) {
-  const response = await api.post(`/settlements/${id}/mark-paid`, payload)
+  const response = await api.post(`/settlements/${id}/mark-paid`, {
+    payment_method: payload.payment_method,
+    notes: payload.notes ?? null,
+    applied_fine_ids: payload.applied_fine_ids ?? [],
+  })
+
+  return unwrapNightPosResponse(response)
+}
+
+export async function applySettlementManualDiscount(id, payload = {}) {
+  const response = await api.post(`/settlements/${id}/manual-discount`, {
+    discount_mode: payload.discount_mode,
+    discount_value: payload.discount_value,
+    reason: payload.reason,
+    notes: payload.notes ?? null,
+  })
+
+  return unwrapNightPosResponse(response)
+}
+
+export async function previewSettlementManualDiscount(id, payload = {}) {
+  const response = await api.post(`/settlements/${id}/manual-discount/preview`, {
+    discount_mode: payload.discount_mode,
+    discount_value: payload.discount_value,
+  })
+
+  return unwrapNightPosResponse(response)
+}
+
+export async function cancelSettlementManualDiscount(id) {
+  const response = await api.delete(`/settlements/${id}/manual-discount`)
+
+  return unwrapNightPosResponse(response)
+}
+
+export async function printSettlement(id, { reprint = false } = {}) {
+  const response = await api.post(`/settlements/${id}/print`, reprint ? { reprint: true } : {})
 
   return unwrapNightPosResponse(response)
 }

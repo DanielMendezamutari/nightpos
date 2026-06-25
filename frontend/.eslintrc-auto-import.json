@@ -504,6 +504,12 @@
     "isComboCatalogProduct": true,
     "isSellableCatalogProduct": true,
     "normalizeActivePrices": true,
-    "productHasActivePrice": true
+    "productHasActivePrice": true,
+    "PAYMENT_LABELS": true,
+    "formatPrintTime": true,
+    "paymentModeLabel": true,
+    "resolvePrintLocationLabel": true,
+    "useSecondaryNavMenu": true,
+    "useWaiterMoreMenu": true
   }
 }

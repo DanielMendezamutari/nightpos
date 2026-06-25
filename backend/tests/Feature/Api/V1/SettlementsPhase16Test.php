@@ -153,7 +153,10 @@ it('generates girl settlement from room service and show', function () {
 
     $girl = StaffSettlementModel::query()->where('staff_user_id', $girlId)->first();
 
-    expect($girl->total_amount)->toBe('200.00');
+    expect($girl->gross_amount)->toBe('200.00')
+        ->and($girl->adjustments_total)->toBe('-10.00')
+        ->and($girl->net_amount)->toBe('190.00')
+        ->and($girl->total_amount)->toBe('190.00');
 });
 
 it('generates full girl settlement with consumption bracelet room and show', function () {

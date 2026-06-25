@@ -53,7 +53,8 @@ it('follows full room service lifecycle without auto cleaning on due', function 
     $serviceId = (int) $service->json('data.room_service.id');
 
     expect(RoomModel::query()->find($roomId)?->status)->toBe('OCCUPIED')
-        ->and($service->json('data.room_service.status'))->toBe('ACTIVE');
+        ->and($service->json('data.room_service.status'))->toBe('ACTIVE')
+        ->and($service->json('data.room_service.order_id'))->toBeInt();
 
     Carbon::setTestNow('2026-06-02 20:06:00');
 

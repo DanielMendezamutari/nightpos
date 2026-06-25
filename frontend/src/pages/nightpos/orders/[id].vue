@@ -6,6 +6,7 @@ import {
   assignOrderItemGirl,
   cancelOrder,
   fetchOrder,
+  printOrderPrecheck,
   sendOrderToBar,
   syncOrderItemAllocations,
   updateOrderHeader,
@@ -116,6 +117,8 @@ const staffUsers = ref([])
 const assignLoading = ref(false)
 const printJob = ref(null)
 const reprintLoading = ref(false)
+const precheckPrintLoading = ref(false)
+const precheckPrintFailed = ref(false)
 
 const printStatusLabel = computed(() => {
   const status = printJob.value?.status
@@ -164,6 +167,33 @@ const handleReprint = async () => {
   }
   finally {
     reprintLoading.value = false
+  }
+}
+
+const canPrintPrecheck = computed(() =>
+  canChargeOrders.value
+  && hasItems.value
+  && order.value
+  && !['BILLED', 'CANCELLED'].includes(order.value.status),
+)
+
+const openPrecheck = () => {
+  openPrintRoute({ name: 'nightpos-print-precheck-order-id', params: { id: orderId.value } })
+}
+
+const printPrecheck = async () => {
+  precheckPrintLoading.value = true
+  precheckPrintFailed.value = false
+  try {
+    await printOrderPrecheck(orderId.value)
+    notify('Precuenta enviada a impresora.')
+  }
+  catch (error) {
+    precheckPrintFailed.value = true
+    notify(getApiErrorMessage(error) || 'No se pudo enviar a impresora. Puedes abrir la vista imprimible.', 'error')
+  }
+  finally {
+    precheckPrintLoading.value = false
   }
 }
 
@@ -456,7 +486,14 @@ const onChargeConfirm = async (payload) => {
 
     order.value = { ...order.value, status: result.order_status ?? 'BILLED' }
     showChargeDialog.value = false
-    notify('Comanda cobrada correctamente')
+
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else if (result?.print_job?.status === 'FAILED')
+      notify('El cobro se registró, pero falló la impresión del ticket.', 'warning')
+    else
+      notify('Comanda cobrada correctamente')
+
     await loadCashSession()
   }
   catch (error) {
@@ -603,14 +640,20 @@ const openAddProductDialog = async () => {
   await openAddItem()
 }
 
-const { connected: sseConnected, reconnecting: sseReconnecting } = useOrderOperationalEvents(refreshOrderAndPrint, {
+const { connected: sseConnected, reconnecting: sseReconnecting, flushPendingRefresh } = useOrderOperationalEvents(refreshOrderAndPrint, {
   orderId: orderId.value,
   toastOnUpdated: true,
   updatedDebounceMs: 400,
+  pauseRefresh: () => correctionLoading.value,
   onTerminalStatus: (status) => {
     if (['BILLED', 'CANCELLED'].includes(status))
       notify('La comanda fue cerrada por otro usuario.', 'warning')
   },
+})
+
+watch(correctionLoading, (loading, wasLoading) => {
+  if (wasLoading && !loading)
+    flushPendingRefresh()
 })
 
 useOperationalPollingFallback(refreshOrderAndPrint)
@@ -723,6 +766,25 @@ onMounted(async () => {
           @click="openPrintRoute({ name: 'nightpos-print-order-id', params: { id: orderId } })"
         >
           Imprimir barra
+        </VBtn>
+        <VBtn
+          v-if="canPrintPrecheck"
+          size="small"
+          variant="outlined"
+          prepend-icon="ri-file-list-3-line"
+          :loading="precheckPrintLoading"
+          @click="printPrecheck"
+        >
+          Imprimir precuenta
+        </VBtn>
+        <VBtn
+          v-if="canPrintPrecheck && precheckPrintFailed"
+          size="small"
+          variant="text"
+          prepend-icon="ri-eye-line"
+          @click="openPrecheck"
+        >
+          Ver precuenta
         </VBtn>
       </div>
       <div

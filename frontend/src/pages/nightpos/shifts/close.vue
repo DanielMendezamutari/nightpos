@@ -2,7 +2,7 @@
 import NightPosFormActions from '@/components/nightpos/layout/NightPosFormActions.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
-import { closeShift, downloadShiftCsv, fetchCurrentShift, fetchShiftCloseCheck, fetchShiftSummary } from '@/api/shifts'
+import { closeShift, downloadShiftCsv, fetchCurrentShift, fetchShiftCloseCheck, fetchShiftSummary, printShiftClosure } from '@/api/shifts'
 import { fetchCurrentShiftSettlements } from '@/api/settlements'
 import { fetchProductReconciliation } from '@/api/reports'
 import ProductReconciliationPanel from '@/components/nightpos/reports/ProductReconciliationPanel.vue'
@@ -26,6 +26,9 @@ const closureCheck = ref(null)
 const reconciliation = ref(null)
 const loading = ref(true)
 const saving = ref(false)
+const shiftPrintLoading = ref(false)
+const shiftReprintLoading = ref(false)
+const closedShiftId = ref(null)
 const showPendingConfirm = ref(false)
 const form = ref({ counted_cash: '', notes: '' })
 const refForm = ref()
@@ -147,12 +150,14 @@ const doClose = async () => {
   showPendingConfirm.value = false
   saving.value = true
   try {
-    await closeShift(shift.value.id, {
+    const result = await closeShift(shift.value.id, {
       counted_cash: Number(form.value.counted_cash),
       notes: form.value.notes?.trim() || null,
     })
+    closedShiftId.value = shift.value.id
+    if (result?.shift)
+      shift.value = result.shift
     notify('Turno cerrado')
-    await router.push({ name: 'nightpos-shifts-history' })
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -160,6 +165,34 @@ const doClose = async () => {
   finally {
     saving.value = false
   }
+}
+
+const printClosureThermal = async ({ reprint = false } = {}) => {
+  const shiftId = closedShiftId.value ?? shift.value?.id
+  if (!shiftId)
+    return
+
+  const loadingRef = reprint ? shiftReprintLoading : shiftPrintLoading
+  loadingRef.value = true
+  try {
+    const result = await printShiftClosure(shiftId, { reprint })
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else
+      notify(reprint ? 'Cierre reenviado a impresora.' : 'Cierre enviado a impresora.')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error) || 'No se pudo imprimir por agente. Use la vista del navegador.', 'error')
+    if (shiftId)
+      openPrintRoute({ name: 'nightpos-print-shift-id', params: { id: shiftId } })
+  }
+  finally {
+    loadingRef.value = false
+  }
+}
+
+const goToHistory = async () => {
+  await router.push({ name: 'nightpos-shifts-history' })
 }
 
 const save = attemptClose
@@ -188,7 +221,27 @@ onMounted(load)
           class="me-2"
           @click="openPrintRoute({ name: 'nightpos-print-shift-id', params: { id: shift.id } })"
         >
-          Imprimir PDF
+          Vista imprimible
+        </VBtn>
+        <VBtn
+          v-if="closedShiftId"
+          variant="tonal"
+          prepend-icon="ri-printer-2-line"
+          class="me-2"
+          :loading="shiftPrintLoading"
+          @click="printClosureThermal()"
+        >
+          Imprimir cierre
+        </VBtn>
+        <VBtn
+          v-if="closedShiftId"
+          variant="tonal"
+          prepend-icon="ri-printer-line"
+          class="me-2"
+          :loading="shiftReprintLoading"
+          @click="printClosureThermal({ reprint: true })"
+        >
+          Reimprimir cierre
         </VBtn>
         <VBtn
           variant="tonal"
@@ -206,6 +259,52 @@ onMounted(load)
       indeterminate
       class="mb-4"
     />
+
+    <VAlert
+      v-if="closedShiftId"
+      type="success"
+      variant="tonal"
+      class="mb-4"
+    >
+      <div class="mb-3">
+        Turno cerrado. Puede imprimir el reporte por agente térmico o usar la vista del navegador.
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <VBtn
+          size="small"
+          variant="tonal"
+          prepend-icon="ri-printer-2-line"
+          :loading="shiftPrintLoading"
+          @click="printClosureThermal()"
+        >
+          Imprimir cierre
+        </VBtn>
+        <VBtn
+          size="small"
+          variant="tonal"
+          prepend-icon="ri-printer-line"
+          :loading="shiftReprintLoading"
+          @click="printClosureThermal({ reprint: true })"
+        >
+          Reimprimir cierre
+        </VBtn>
+        <VBtn
+          size="small"
+          variant="text"
+          prepend-icon="ri-file-text-line"
+          @click="openPrintRoute({ name: 'nightpos-print-shift-id', params: { id: closedShiftId } })"
+        >
+          Vista imprimible
+        </VBtn>
+        <VBtn
+          size="small"
+          variant="text"
+          @click="goToHistory"
+        >
+          Ir al historial
+        </VBtn>
+      </div>
+    </VAlert>
 
     <VAlert
       v-else-if="!shift"
