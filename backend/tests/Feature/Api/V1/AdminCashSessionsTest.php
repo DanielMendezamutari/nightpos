@@ -238,3 +238,14 @@ it('filters by shift work', function () {
         ->assertOk()
         ->assertJsonPath('data.cash_sessions.0.official_shift.id', $shiftId);
 });
+
+it('includes admin cash session permissions for tenant owner on auth me', function () {
+    $permissions = test()->getJson('/api/v1/auth/me', nightposOperationalHeaders(adminCashSessionsAdminToken()))
+        ->assertOk()
+        ->json('data.user.permissions');
+
+    expect($permissions)->toContain('admin.cash_sessions.list')
+        ->and($permissions)->toContain('admin.cash_sessions.view')
+        ->and($permissions)->toContain('admin.cash_sessions.summary')
+        ->and($permissions)->toContain('admin.cash_sessions.force_close');
+});

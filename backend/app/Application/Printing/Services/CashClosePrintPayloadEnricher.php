@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Application\Printing\Services;
 
+use App\Application\Cash\Support\CashSessionTimestampsResolver;
 use App\Application\Reports\Services\CashCloseReportSectionsBuilder;
 use App\Domain\Reports\Repositories\ReportReadRepositoryInterface;
 use App\Domain\Shift\ValueObjects\ShiftType;
+use App\Infrastructure\Persistence\Eloquent\Models\CashSessionModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
 use App\Infrastructure\Persistence\Eloquent\Models\TenantModel;
 use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
@@ -55,6 +57,12 @@ final class CashClosePrintPayloadEnricher
             return $payload;
         }
 
+        $sessionModel = CashSessionModel::query()->find($sessionId);
+        if ($sessionModel !== null) {
+            $payload['session']['opened_at'] = CashSessionTimestampsResolver::openedAtIso($sessionModel);
+            $payload['session']['closed_at'] = CashSessionTimestampsResolver::closedAtIso($sessionModel);
+        }
+
         $totalSales = (string) ($summary['total_sales'] ?? '0.00');
         $operational = $this->sections->forSession(
             $tenantId,
@@ -66,8 +74,8 @@ final class CashClosePrintPayloadEnricher
 
         $payload['operational'] = $operational;
         $payload['duration_minutes'] = $this->durationMinutes(
-            (string) ($session['opened_at'] ?? ''),
-            (string) ($session['closed_at'] ?? ''),
+            (string) ($payload['session']['opened_at'] ?? $session['opened_at'] ?? ''),
+            (string) ($payload['session']['closed_at'] ?? $session['closed_at'] ?? ''),
         );
 
         $recon = $this->reports->getProductReconciliation($tenantId, $branchId, [

@@ -24,6 +24,7 @@ const {
   sessions,
   summary,
   reload,
+  canLoadSummary,
 } = useAdminCashSessionsList('OPEN')
 
 const summaryCards = computed(() => {
@@ -75,7 +76,10 @@ const onForceClosed = () => reload()
 
     <NightPosSectionTabs :tabs="cashSessionTabs" />
 
-    <VRow class="mb-4">
+    <VRow
+      v-if="canLoadSummary"
+      class="mb-4"
+    >
       <VCol
         v-for="card in summaryCards"
         :key="card.title"

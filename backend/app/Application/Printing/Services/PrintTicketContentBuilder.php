@@ -744,13 +744,24 @@ final class PrintTicketContentBuilder
 
         $lines[] = str_repeat('-', $width);
         $lines[] = $this->row('Impresa', $this->formatTime((string) ($printedAt ?? now()->toIso8601String())), $width);
-        $footer = (string) config('nightpos.printing.ticket_footer', 'Powered by Ribersoft · WhatsApp 67369293');
+        $footer = (string) config('nightpos.printing.ticket_footer', 'Powered by Ribersoft - WhatsApp 67369293');
         foreach ($this->wrap($footer, $width) as $line) {
             $lines[] = $this->center($line, $width);
         }
         $lines[] = str_repeat('=', $width);
 
-        return implode("\n", $lines)."\n";
+        return implode("\n", array_map(fn (string $line): string => $this->thermalSafe($line), $lines))."\n";
+    }
+
+    /**
+     * Normaliza texto para impresoras termicas (CP437/ASCII).
+     */
+    private function thermalSafe(string $line): string
+    {
+        static $search = ["\u{2014}", "\u{2013}", "\u{00B7}", "\u{2026}", "\u{2022}", "\u{00BA}", "\u{2018}", "\u{2019}", "\u{201C}", "\u{201D}", "\u{00A0}"];
+        static $replace = ['-', '-', '-', '...', '-', '', "'", "'", '"', '"', ' '];
+
+        return str_replace($search, $replace, $line);
     }
 
     /**
@@ -1195,7 +1206,7 @@ final class PrintTicketContentBuilder
             return $text;
         }
 
-        return substr($text, 0, max(0, $max - 1)).'…';
+        return substr($text, 0, max(0, $max - 3)).'...';
     }
 
     /**
@@ -1239,7 +1250,7 @@ final class PrintTicketContentBuilder
     private function formatDateTime(string $value): string
     {
         if ($value === '') {
-            return '—';
+            return '-';
         }
 
         try {

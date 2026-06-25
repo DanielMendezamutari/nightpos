@@ -47,3 +47,7 @@ Se eliminaron consultas paralelas en browser (`fetchSettlementsReport`, `fetchPr
 - `PrintableTicketShell` reutilizado
 - Auto-print vía `useNightPosPrint`
 - Ancho térmico query `?width=58`
+
+## Bugfix timestamps (2026-06-25)
+
+`PrintableCashSessionReport` usa `operational.general.opened_at` / `closed_at` como fuente principal (fallback a `data.openedAt` / `data.closedAt`). Símbolos Unicode reemplazados por ASCII en movimientos (`-` en lugar de `·`).

@@ -95,13 +95,17 @@ const hasAdjustments = computed(() =>
 const hasSettlementsPaid = computed(() => num(settlementsPaid.value.grand_total) > 0)
 
 const durationLabel = computed(() => {
-  const opened = props.data?.openedAt
-  const closed = props.data?.closedAt
+  const general = op.value.general ?? {}
+  const opened = general.opened_at || props.data?.openedAt
+  const closed = general.closed_at || props.data?.closedAt
   if (!opened || !closed)
     return null
   const mins = Math.round((new Date(closed) - new Date(opened)) / 60000)
   return mins > 0 ? `${mins} min` : null
 })
+
+const openedAtDisplay = computed(() => op.value.general?.opened_at || props.data?.openedAt)
+const closedAtDisplay = computed(() => op.value.general?.closed_at || props.data?.closedAt)
 
 const observations = computed(() => {
   const lines = []
@@ -204,11 +208,11 @@ const settlementGroups = computed(() => [
         </div>
         <div class="nightpos-print-row">
           <span>Apertura</span>
-          <span>{{ formatDateTime(data.openedAt) }}</span>
+          <span>{{ formatDateTime(openedAtDisplay) }}</span>
         </div>
         <div class="nightpos-print-row">
           <span>Cierre</span>
-          <span>{{ data.closedAt ? formatDateTime(data.closedAt) : 'Abierta' }}</span>
+          <span>{{ closedAtDisplay ? formatDateTime(closedAtDisplay) : 'Abierta' }}</span>
         </div>
         <div
           v-if="durationLabel"
@@ -304,7 +308,7 @@ const settlementGroups = computed(() => [
           class="nightpos-print-list-item"
         >
           <span class="nightpos-print-list-item__name">
-            {{ mov.movement_type === 'INCOME' ? 'Ingreso' : 'Egreso' }} · {{ mov.reason || 'Movimiento' }}
+            {{ mov.movement_type === 'INCOME' ? 'Ingreso' : 'Egreso' }} - {{ mov.reason || 'Movimiento' }}
           </span>
           <span class="nightpos-print-list-item__meta">{{ money(mov.amount) }}</span>
         </div>

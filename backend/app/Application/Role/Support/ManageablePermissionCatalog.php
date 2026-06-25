@@ -145,6 +145,7 @@ final class ManageablePermissionCatalog
                 'audits.list',
                 'admin.cash_sessions.list',
                 'admin.cash_sessions.view',
+                'admin.cash_sessions.summary',
                 'admin.cash_sessions.force_close',
             ],
         ];
@@ -267,6 +268,7 @@ final class ManageablePermissionCatalog
             'audits.list' => 'Ver bitácora de auditoría',
             'admin.cash_sessions.list' => 'Listar sesiones de caja',
             'admin.cash_sessions.view' => 'Ver detalle de sesión de caja',
+            'admin.cash_sessions.summary' => 'Resumen fiscalización de cajas',
             'admin.cash_sessions.force_close' => 'Cierre administrativo de caja',
         ];
     }

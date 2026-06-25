@@ -1,4 +1,9 @@
-!NightPOSPrintAgent.exe
+# Ejecutables
 *.exe
+!agent/NightPOSPrintAgent.exe
+
+# Go
 go.sum
+
+# Archivos temporales
 dry-run-output/

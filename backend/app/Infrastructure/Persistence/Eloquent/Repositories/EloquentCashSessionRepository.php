@@ -10,6 +10,7 @@ use App\Domain\Cash\Exceptions\CashSessionNotFoundException;
 use App\Domain\Cash\Repositories\CashSessionRepositoryInterface;
 use App\Domain\Cash\ValueObjects\CashMovementType;
 use App\Domain\Cash\ValueObjects\CashSessionStatus;
+use App\Application\Cash\Support\CashSessionTimestampsResolver;
 use App\Infrastructure\Persistence\Eloquent\Models\CashMovementModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CashSessionModel;
 use Illuminate\Support\Carbon;
@@ -340,8 +341,8 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
             differenceAmount: $model->difference_amount !== null ? (string) $model->difference_amount : null,
             openingNotes: $model->opening_notes,
             closingNotes: $model->closing_notes,
-            openedAt: $model->opened_at?->toIso8601String() ?? '',
-            closedAt: $model->closed_at?->toIso8601String(),
+            openedAt: CashSessionTimestampsResolver::openedAtIso($model) ?? '',
+            closedAt: CashSessionTimestampsResolver::closedAtIso($model),
             incomeTotal: $totals['income'],
             expenseTotal: $totals['expense'],
             movements: $movements,

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Application\Reports\Services;
 
+use App\Application\Cash\Support\CashSessionTimestampsResolver;
 use App\Infrastructure\Persistence\Eloquent\Models\CashMovementModel;
+use App\Infrastructure\Persistence\Eloquent\Models\CashSessionModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OrderModel;
 use App\Infrastructure\Persistence\Eloquent\Models\RoomServiceModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SaleModel;
@@ -72,7 +74,17 @@ final class CashCloseReportSectionsBuilder
 
         $pending = $this->pendingSummary($tenantId, $branchId, $officialShiftId, $cashSessionId);
 
+        $sessionModel = CashSessionModel::query()->find($cashSessionId);
+
         return [
+            'general' => [
+                'opened_at' => $sessionModel !== null
+                    ? CashSessionTimestampsResolver::openedAtIso($sessionModel)
+                    : null,
+                'closed_at' => $sessionModel !== null
+                    ? CashSessionTimestampsResolver::closedAtIso($sessionModel)
+                    : null,
+            ],
             'sales' => [
                 'count' => $salesCount,
                 'total' => number_format($totalSalesFloat, 2, '.', ''),

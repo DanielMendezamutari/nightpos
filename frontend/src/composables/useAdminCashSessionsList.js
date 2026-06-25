@@ -3,10 +3,13 @@ import { fetchShifts } from '@/api/shifts'
 import { fetchAdminUsers } from '@/api/users'
 import { useOnContextChange } from '@/composables/useOnContextChange'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
+import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { getApiErrorMessage } from '@/services/http'
 
 export function useAdminCashSessionsList(defaultStatus = null) {
   const { notify } = useNightPosNotify()
+  const { can } = useNightPosPermissions()
+  const canLoadSummary = computed(() => can('admin.cash_sessions.summary'))
 
   const loading = ref(true)
   const summaryLoading = ref(false)
@@ -88,7 +91,14 @@ export function useAdminCashSessionsList(defaultStatus = null) {
   }
 
   const reload = async () => {
-    await Promise.all([loadSessions(), loadSummary(), loadFiltersMeta()])
+    const tasks = [loadSessions(), loadFiltersMeta()]
+
+    if (canLoadSummary.value)
+      tasks.push(loadSummary())
+    else
+      summary.value = null
+
+    await Promise.all(tasks)
   }
 
   useOnContextChange(reload)
@@ -106,5 +116,6 @@ export function useAdminCashSessionsList(defaultStatus = null) {
     loadSessions,
     loadSummary,
     reload,
+    canLoadSummary,
   }
 }

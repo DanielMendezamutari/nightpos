@@ -48,8 +48,8 @@ final class AdminCashSessionMapper
             'total_sales' => $financials['total_sales'],
             'total_manual_income' => $financials['total_manual_income'],
             'total_manual_expense' => $financials['total_manual_expense'],
-            'opened_at' => $model->opened_at?->toIso8601String(),
-            'closed_at' => $model->closed_at?->toIso8601String(),
+            'opened_at' => CashSessionTimestampsResolver::openedAtIso($model),
+            'closed_at' => CashSessionTimestampsResolver::closedAtIso($model),
         ], self::forceCloseMeta($model));
     }
 

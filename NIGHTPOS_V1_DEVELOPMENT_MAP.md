@@ -865,6 +865,8 @@ Diseño de módulo kardex para cerrar V1 operativo con control de stock. **Sin i
 
 **Rediseño V1 cierre caja/turno (2026-06-21):** ✅ `backend/CASH_AND_SHIFT_REPORT_REDESIGN_IMPLEMENTATION_REPORT.md`, `frontend/CASH_AND_SHIFT_REPORT_REDESIGN_IMPLEMENTATION_REPORT.md` — builders compartidos (`CashCloseReportSectionsBuilder`, `ShiftManagerialSummaryBuilder`), tickets térmicos y vistas browser separados (cajera vs admin), tests print 11/11.
 
+**Bugfix timestamps cierre caja (2026-06-25):** ✅ migración `opened_at` DATETIME sin ON UPDATE + `CashSessionTimestampsResolver`; tests `CashCloseSessionTimestampsTest` 3/3; ticket térmico ASCII-safe.
+
 **Prioridad implementación:** (1) plantillas + Ribersoft P3.
 
 ---
@@ -1150,6 +1152,30 @@ Todos **PASS** en backend (tests + código). Smoke manual UI recomendado: Caso 9
 - Corregir 5 tests globales preexistentes (Auth, SSE, etc.)
 
 **No nuevas features** hasta smoke manual opcional en staging.
+
+---
+
+## BUGFIX — Hosting admin sin permisos fiscalización caja (2026-06-25)
+
+**Estado:** ✅ Fix backend + frontend
+
+**Problema:** En hosting, admin veía `Permiso requerido: admin.cash_sessions.summary` y no aparecía botón de cierre administrativo; en desktop OK.
+
+**Causa:** BD hosting sin permisos/asignaciones `role_permissions` actualizados + permisos congelados en sesión al login. Rol admin demo = `tenant_owner` (no slug `admin`).
+
+**Fix:**
+
+| Área | Entregable |
+|------|------------|
+| Backend | Migración idempotente `2026_06_25_130000_ensure_admin_cash_sessions_permissions.php` |
+| Backend | `ManageablePermissionCatalog` incluye `admin.cash_sessions.summary` |
+| Frontend | Summary API solo si `can('admin.cash_sessions.summary')` — sin toast error |
+| Frontend | Tab Resumen guardado por permiso |
+| Tests | `AdminCashSessionsTest` — `/auth/me` incluye 4 permisos cash_sessions |
+
+**Docs:** `backend/HOSTING_ADMIN_CASH_SESSION_PERMISSION_FIX_REPORT.md`, `frontend/HOSTING_ADMIN_CASH_SESSION_PERMISSION_FIX_REPORT.md`
+
+**Hosting (obligatorio):** `php artisan optimize:clear` → `php artisan migrate --force` → logout/login admin → verificar `GET /auth/me` trae `admin.cash_sessions.summary` y `admin.cash_sessions.force_close`.
 
 ---
 

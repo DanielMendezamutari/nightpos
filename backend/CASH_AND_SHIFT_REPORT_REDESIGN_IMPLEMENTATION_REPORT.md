@@ -64,7 +64,15 @@ Los print jobs `CASH_CLOSE` y `SHIFT_CLOSE` incluyen los mismos bloques en `payl
 
 `tests/Feature/Api/V1/CashMovementAndClosurePrintTest.php` — **11/11 PASS**
 
-Incluye cierre normal, cierre admin, SHIFT_CLOSE con payload enriquecido.
+`tests/Feature/Api/V1/CashCloseSessionTimestampsTest.php` — **3/3 PASS** (apertura/cierre distintos en API, ticket y BD)
+
+## Bugfix timestamps (2026-06-25)
+
+**Causa:** MySQL agregó `ON UPDATE CURRENT_TIMESTAMP` a `cash_sessions.opened_at` (tipo TIMESTAMP), sobrescribiendo la hora de apertura al cerrar.
+
+**Fix:** migración `2026_06_25_120000_fix_cash_sessions_opened_at_timestamp` (DATETIME + backfill desde `created_at`), `CashSessionTimestampsResolver` en mappers/API/print, `operational.general.opened_at/closed_at`.
+
+**Ticket ASCII:** `PrintTicketContentBuilder::thermalSafe()` elimina em-dash, middle dot y otros Unicode en cierre de caja térmico.
 
 ## Branding
 
