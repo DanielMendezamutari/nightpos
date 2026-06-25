@@ -1,4 +1,4 @@
-NightPOSPrintAgent.exe
+!NightPOSPrintAgent.exe
 *.exe
 go.sum
 dry-run-output/
