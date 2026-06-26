@@ -14,7 +14,10 @@
  * No se muestra si:
  *   - Ya está en modo standalone (ya instalado).
  *   - El usuario ya lo descartó.
+ *   - VITE_PWA_ENABLED=false
  */
+import { isPwaEnabled } from '@/utils/pwaEnabled'
+
 const props = defineProps({
   context: {
     type: String,
@@ -61,6 +64,9 @@ function handleBeforeInstall(e) {
 }
 
 const showBanner = computed(() => {
+  if (!isPwaEnabled())
+    return false
+
   if (isStandalone.value || isDismissed.value)
     return false
 

@@ -1,1 +1,0 @@
-import{eW as t,eX as s}from"./index-CzxvwHA0.js";async function n(){const e=await t.get("/bracelets");return s(e)}async function c(e){const a=await t.post("/bracelets",e);return s(a)}export{c,n as f};

@@ -1,1 +1,0 @@
-import{eQ as r,S as a,o,h as s,L as t}from"./index-CzxvwHA0.js";const _={__name:"index",setup(n){const e=r();return a(()=>{e.replace({name:"nightpos-cash"})}),(c,p)=>(o(),s(t,{indeterminate:""}))}};export{_ as default};

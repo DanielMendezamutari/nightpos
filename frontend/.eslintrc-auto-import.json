@@ -513,6 +513,8 @@
     "useWaiterMoreMenu": true,
     "useNetworkStatus": true,
     "usePwaManifest": true,
-    "useSwUpdate": true
+    "useSwUpdate": true,
+    "isPwaEnabled": true,
+    "unregisterServiceWorkersIfDisabled": true
   }
 }

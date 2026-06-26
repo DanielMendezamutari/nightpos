@@ -133,6 +133,7 @@ declare global {
   const isObject: typeof import('./src/@core/utils/helpers.js')['isObject']
   const isProxy: typeof import('vue')['isProxy']
   const isPublicRoute: typeof import('./src/utils/routerGuardHelpers.js')['isPublicRoute']
+  const isPwaEnabled: typeof import('./src/utils/pwaEnabled.js')['isPwaEnabled']
   const isReactive: typeof import('vue')['isReactive']
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
@@ -187,6 +188,7 @@ declare global {
   const orderItemStatusLabel: typeof import('./src/composables/useOrderHelpers.js')['orderItemStatusLabel']
   const orderStatusColor: typeof import('./src/composables/useOrderHelpers.js')['orderStatusColor']
   const orderStatusLabel: typeof import('./src/composables/useOrderHelpers.js')['orderStatusLabel']
+  const paginationMeta: typeof import('./src/utils/paginationMeta.js')['paginationMeta']
   const passwordValidator: typeof import('./src/@core/utils/validators.js')['passwordValidator']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
   const paymentModeLabel: typeof import('./src/composables/usePrintTicketFormat.js')['paymentModeLabel']
@@ -259,6 +261,7 @@ declare global {
   const unitsMapToRows: typeof import('./src/composables/useComboAllocation.js')['unitsMapToRows']
   const unref: typeof import('vue')['unref']
   const unrefElement: typeof import('@vueuse/core')['unrefElement']
+  const unregisterServiceWorkersIfDisabled: typeof import('./src/utils/pwaEnabled.js')['unregisterServiceWorkersIfDisabled']
   const until: typeof import('@vueuse/core')['until']
   const urlValidator: typeof import('./src/@core/utils/validators.js')['urlValidator']
   const useAbility: typeof import('./src/plugins/casl/composables/useAbility.js')['useAbility']
@@ -645,6 +648,7 @@ declare module 'vue' {
     readonly isObject: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isObject']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isPublicRoute: UnwrapRef<typeof import('./src/utils/routerGuardHelpers.js')['isPublicRoute']>
+    readonly isPwaEnabled: UnwrapRef<typeof import('./src/utils/pwaEnabled.js')['isPwaEnabled']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
@@ -703,6 +707,7 @@ declare module 'vue' {
     readonly orderItemStatusLabel: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['orderItemStatusLabel']>
     readonly orderStatusColor: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['orderStatusColor']>
     readonly orderStatusLabel: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['orderStatusLabel']>
+    readonly paginationMeta: UnwrapRef<typeof import('./src/utils/paginationMeta.js')['paginationMeta']>
     readonly passwordValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly paymentModeLabel: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['paymentModeLabel']>
@@ -775,6 +780,7 @@ declare module 'vue' {
     readonly unitsMapToRows: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['unitsMapToRows']>
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
+    readonly unregisterServiceWorkersIfDisabled: UnwrapRef<typeof import('./src/utils/pwaEnabled.js')['unregisterServiceWorkersIfDisabled']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
     readonly urlValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['urlValidator']>
     readonly useAbility: UnwrapRef<typeof import('./src/plugins/casl/composables/useAbility.js')['useAbility']>
@@ -1153,6 +1159,7 @@ declare module '@vue/runtime-core' {
     readonly isObject: UnwrapRef<typeof import('./src/@core/utils/helpers.js')['isObject']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isPublicRoute: UnwrapRef<typeof import('./src/utils/routerGuardHelpers.js')['isPublicRoute']>
+    readonly isPwaEnabled: UnwrapRef<typeof import('./src/utils/pwaEnabled.js')['isPwaEnabled']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
@@ -1211,6 +1218,7 @@ declare module '@vue/runtime-core' {
     readonly orderItemStatusLabel: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['orderItemStatusLabel']>
     readonly orderStatusColor: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['orderStatusColor']>
     readonly orderStatusLabel: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['orderStatusLabel']>
+    readonly paginationMeta: UnwrapRef<typeof import('./src/utils/paginationMeta.js')['paginationMeta']>
     readonly passwordValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['passwordValidator']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly paymentModeLabel: UnwrapRef<typeof import('./src/composables/usePrintTicketFormat.js')['paymentModeLabel']>
@@ -1283,6 +1291,7 @@ declare module '@vue/runtime-core' {
     readonly unitsMapToRows: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['unitsMapToRows']>
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
+    readonly unregisterServiceWorkersIfDisabled: UnwrapRef<typeof import('./src/utils/pwaEnabled.js')['unregisterServiceWorkersIfDisabled']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
     readonly urlValidator: UnwrapRef<typeof import('./src/@core/utils/validators.js')['urlValidator']>
     readonly useAbility: UnwrapRef<typeof import('./src/plugins/casl/composables/useAbility.js')['useAbility']>

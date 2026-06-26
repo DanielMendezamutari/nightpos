@@ -1,4 +1,6 @@
 import { fileURLToPath } from 'node:url'
+import { unlinkSync } from 'node:fs'
+import { join } from 'node:path'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
@@ -6,15 +8,18 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { VueRouterAutoImports, getPascalCaseRouteName } from 'unplugin-vue-router'
 import VueRouter from 'unplugin-vue-router/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import Layouts from 'vite-plugin-vue-layouts'
 import { VitePWA } from 'vite-plugin-pwa'
 import vuetify from 'vite-plugin-vuetify'
 import svgLoader from 'vite-svg-loader'
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const pwaEnabled = env.VITE_PWA_ENABLED !== 'false'
+
+  const plugins = [
     // Docs: https://github.com/posva/unplugin-vue-router
     // ℹ️ This plugin should be placed before vue plugin
     VueRouter({
@@ -93,8 +98,10 @@ export default defineConfig({
       ],
     }),
     svgLoader(),
+  ]
 
-    VitePWA({
+  if (pwaEnabled) {
+    plugins.push(VitePWA({
       registerType: 'prompt',
       injectRegister: 'script',
       // Manifests are managed in public/ and injected dynamically per context.
@@ -112,7 +119,6 @@ export default defineConfig({
           /^\/backend\/public\/api\//,
           /\/manifest.*\.webmanifest$/,
           /^\/events\//,
-          /\/events\//,
           /\/sanctum\//,
           /\/broadcasting\//,
           /\/storage\//,
@@ -152,8 +158,36 @@ export default defineConfig({
         skipWaiting: false,
         clientsClaim: false,
       },
-    }),
-  ],
+    }))
+  }
+  else {
+    plugins.push({
+      name: 'nightpos-strip-pwa-html',
+      transformIndexHtml(html) {
+        return html
+          .replace(/<!--\s*[\s\S]*?Manifest caja[\s\S]*?-->\s*/i, '')
+          .replace(/<link id="pwa-manifest"[^>]*>\s*/i, '')
+          .replace(/<!-- Progressive Web App metadata -->[\s\S]*?<!-- Microsoft tiles -->[\s\S]*?<meta name="msapplication-TileImage"[^>]*>\s*/i, '')
+      },
+    })
+  }
+
+  if (env.VITE_USE_MSW !== 'true') {
+    plugins.push({
+      name: 'nightpos-strip-msw-artifact',
+      closeBundle() {
+        try {
+          unlinkSync(join(process.cwd(), 'dist', 'mockServiceWorker.js'))
+        }
+        catch {
+          // dist/mockServiceWorker.js absent — OK
+        }
+      },
+    })
+  }
+
+  return {
+  plugins,
   define: { 'process.env': {} },
   resolve: {
     alias: {
@@ -166,6 +200,11 @@ export default defineConfig({
       '@configured-variables': fileURLToPath(new URL('./src/assets/styles/variables/_template.scss', import.meta.url)),
       '@db': fileURLToPath(new URL('./src/plugins/fake-api/handlers/', import.meta.url)),
       '@api-utils': fileURLToPath(new URL('./src/plugins/fake-api/utils/', import.meta.url)),
+      ...(pwaEnabled
+        ? {}
+        : {
+            'virtual:pwa-register/vue': fileURLToPath(new URL('./src/utils/pwaRegisterStub.js', import.meta.url)),
+          }),
     },
   },
   server: {
@@ -186,4 +225,5 @@ export default defineConfig({
       './src/**/*.vue',
     ],
   },
+  }
 })

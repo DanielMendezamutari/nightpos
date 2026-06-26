@@ -12,6 +12,7 @@ import NightPosGlobalSnackbar from '@/components/nightpos/layout/NightPosGlobalS
 import { hexToRgb } from '@layouts/utils'
 import { usePwaManifest } from '@/composables/usePwaManifest'
 import { useSwUpdate } from '@/composables/useSwUpdate'
+import { isPwaEnabled } from '@/utils/pwaEnabled'
 
 const { global } = useTheme()
 
@@ -22,10 +23,12 @@ initConfigStore()
 const configStore = useConfigStore()
 const { showMaterializeCustomizer } = useShowMaterializeCustomizer()
 
-// PWA — dynamically swap manifest per route context.
+const pwaEnabled = isPwaEnabled()
+
+// PWA — dynamically swap manifest per route context (no-op when disabled).
 usePwaManifest()
 
-// PWA — track service worker updates.
+// PWA — track service worker updates (no-op when disabled).
 const { needsUpdate, applyUpdate } = useSwUpdate()
 </script>
 
@@ -40,7 +43,7 @@ const { needsUpdate, applyUpdate } = useSwUpdate()
 
       <!-- PWA update notification -->
       <VSnackbar
-        v-if="needsUpdate"
+        v-if="pwaEnabled && needsUpdate"
         :model-value="needsUpdate"
         location="bottom"
         color="primary"

@@ -1,0 +1,1 @@
+import{eV as t,eW as s}from"./index-UQ56zYDF.js";async function r(a){const o=await t.post("/admin/platform/setup",a);return s(o)}async function e(){const a=await t.get("/admin/platform/dashboard");return s(a)}export{e as f,r as p};

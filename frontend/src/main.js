@@ -1,10 +1,14 @@
 import { createApp } from 'vue'
 import App from '@/App.vue'
 import { registerPlugins } from '@core/utils/plugins'
+import { unregisterServiceWorkersIfDisabled } from '@/utils/pwaEnabled'
 
 // Styles
 import '@core/scss/template/index.scss'
 import '@styles/styles.scss'
+
+// Drop legacy service workers when PWA is disabled (production rollback).
+unregisterServiceWorkersIfDisabled()
 
 // Create vue app
 const app = createApp(App)

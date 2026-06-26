@@ -6,17 +6,16 @@
  *   2. A snackbar/banner in App.vue shows the update prompt
  *   3. `applyUpdate()` calls `updateSW()` which skips the waiting SW and reloads
  *
- * This avoids silent forced refreshes in the middle of a comanda.
- *
- * Usage in App.vue:
- *   const { needsUpdate, applyUpdate } = useSwUpdate()
+ * Disabled when VITE_PWA_ENABLED=false.
  */
+import { isPwaEnabled } from '@/utils/pwaEnabled'
+
 export function useSwUpdate() {
   const needsUpdate = ref(false)
   const updateSW = ref(null)
 
   onMounted(async () => {
-    if (import.meta.env.DEV)
+    if (import.meta.env.DEV || !isPwaEnabled())
       return
 
     try {

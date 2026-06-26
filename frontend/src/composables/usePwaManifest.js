@@ -13,8 +13,15 @@
  * Note: changing the manifest after the page loads is honoured by Chrome for
  * the install prompt purpose; the installed app retains whatever start_url was
  * active when the user accepted the install.
+ *
+ * No-op when VITE_PWA_ENABLED=false.
  */
+import { isPwaEnabled } from '@/utils/pwaEnabled'
+
 export function usePwaManifest() {
+  if (!isPwaEnabled())
+    return { isWaiterContext: ref(false), manifestHref: ref('') }
+
   const route = useRoute()
 
   const isWaiterContext = computed(() =>
