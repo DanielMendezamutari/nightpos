@@ -525,6 +525,7 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Hosting auth/API stability | `backend/HOSTING_AUTH_API_STABILITY_AUDIT.md`, `frontend/HOSTING_AUTH_API_STABILITY_AUDIT.md`, `*_FIX_REPORT.md` |
 | Hosting ERR_CONNECTION_RESET (P0) | `backend/HOSTING_CONNECTION_RESET_FIX_REPORT.md`, `frontend/HOSTING_CONNECTION_RESET_FIX_REPORT.md` |
 | PWA rollback hosting (P0) | `frontend/PWA_HOSTING_ROLLBACK_FIX_REPORT.md`, `backend/HOSTING_DEPLOY_STRUCTURE_FIX_REPORT.md` |
+| Hosting login PIN JWT (P0) | `backend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md` |
 
 ---
 
@@ -599,6 +600,25 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 **Reportes:** `backend/HOSTING_CONNECTION_RESET_FIX_REPORT.md`, `frontend/HOSTING_CONNECTION_RESET_FIX_REPORT.md`.
 
 **Siguiente paso operativo:** ejecutar en hosting `php artisan optimize:clear` + `migrate --force` + revisar error_log (LSAPI / entry processes / CPU limit).
+
+---
+
+## Hosting — Login PIN "Key cannot be empty" (P0 — 2026-06-25)
+
+**Causa:** `JWT_SECRET` vacío en hosting (mensaje de lcobucci/jwt). **No** es `device_key` del frontend.
+
+| Entrega | Estado |
+|---------|--------|
+| Diagnóstico: login-pin no usa device_key | ✅ |
+| `JwtNotConfiguredException` + validación en `JwtAuthRepository` | ✅ |
+| API 503 `jwt_not_configured` + mensaje claro | ✅ |
+| Health `/api/v1/health` campo `jwt` | ✅ |
+| Frontend: mapeo UX error JWT config | ✅ |
+| Tests `AuthApiTest` + `HealthEndpointTest` | ✅ |
+
+**Fix hosting:** `php artisan jwt:secret --force` + `php artisan optimize:clear` + verificar `jwt: up` en health.
+
+**Reportes:** `backend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`.
 
 ---
 

@@ -128,3 +128,32 @@ it('stores pin as hash not plain text', function () {
     expect($cashier->pin_hash)->not->toBe('1234')
         ->and(strlen((string) $cashier->pin_hash))->toBeGreaterThan(20);
 });
+
+it('returns jwt_not_configured on pin login when jwt secret is empty', function () {
+    config(['jwt.secret' => '']);
+
+    $this->postJson('/api/v1/auth/login-pin', [
+        'pin' => '1234',
+        'tenant_slug' => 'casa-demo',
+        'branch_code' => 'CENTRO',
+    ])
+        ->assertStatus(503)
+        ->assertJsonPath('success', false)
+        ->assertJsonPath('data.code', 'jwt_not_configured')
+        ->assertJsonPath(
+            'message',
+            'La autenticación del servidor no está configurada. Contacte al administrador del sistema.',
+        );
+});
+
+it('returns jwt_not_configured on password login when jwt secret is empty', function () {
+    config(['jwt.secret' => '']);
+
+    $this->postJson('/api/v1/auth/login-password', [
+        'username' => 'admin.demo',
+        'password' => 'AdminDemo123!',
+        'tenant_slug' => 'casa-demo',
+    ])
+        ->assertStatus(503)
+        ->assertJsonPath('data.code', 'jwt_not_configured');
+});

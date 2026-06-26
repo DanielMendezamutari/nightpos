@@ -13,6 +13,7 @@ final class HealthController extends Controller
     public function __invoke(): JsonResponse
     {
         $dbOk = false;
+        $jwtOk = false;
 
         try {
             DB::connection()->getPdo();
@@ -23,11 +24,15 @@ final class HealthController extends Controller
             $dbOk = false;
         }
 
+        $jwtSecret = config('jwt.secret');
+        $jwtOk = is_string($jwtSecret) && trim($jwtSecret) !== '';
+
         return response()->json([
-            'ok' => $dbOk,
+            'ok' => $dbOk && $jwtOk,
             'time' => now()->toIso8601String(),
             'version' => (string) config('nightpos.platform_operations.backend_version', '1.0.0'),
             'db' => $dbOk ? 'up' : 'down',
-        ], $dbOk ? 200 : 503);
+            'jwt' => $jwtOk ? 'up' : 'down',
+        ], ($dbOk && $jwtOk) ? 200 : 503);
     }
 }

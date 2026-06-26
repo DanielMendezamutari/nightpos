@@ -10,5 +10,6 @@ it('returns health json without authentication', function () {
     $this->getJson('/api/v1/health')
         ->assertOk()
         ->assertJsonPath('ok', true)
-        ->assertJsonStructure(['time', 'version', 'db']);
+        ->assertJsonStructure(['time', 'version', 'db', 'jwt'])
+        ->assertJsonPath('jwt', 'up');
 });

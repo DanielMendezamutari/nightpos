@@ -2,6 +2,7 @@
 
 use App\Domain\Auth\Exceptions\BranchAccessDeniedException;
 use App\Domain\Auth\Exceptions\InvalidCredentialsException;
+use App\Domain\Auth\Exceptions\JwtNotConfiguredException;
 use App\Domain\Auth\Exceptions\PermissionDeniedException;
 use App\Domain\Auth\Exceptions\TenantAccessDeniedException;
 use App\Domain\Printing\Exceptions\PrintingDomainException;
@@ -76,6 +77,7 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             $status = match (true) {
+                $exception instanceof JwtNotConfiguredException => 503,
                 $exception instanceof InvalidCredentialsException => 401,
                 $exception instanceof TenantAccessDeniedException,
                 $exception instanceof BranchAccessDeniedException,
@@ -118,9 +120,12 @@ return Application::configure(basePath: dirname(__DIR__))
             return response()->json([
                 'success' => false,
                 'message' => $exception->getMessage(),
-                'data' => $exception instanceof SettlementCashSessionRequiredException && config('app.debug')
-                    ? (object) ['cash_session_debug' => $exception->debugContext]
-                    : (object) [],
+                'data' => match (true) {
+                    $exception instanceof JwtNotConfiguredException => (object) ['code' => 'jwt_not_configured'],
+                    $exception instanceof SettlementCashSessionRequiredException && config('app.debug')
+                        => (object) ['cash_session_debug' => $exception->debugContext],
+                    default => (object) [],
+                },
                 'errors' => (object) [],
             ], $status);
         });

@@ -151,6 +151,17 @@ export function classifyApiError(error) {
     }
   }
 
+  if (
+    apiCode === 'jwt_not_configured'
+    || /key cannot be empty/i.test(serverMessage || '')
+    || /jwt_secret/i.test(serverMessage || '')
+  ) {
+    return {
+      kind: 'jwt_config',
+      userMessage: 'Error de configuración del servidor. Contacte al administrador del sistema.',
+    }
+  }
+
   if (status >= 500) {
     return {
       kind: 'server',

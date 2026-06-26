@@ -7,6 +7,7 @@ namespace App\Infrastructure\Laravel\Http;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Lcobucci\JWT\Signer\InvalidKeyProvided;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\JWTException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenBlacklistedException;
 use PHPOpenSourceSaver\JWTAuth\Exceptions\TokenExpiredException;
@@ -48,6 +49,29 @@ final class ApiJwtExceptionRenderer
         $register(function (AuthenticationException $exception, Request $request) {
             return self::render($request, 'No autenticado.', 'unauthenticated');
         });
+
+        $register(function (InvalidKeyProvided $exception, Request $request) {
+            Log::error('auth.jwt.misconfigured', [
+                'path' => $request->path(),
+                'reason' => $exception->getMessage(),
+            ]);
+
+            return self::renderMisconfigured($request);
+        });
+    }
+
+    private static function renderMisconfigured(Request $request)
+    {
+        if (! $request->is('api/*')) {
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'La autenticación del servidor no está configurada. Contacte al administrador del sistema.',
+            'data' => (object) ['code' => 'jwt_not_configured'],
+            'errors' => (object) [],
+        ], 503);
     }
 
     private static function render(Request $request, string $message, string $code)
