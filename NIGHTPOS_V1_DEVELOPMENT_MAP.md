@@ -523,6 +523,8 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | SaaS planes (SAAS-1) | `backend/SAAS_PLAN_MANAGEMENT_REPORT.md`, `frontend/SAAS_PLAN_MANAGEMENT_REPORT.md` |
 | SaaS Control Center (SAAS-1.5) | `backend/SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md`, `frontend/SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md` |
 | Hosting auth/API stability | `backend/HOSTING_AUTH_API_STABILITY_AUDIT.md`, `frontend/HOSTING_AUTH_API_STABILITY_AUDIT.md`, `*_FIX_REPORT.md` |
+| Hosting ERR_CONNECTION_RESET (P0) | `backend/HOSTING_CONNECTION_RESET_FIX_REPORT.md`, `frontend/HOSTING_CONNECTION_RESET_FIX_REPORT.md` |
+| PWA rollback hosting (P0) | `frontend/PWA_HOSTING_ROLLBACK_FIX_REPORT.md`, `backend/HOSTING_DEPLOY_STRUCTURE_FIX_REPORT.md` |
 
 ---
 
@@ -555,8 +557,9 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Tests `Saas15PlatformOperationsTest` (16) | ✅ |
 | Reportes `SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md` | ✅ |
 | Bugfix índice MySQL + Control Center 404 (2026-06-25) | ✅ |
+| Hosting performance: cache dashboard + índices + lookback métricas | ✅ |
 
-**Siguiente fase:** SAAS-2 V1 — Suscripciones + cobro manual (auditoría completada 2026-06-25). **No iniciar SAAS-2 hasta QA Control Center.**
+**Siguiente fase:** SAAS-2 V1 — Suscripciones + cobro manual (auditoría completada 2026-06-25). **No iniciar SAAS-2 hasta hosting estable + QA Control Center.**
 
 ---
 
@@ -572,6 +575,30 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Tests `AuthApiTest` ampliados | ✅ |
 
 **Deploy hosting:** `php artisan optimize:clear` + verificar `config('jwt.ttl')` + `npm run build` + logout/login clientes.
+
+---
+
+## Hosting — ERR_CONNECTION_RESET (P0 — 2026-06-25)
+
+**Bloqueo:** no avanzar SAAS-2 ni features hasta que el dominio responda estable.
+
+| Entrega | Estado |
+|---------|--------|
+| Diagnóstico + checklist hosting | ✅ docs |
+| `public/health.php` (PHP sin Laravel) | ✅ |
+| `GET /api/v1/health` + test | ✅ |
+| Migración SAAS-1.5 índices cortos (`tenant_chk_item_unique`) | ✅ |
+| Migración índices rendimiento (`2026_06_25_160000_hosting_performance_indexes`) | ✅ |
+| Cache 60 s Control Center dashboard/lista | ✅ |
+| Lookback 90 días métricas SAAS-1.5 | ✅ |
+| Deploy frontend dist limpio (doc) | ✅ |
+| Confirmación en producción Ribersoft | ⏳ pendiente checklist hosting |
+
+**Orden de prueba:** `/health.php` → `/api/v1/health` → `/api/v1/auth/login-context/tenants` → SPA → Control Center.
+
+**Reportes:** `backend/HOSTING_CONNECTION_RESET_FIX_REPORT.md`, `frontend/HOSTING_CONNECTION_RESET_FIX_REPORT.md`.
+
+**Siguiente paso operativo:** ejecutar en hosting `php artisan optimize:clear` + `migrate --force` + revisar error_log (LSAPI / entry processes / CPU limit).
 
 ---
 
@@ -1265,24 +1292,22 @@ Todos **PASS** en backend (tests + código). Smoke manual UI recomendado: Caso 9
 
 ## FEATURE — NightPOS como app instalable PWA V1 (2026-06-25)
 
-**Estado:** ✅ Implementado
+**Estado:** ⏸️ **Pausado en producción** — rollback `VITE_PWA_ENABLED=false` hasta hosting estable (V1.1)
 
 | Componente | Detalle |
 |------------|---------|
-| `vite-plugin-pwa` + Workbox | SW producción, precache assets, NetworkOnly API, navigateFallback SPA |
-| `manifest.webmanifest` | Caja/Admin — `start_url: /login`, `orientation: any` |
-| `manifest-waiter.webmanifest` | Garzón — `start_url: /nightpos/waiter`, `orientation: portrait` |
-| Iconos SVG | `public/icons/icon-192.svg`, `icon-512.svg`, `icon-maskable.svg` |
-| `index.html` | Metas iOS PWA, apple-touch-icon, id `pwa-manifest` para swap |
-| `usePwaManifest.js` | Swap manifest por ruta (waiter vs caja) |
-| `useNetworkStatus.js` | Online/offline via VueUse `useOnline` |
-| `useSwUpdate.js` | Detecta SW nuevo, snackbar no-disruptivo en App.vue |
-| `InstallPwaBanner.vue` | Prompt Android/Chrome/Edge + pasos iOS Safari |
-| `OfflineBanner.vue` | Alerta offline + chip "Conexión restaurada" |
-| `App.vue` | Manifest switch + SW update global |
-| `CashierShell.vue` + `waiter/index.vue` | Banners integrados |
+| `VITE_PWA_ENABLED` | `false` en `.env.production` → SPA sin SW |
+| `vite-plugin-pwa` + Workbox | Solo en build si flag `true` |
+| `manifest.webmanifest` / waiter | Sin swap dinámico cuando PWA off |
+| `InstallPwaBanner.vue` | Oculto cuando PWA off |
+| `OfflineBanner.vue` | Activo (red; no SW) |
+| Unregister SW legacy | `main.js` al cargar con PWA off |
 
-**Documentos:** `frontend/PWA_IMPLEMENTATION_REPORT.md`, `frontend/WAITER_PWA_INSTALL_GUIDE.md`, `desktop/INSTALL_WINDOWS_PWA.md`
+**Rollback docs:** `frontend/PWA_HOSTING_ROLLBACK_FIX_REPORT.md`, `backend/HOSTING_DEPLOY_STRUCTURE_FIX_REPORT.md`
+
+**Documentos originales:** `frontend/PWA_IMPLEMENTATION_REPORT.md`, `frontend/WAITER_PWA_INSTALL_GUIDE.md`, `desktop/INSTALL_WINDOWS_PWA.md`
+
+**Reactivación:** V1.1 tras 48 h hosting OK + deploy limpio + QA install prompt.
 
 **Backlog V1.1:** Iconos PNG, Capacitor APK, Electron config URL local, `/app-setup` cambio dominio, instalador único Desktop+Agent.
 

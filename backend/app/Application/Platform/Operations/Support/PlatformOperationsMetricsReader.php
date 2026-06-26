@@ -29,10 +29,14 @@ final class PlatformOperationsMetricsReader
 
     private Carbon $todayStart;
 
+    private Carbon $lookbackStart;
+
     public function __construct(?Carbon $now = null)
     {
         $this->now = $now ?? now();
         $this->todayStart = $this->now->copy()->startOfDay();
+        $lookbackDays = max(7, (int) config('nightpos.platform_operations.metrics_lookback_days', 90));
+        $this->lookbackStart = $this->now->copy()->subDays($lookbackDays)->startOfDay();
     }
 
     /**
@@ -52,6 +56,7 @@ final class PlatformOperationsMetricsReader
     public function lastSaleAtByTenant(): array
     {
         return SaleModel::query()
+            ->where('paid_at', '>=', $this->lookbackStart)
             ->selectRaw('tenant_id, MAX(paid_at) as last_at')
             ->groupBy('tenant_id')
             ->pluck('last_at', 'tenant_id')
@@ -93,6 +98,7 @@ final class PlatformOperationsMetricsReader
     public function lastOrderActivityByTenant(): array
     {
         return OrderModel::query()
+            ->where('updated_at', '>=', $this->lookbackStart)
             ->selectRaw('tenant_id, MAX(updated_at) as last_at')
             ->groupBy('tenant_id')
             ->pluck('last_at', 'tenant_id')
@@ -110,6 +116,7 @@ final class PlatformOperationsMetricsReader
         }
 
         return OperationalEventModel::query()
+            ->where('created_at', '>=', $this->lookbackStart)
             ->selectRaw('tenant_id, MAX(created_at) as last_at')
             ->groupBy('tenant_id')
             ->pluck('last_at', 'tenant_id')
@@ -234,7 +241,8 @@ final class PlatformOperationsMetricsReader
 
         $rows = PrintDeviceModel::query()
             ->where('enabled', true)
-            ->get(['tenant_id', 'last_seen_at']);
+            ->selectRaw('tenant_id, last_seen_at')
+            ->get();
 
         $map = [];
         foreach ($rows as $row) {
@@ -341,6 +349,7 @@ final class PlatformOperationsMetricsReader
     {
         return AuditLogModel::query()
             ->whereNotNull('tenant_id')
+            ->where('created_at', '>=', $this->lookbackStart)
             ->selectRaw('tenant_id, MAX(created_at) as last_at')
             ->groupBy('tenant_id')
             ->pluck('last_at', 'tenant_id')

@@ -24,6 +24,8 @@ return [
     ],
     'platform_operations' => [
         'backend_version' => env('NIGHTPOS_BACKEND_VERSION', '1.0.0'),
+        'cache_seconds' => (int) env('NIGHTPOS_OPS_CACHE_SECONDS', 60),
+        'metrics_lookback_days' => (int) env('NIGHTPOS_OPS_METRICS_LOOKBACK_DAYS', 90),
         'activity_online_minutes' => (int) env('NIGHTPOS_OPS_ACTIVITY_ONLINE_MINUTES', 15),
         'activity_warning_hours' => (int) env('NIGHTPOS_OPS_ACTIVITY_WARNING_HOURS', 2),
         'activity_offline_hours' => (int) env('NIGHTPOS_OPS_ACTIVITY_OFFLINE_HOURS', 24),

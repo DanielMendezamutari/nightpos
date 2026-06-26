@@ -6,6 +6,7 @@ namespace App\Application\Platform\Operations\Support;
 
 use App\Infrastructure\Persistence\Eloquent\Models\TenantModel;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 final class PlatformOperationsDashboardBuilder
 {
@@ -19,6 +20,28 @@ final class PlatformOperationsDashboardBuilder
      * @return array<string, mixed>
      */
     public function build(): array
+    {
+        $ttl = max(15, (int) config('nightpos.platform_operations.cache_seconds', 60));
+
+        return Cache::remember('platform_ops:dashboard', $ttl, fn (): array => $this->buildDashboardUncached());
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return list<array<string, mixed>>
+     */
+    public function buildTenantList(array $filters = []): array
+    {
+        $ttl = max(15, (int) config('nightpos.platform_operations.cache_seconds', 60));
+        $cacheKey = 'platform_ops:tenants:'.md5(json_encode($filters) ?: '');
+
+        return Cache::remember($cacheKey, $ttl, fn (): array => $this->buildTenantListUncached($filters));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildDashboardUncached(): array
     {
         $now = Carbon::now();
         $reader = $this->metrics;
@@ -99,7 +122,7 @@ final class PlatformOperationsDashboardBuilder
      * @param  array<string, mixed>  $filters
      * @return list<array<string, mixed>>
      */
-    public function buildTenantList(array $filters = []): array
+    private function buildTenantListUncached(array $filters = []): array
     {
         $now = Carbon::now();
         $snapshot = $this->loadSnapshot($this->metrics);

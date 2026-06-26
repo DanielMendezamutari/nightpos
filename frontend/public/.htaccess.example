@@ -1,6 +1,6 @@
 # NightPOS — SPA en raíz + Laravel en /backend/public/
-# Copiar a la raíz del dominio (junto a index.html) como .htaccess
-# Ajustar según hosting (LiteSpeed suele ser compatible con mod_rewrite)
+# El archivo activo es frontend/public/.htaccess (se copia a dist/ en cada build).
+# Este .example se mantiene como referencia; no duplicar reglas en otro sitio.
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
