@@ -109,12 +109,25 @@ export default defineConfig({
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [
           /^\/api\//,
+          /^\/backend\/public\/api\//,
           /\/manifest.*\.webmanifest$/,
+          /^\/events\//,
+          /\/events\//,
+          /\/sanctum\//,
+          /\/broadcasting\//,
+          /\/storage\//,
         ],
         runtimeCaching: [
           {
             // API: always network — never cache responses.
-            urlPattern: /^.*\/api\//,
+            urlPattern: ({ url }) => {
+              const path = url.pathname
+
+              return path.includes('/api/')
+                || path.includes('/sanctum/')
+                || path.includes('/broadcasting/')
+                || path.includes('/events/')
+            },
             handler: 'NetworkOnly',
           },
           {

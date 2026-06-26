@@ -1,0 +1,1 @@
+import{eQ as r,S as s,o as t,h as a,L as o}from"./index-CzxvwHA0.js";const u={__name:"index",setup(n){const e=r();return s(()=>{e.replace({name:"nightpos-services-bracelets"})}),(c,i)=>(t(),a(o,{indeterminate:""}))}};export{u as default};

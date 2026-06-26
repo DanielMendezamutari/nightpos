@@ -111,6 +111,17 @@ it('uses operational jwt ttl default of twelve hours', function () {
     expect((int) config('jwt.ttl'))->toBeGreaterThanOrEqual(720);
 });
 
+it('returns json 401 when accessing me without token', function () {
+    $this->getJson('/api/v1/auth/me')
+        ->assertUnauthorized()
+        ->assertJsonPath('success', false)
+        ->assertJsonPath('data.code', 'unauthenticated');
+});
+
+it('uses jwt blacklist grace period to reduce parallel refresh races', function () {
+    expect((int) config('jwt.blacklist_grace_period'))->toBeGreaterThanOrEqual(30);
+});
+
 it('stores pin as hash not plain text', function () {
     $cashier = UserModel::query()->where('username', 'cajero.demo')->first();
 

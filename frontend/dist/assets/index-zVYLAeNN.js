@@ -1,0 +1,1 @@
+import{eQ as s,S as o,o as r,h as t,L as a}from"./index-CzxvwHA0.js";const u={__name:"index",setup(n){const e=s();return o(()=>{e.replace({name:"nightpos-shifts-close"})}),(c,i)=>(r(),t(a,{indeterminate:""}))}};export{u as default};

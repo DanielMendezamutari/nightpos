@@ -1,1 +1,0 @@
-import{eQ as t,S as o,o as s,c as a}from"./index-xUOaRCB2.js";const c={class:"pa-4 text-center text-medium-emphasis"},i={__name:"index",setup(r){const e=t();return o(()=>{e.replace({name:"nightpos-products"})}),(n,p)=>(s(),a("div",c," Redirigiendo al catálogo de productos… "))}};export{i as default};

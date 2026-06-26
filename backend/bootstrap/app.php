@@ -5,6 +5,7 @@ use App\Domain\Auth\Exceptions\InvalidCredentialsException;
 use App\Domain\Auth\Exceptions\PermissionDeniedException;
 use App\Domain\Auth\Exceptions\TenantAccessDeniedException;
 use App\Domain\Printing\Exceptions\PrintingDomainException;
+use App\Infrastructure\Laravel\Http\ApiJwtExceptionRenderer;
 use App\Infrastructure\Laravel\Http\Middleware\AuthenticatePrintDeviceMiddleware;
 use App\Infrastructure\Laravel\Http\Middleware\EnsureRolePermissionMiddleware;
 use App\Infrastructure\Laravel\Http\Middleware\EnsureUserHasBranchAccessMiddleware;
@@ -65,6 +66,10 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        ApiJwtExceptionRenderer::register(
+            static fn (callable $handler) => $exceptions->render($handler),
+        );
+
         $exceptions->render(function (DomainException $exception, Request $request) {
             if (! $request->is('api/*')) {
                 return null;

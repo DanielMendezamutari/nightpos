@@ -522,6 +522,7 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Despliegue | `DEPLOYMENT_CHECKLIST.md` |
 | SaaS planes (SAAS-1) | `backend/SAAS_PLAN_MANAGEMENT_REPORT.md`, `frontend/SAAS_PLAN_MANAGEMENT_REPORT.md` |
 | SaaS Control Center (SAAS-1.5) | `backend/SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md`, `frontend/SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md` |
+| Hosting auth/API stability | `backend/HOSTING_AUTH_API_STABILITY_AUDIT.md`, `frontend/HOSTING_AUTH_API_STABILITY_AUDIT.md`, `*_FIX_REPORT.md` |
 
 ---
 
@@ -556,6 +557,21 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Bugfix índice MySQL + Control Center 404 (2026-06-25) | ✅ |
 
 **Siguiente fase:** SAAS-2 V1 — Suscripciones + cobro manual (auditoría completada 2026-06-25). **No iniciar SAAS-2 hasta QA Control Center.**
+
+---
+
+## Hosting — Auth / API stability (2026-06-25)
+
+| Entrega | Estado |
+|---------|--------|
+| Auditoría JWT refresh / blacklist / mensajes frontend | ✅ |
+| JSON 401 uniforme para excepciones JWT | ✅ |
+| `JWT_BLACKLIST_GRACE_PERIOD` default 30s | ✅ |
+| Refresh proactivo + mensajes clasificados en axios | ✅ |
+| PWA NetworkOnly reforzado para API/events | ✅ |
+| Tests `AuthApiTest` ampliados | ✅ |
+
+**Deploy hosting:** `php artisan optimize:clear` + verificar `config('jwt.ttl')` + `npm run build` + logout/login clientes.
 
 ---
 
