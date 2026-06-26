@@ -32,6 +32,12 @@ final class PrintDeviceHeartbeatUseCase implements UseCaseInterface
             printerName: isset($input->printerName) ? (string) $input->printerName : null,
             agentVersion: isset($input->agentVersion) ? (string) $input->agentVersion : null,
             lastError: isset($input->lastError) ? (string) $input->lastError : null,
+            hostName: isset($input->hostName) ? (string) $input->hostName : null,
+            osName: isset($input->osName) ? (string) $input->osName : null,
+            osVersion: isset($input->osVersion) ? (string) $input->osVersion : null,
+            arch: isset($input->arch) ? (string) $input->arch : null,
+            ipAddress: isset($input->ipAddress) ? (string) $input->ipAddress : null,
+            printerModel: isset($input->printerModel) ? (string) $input->printerModel : null,
         );
 
         return OperationResult::ok('Heartbeat registrado.');

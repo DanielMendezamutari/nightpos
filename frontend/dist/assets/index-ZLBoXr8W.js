@@ -1,0 +1,1 @@
+import{eQ as o,S as r,o as t,c as a}from"./index-xUOaRCB2.js";const u={__name:"index",setup(s){const e=o();return r(()=>{e.replace({name:"nightpos-rooms-dashboard"})}),(n,c)=>(t(),a("div"))}};export{u as default};

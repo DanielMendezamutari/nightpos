@@ -379,6 +379,7 @@ declare global {
   const useMutationObserver: typeof import('@vueuse/core')['useMutationObserver']
   const useNavigatorLanguage: typeof import('@vueuse/core')['useNavigatorLanguage']
   const useNetwork: typeof import('@vueuse/core')['useNetwork']
+  const useNetworkStatus: typeof import('./src/composables/useNetworkStatus.js')['useNetworkStatus']
   const useNightPosNavItems: typeof import('./src/composables/useNightPosNavItems.js')['useNightPosNavItems']
   const useNightPosNotify: typeof import('./src/composables/useNightPosNotify.js')['useNightPosNotify']
   const useNightPosPermissions: typeof import('./src/composables/useNightPosPermissions.js')['useNightPosPermissions']
@@ -414,6 +415,7 @@ declare global {
   const usePreferredReducedMotion: typeof import('@vueuse/core')['usePreferredReducedMotion']
   const usePrevious: typeof import('@vueuse/core')['usePrevious']
   const useProjection: typeof import('@vueuse/math')['useProjection']
+  const usePwaManifest: typeof import('./src/composables/usePwaManifest.js')['usePwaManifest']
   const useRafFn: typeof import('@vueuse/core')['useRafFn']
   const useRefHistory: typeof import('@vueuse/core')['useRefHistory']
   const useResizeObserver: typeof import('@vueuse/core')['useResizeObserver']
@@ -446,6 +448,7 @@ declare global {
   const useStyleTag: typeof import('@vueuse/core')['useStyleTag']
   const useSum: typeof import('@vueuse/math')['useSum']
   const useSupported: typeof import('@vueuse/core')['useSupported']
+  const useSwUpdate: typeof import('./src/composables/useSwUpdate.js')['useSwUpdate']
   const useSwipe: typeof import('@vueuse/core')['useSwipe']
   const useTemplateRefsList: typeof import('@vueuse/core')['useTemplateRefsList']
   const useTextDirection: typeof import('@vueuse/core')['useTextDirection']
@@ -892,6 +895,7 @@ declare module 'vue' {
     readonly useMutationObserver: UnwrapRef<typeof import('@vueuse/core')['useMutationObserver']>
     readonly useNavigatorLanguage: UnwrapRef<typeof import('@vueuse/core')['useNavigatorLanguage']>
     readonly useNetwork: UnwrapRef<typeof import('@vueuse/core')['useNetwork']>
+    readonly useNetworkStatus: UnwrapRef<typeof import('./src/composables/useNetworkStatus.js')['useNetworkStatus']>
     readonly useNightPosNavItems: UnwrapRef<typeof import('./src/composables/useNightPosNavItems.js')['useNightPosNavItems']>
     readonly useNightPosNotify: UnwrapRef<typeof import('./src/composables/useNightPosNotify.js')['useNightPosNotify']>
     readonly useNightPosPermissions: UnwrapRef<typeof import('./src/composables/useNightPosPermissions.js')['useNightPosPermissions']>
@@ -927,6 +931,7 @@ declare module 'vue' {
     readonly usePreferredReducedMotion: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedMotion']>
     readonly usePrevious: UnwrapRef<typeof import('@vueuse/core')['usePrevious']>
     readonly useProjection: UnwrapRef<typeof import('@vueuse/math')['useProjection']>
+    readonly usePwaManifest: UnwrapRef<typeof import('./src/composables/usePwaManifest.js')['usePwaManifest']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
@@ -959,6 +964,7 @@ declare module 'vue' {
     readonly useStyleTag: UnwrapRef<typeof import('@vueuse/core')['useStyleTag']>
     readonly useSum: UnwrapRef<typeof import('@vueuse/math')['useSum']>
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
+    readonly useSwUpdate: UnwrapRef<typeof import('./src/composables/useSwUpdate.js')['useSwUpdate']>
     readonly useSwipe: UnwrapRef<typeof import('@vueuse/core')['useSwipe']>
     readonly useTemplateRefsList: UnwrapRef<typeof import('@vueuse/core')['useTemplateRefsList']>
     readonly useTextDirection: UnwrapRef<typeof import('@vueuse/core')['useTextDirection']>
@@ -1397,6 +1403,7 @@ declare module '@vue/runtime-core' {
     readonly useMutationObserver: UnwrapRef<typeof import('@vueuse/core')['useMutationObserver']>
     readonly useNavigatorLanguage: UnwrapRef<typeof import('@vueuse/core')['useNavigatorLanguage']>
     readonly useNetwork: UnwrapRef<typeof import('@vueuse/core')['useNetwork']>
+    readonly useNetworkStatus: UnwrapRef<typeof import('./src/composables/useNetworkStatus.js')['useNetworkStatus']>
     readonly useNightPosNavItems: UnwrapRef<typeof import('./src/composables/useNightPosNavItems.js')['useNightPosNavItems']>
     readonly useNightPosNotify: UnwrapRef<typeof import('./src/composables/useNightPosNotify.js')['useNightPosNotify']>
     readonly useNightPosPermissions: UnwrapRef<typeof import('./src/composables/useNightPosPermissions.js')['useNightPosPermissions']>
@@ -1432,6 +1439,7 @@ declare module '@vue/runtime-core' {
     readonly usePreferredReducedMotion: UnwrapRef<typeof import('@vueuse/core')['usePreferredReducedMotion']>
     readonly usePrevious: UnwrapRef<typeof import('@vueuse/core')['usePrevious']>
     readonly useProjection: UnwrapRef<typeof import('@vueuse/math')['useProjection']>
+    readonly usePwaManifest: UnwrapRef<typeof import('./src/composables/usePwaManifest.js')['usePwaManifest']>
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
@@ -1464,6 +1472,7 @@ declare module '@vue/runtime-core' {
     readonly useStyleTag: UnwrapRef<typeof import('@vueuse/core')['useStyleTag']>
     readonly useSum: UnwrapRef<typeof import('@vueuse/math')['useSum']>
     readonly useSupported: UnwrapRef<typeof import('@vueuse/core')['useSupported']>
+    readonly useSwUpdate: UnwrapRef<typeof import('./src/composables/useSwUpdate.js')['useSwUpdate']>
     readonly useSwipe: UnwrapRef<typeof import('@vueuse/core')['useSwipe']>
     readonly useTemplateRefsList: UnwrapRef<typeof import('@vueuse/core')['useTemplateRefsList']>
     readonly useTextDirection: UnwrapRef<typeof import('@vueuse/core')['useTextDirection']>

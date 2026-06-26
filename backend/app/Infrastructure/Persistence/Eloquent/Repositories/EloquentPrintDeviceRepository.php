@@ -120,17 +120,44 @@ final class EloquentPrintDeviceRepository implements PrintDeviceRepositoryInterf
         ?string $printerName,
         ?string $agentVersion,
         ?string $lastError,
+        ?string $hostName = null,
+        ?string $osName = null,
+        ?string $osVersion = null,
+        ?string $arch = null,
+        ?string $ipAddress = null,
+        ?string $printerModel = null,
     ): void {
+        $updates = [
+            'last_seen_at' => now(),
+            'printer_name' => $printerName,
+            'agent_version' => $agentVersion,
+            'last_error' => $lastError,
+        ];
+
+        if ($hostName !== null) {
+            $updates['host_name'] = $hostName;
+        }
+        if ($osName !== null) {
+            $updates['os_name'] = $osName;
+        }
+        if ($osVersion !== null) {
+            $updates['os_version'] = $osVersion;
+        }
+        if ($arch !== null) {
+            $updates['arch'] = $arch;
+        }
+        if ($ipAddress !== null) {
+            $updates['ip_address'] = $ipAddress;
+        }
+        if ($printerModel !== null) {
+            $updates['printer_model'] = $printerModel;
+        }
+
         PrintDeviceModel::query()
             ->where('id', $id)
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->update([
-                'last_seen_at' => now(),
-                'printer_name' => $printerName,
-                'agent_version' => $agentVersion,
-                'last_error' => $lastError,
-            ]);
+            ->update($updates);
     }
 
     /**

@@ -5,7 +5,6 @@ import { useNightPosShell } from '@/composables/useNightPosShell'
 import { useAuthStore } from '@/stores/auth'
 import { useContextStore } from '@/stores/context'
 import { useOperationalStore } from '@/stores/operational'
-import { resolveHomeRoute } from '@/utils/resolveHomeRoute'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -81,10 +80,7 @@ const onMenuAction = item => {
   if (item.action === 'branch')
     showBranchDialog.value = true
   else if (item.action === 'profile') {
-    router.push(resolveHomeRoute(auth.user, {
-      tenantSlug: contextStore.tenantSlug,
-      branchCode: contextStore.branchCode,
-    }))
+    router.push({ name: 'nightpos-account-profile' })
   }
 }
 

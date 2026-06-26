@@ -46,5 +46,11 @@ interface PrintDeviceRepositoryInterface extends RepositoryInterface
         ?string $printerName,
         ?string $agentVersion,
         ?string $lastError,
+        ?string $hostName = null,
+        ?string $osName = null,
+        ?string $osVersion = null,
+        ?string $arch = null,
+        ?string $ipAddress = null,
+        ?string $printerModel = null,
     ): void;
 }

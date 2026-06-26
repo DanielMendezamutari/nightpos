@@ -104,6 +104,12 @@ final class PrintDeviceController extends Controller
             'printerName' => $validated['printer_name'] ?? null,
             'agentVersion' => $validated['agent_version'] ?? null,
             'lastError' => $validated['last_error'] ?? null,
+            'hostName' => $validated['host_name'] ?? null,
+            'osName' => $validated['os_name'] ?? null,
+            'osVersion' => $validated['os_version'] ?? null,
+            'arch' => $validated['arch'] ?? null,
+            'ipAddress' => $validated['ip_address'] ?? null,
+            'printerModel' => $validated['printer_model'] ?? null,
         ]));
     }
 

@@ -185,6 +185,7 @@ export default [
     requiresSuperAdmin: true,
     children: [
       { title: 'Dashboard SaaS', to: 'nightpos-platform-dashboard' },
+      { title: 'Control Center', to: 'nightpos-platform-control-center' },
       { title: 'Setup empresa', to: 'nightpos-platform-setup', action: 'access', subject: 'platform.setup' },
       {
         title: 'Empresas',

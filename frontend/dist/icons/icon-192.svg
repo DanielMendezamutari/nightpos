@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <!-- Background -->
+  <rect width="192" height="192" rx="40" fill="#1a1a2e"/>
+  <!-- NightPOS logo  three rotated pill shapes forming an "N" -->
+  <g transform="translate(96 96)">
+    <!-- Left pillar -->
+    <rect x="-52" y="-44" width="24" height="70" rx="12"
+          fill="#666CFF"
+          transform="rotate(-30)"/>
+    <!-- Right pillar -->
+    <rect x="28" y="-44" width="24" height="70" rx="12"
+          fill="#666CFF"
+          transform="rotate(30)"/>
+    <!-- Cross bar -->
+    <rect x="-36" y="-8" width="72" height="20" rx="10"
+          fill="#666CFF"
+          transform="rotate(-15) skewX(30)"/>
+  </g>
+</svg>

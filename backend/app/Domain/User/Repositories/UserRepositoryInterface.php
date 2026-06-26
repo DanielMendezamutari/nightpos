@@ -89,6 +89,10 @@ interface UserRepositoryInterface extends RepositoryInterface
 
     public function resetPasswordForTenant(int $userId, int $tenantId, string $passwordPlain): void;
 
+    public function updatePasswordById(int $userId, string $passwordPlain): void;
+
+    public function updatePinById(int $userId, string $pinPlain): void;
+
     public function grantBranchAccess(int $userId, int $tenantId, int $branchId): void;
 
     public function revokeBranchAccess(int $userId, int $tenantId, int $branchId): void;

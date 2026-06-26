@@ -3,6 +3,8 @@ import WaiterBottomNav from '@/components/nightpos/waiter/WaiterBottomNav.vue'
 import WaiterMobileHeader from '@/components/nightpos/waiter/WaiterMobileHeader.vue'
 import WaiterTablesGrid from '@/components/nightpos/waiter/WaiterTablesGrid.vue'
 import NightPosSseBanner from '@/components/nightpos/layout/NightPosSseBanner.vue'
+import InstallPwaBanner from '@/components/nightpos/layout/InstallPwaBanner.vue'
+import OfflineBanner from '@/components/nightpos/layout/OfflineBanner.vue'
 import { useWaiterTables } from '@/composables/useWaiterTables'
 
 definePage({
@@ -31,6 +33,10 @@ const hasTables = computed(() => summary.value.total > 0)
     <WaiterMobileHeader title="Mis mesas" />
 
     <VContainer class="py-3 px-4">
+      <InstallPwaBanner context="waiter" />
+
+      <OfflineBanner />
+
       <NightPosSseBanner
         :connected="sseConnected"
         :reconnecting="sseReconnecting"

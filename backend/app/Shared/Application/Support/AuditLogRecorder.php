@@ -8,6 +8,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\AuditLogModel;
 use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 use App\Shared\Contracts\BranchContextInterface;
 use App\Shared\Contracts\TenantContextInterface;
+
 final class AuditLogRecorder
 {
     public function __construct(
@@ -34,10 +35,79 @@ final class AuditLogRecorder
 
         $branch = $this->branchContext->branch();
 
+        $this->write(
+            tenantId: $tenant->id,
+            branchId: $branch?->id,
+            userId: $this->staffContext->userId(),
+            action: $action,
+            subjectType: $subjectType,
+            subjectId: $subjectId,
+            metadata: $metadata,
+        );
+    }
+
+    /**
+     * Eventos de plataforma (superadmin, provisioning CLI) sin tenant activo.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public function recordPlatform(
+        int $userId,
+        string $action,
+        ?string $subjectType = null,
+        ?int $subjectId = null,
+        array $metadata = [],
+    ): void {
+        $this->write(
+            tenantId: null,
+            branchId: null,
+            userId: $userId,
+            action: $action,
+            subjectType: $subjectType,
+            subjectId: $subjectId,
+            metadata: $metadata,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    public function recordForUser(
+        ?int $tenantId,
+        ?int $branchId,
+        int $userId,
+        string $action,
+        ?string $subjectType = null,
+        ?int $subjectId = null,
+        array $metadata = [],
+    ): void {
+        $this->write(
+            tenantId: $tenantId,
+            branchId: $branchId,
+            userId: $userId,
+            action: $action,
+            subjectType: $subjectType,
+            subjectId: $subjectId,
+            metadata: $metadata,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function write(
+        ?int $tenantId,
+        ?int $branchId,
+        ?int $userId,
+        string $action,
+        ?string $subjectType,
+        ?int $subjectId,
+        array $metadata,
+    ): void {
         AuditLogModel::query()->create([
-            'tenant_id' => $tenant->id,
-            'branch_id' => $branch?->id,
-            'user_id' => $this->staffContext->userId(),
+            'tenant_id' => $tenantId,
+            'branch_id' => $branchId,
+            'user_id' => $userId,
             'action' => $action,
             'subject_type' => $subjectType,
             'subject_id' => $subjectId,

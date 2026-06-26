@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\Admin\AdminBranchController;
 use App\Http\Controllers\Api\V1\Admin\AdminTenantController;
 use App\Http\Controllers\Api\V1\Admin\AdminUserController;
 use App\Http\Controllers\Api\V1\Admin\PlatformDashboardController;
+use App\Http\Controllers\Api\V1\Admin\PlatformOperationsController;
 use App\Http\Controllers\Api\V1\Admin\PlatformPlanController;
 use App\Http\Controllers\Api\V1\Admin\PlatformSetupController;
 use App\Http\Controllers\Api\V1\CashController;
@@ -57,6 +58,8 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware('auth:api')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
+            Route::patch('me/password', [AuthController::class, 'changePassword']);
+            Route::patch('me/pin', [AuthController::class, 'changePin']);
             Route::post('refresh', [AuthController::class, 'refresh']);
             Route::post('logout', [AuthController::class, 'logout']);
         });
@@ -99,6 +102,17 @@ Route::prefix('v1')->group(function () {
                 Route::get('dashboard', [PlatformDashboardController::class, 'index']);
                 Route::get('plans', [PlatformPlanController::class, 'index']);
                 Route::get('plans/{id}/limits', [PlatformPlanController::class, 'limits'])->whereNumber('id');
+            });
+
+            Route::middleware('nightpos.permission:platform.operations.view')->prefix('platform/operations')->group(function () {
+                Route::get('dashboard', [PlatformOperationsController::class, 'dashboard']);
+                Route::get('tenants', [PlatformOperationsController::class, 'tenants']);
+                Route::get('tenants/{tenantId}', [PlatformOperationsController::class, 'showTenant'])->whereNumber('tenantId');
+                Route::get('print-agents', [PlatformOperationsController::class, 'printAgents']);
+                Route::get('tenants/{tenantId}/technical-profile', [PlatformOperationsController::class, 'showTechnicalProfile'])->whereNumber('tenantId');
+                Route::put('tenants/{tenantId}/technical-profile', [PlatformOperationsController::class, 'updateTechnicalProfile'])->whereNumber('tenantId');
+                Route::get('tenants/{tenantId}/checklist', [PlatformOperationsController::class, 'checklist'])->whereNumber('tenantId');
+                Route::patch('tenants/{tenantId}/checklist/{key}', [PlatformOperationsController::class, 'patchChecklistItem'])->whereNumber('tenantId');
             });
 
             Route::middleware('nightpos.permission:admin.tenants.create')->prefix('platform')->group(function () {

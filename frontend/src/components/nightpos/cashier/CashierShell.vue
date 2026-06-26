@@ -3,6 +3,8 @@ import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.
 import CashierBottomNav from '@/components/nightpos/cashier/CashierBottomNav.vue'
 import CashierDesktopNav from '@/components/nightpos/cashier/CashierDesktopNav.vue'
 import CashierStatusBar from '@/components/nightpos/cashier/CashierStatusBar.vue'
+import InstallPwaBanner from '@/components/nightpos/layout/InstallPwaBanner.vue'
+import OfflineBanner from '@/components/nightpos/layout/OfflineBanner.vue'
 import { useCashierShell } from '@/composables/useCashierShell'
 
 defineProps({
@@ -68,6 +70,11 @@ const onCashOpened = async () => {
     <CashierDesktopNav :active-tab="activeTab" />
 
     <VContainer class="cashier-shell__content px-4">
+      <InstallPwaBanner
+        context="cashier"
+        class="mb-2"
+      />
+      <OfflineBanner class="mb-2" />
       <slot />
     </VContainer>
 

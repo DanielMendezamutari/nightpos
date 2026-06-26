@@ -510,6 +510,9 @@
     "paymentModeLabel": true,
     "resolvePrintLocationLabel": true,
     "useSecondaryNavMenu": true,
-    "useWaiterMoreMenu": true
+    "useWaiterMoreMenu": true,
+    "useNetworkStatus": true,
+    "usePwaManifest": true,
+    "useSwUpdate": true
   }
 }

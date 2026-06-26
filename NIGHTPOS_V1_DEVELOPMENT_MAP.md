@@ -1,6 +1,8 @@
 # NIGHTPOS V1 — MAPA OFICIAL DE DESARROLLO
 
-**Documento maestro de continuidad hacia NightPOS V1.**
+**Documento maestro de continuidad hacia NightPOS V1 y evolución Ribersoft Platform.**
+
+> **Cambio estratégico (2026-06-25):** NightPOS pasa a ser el **primer producto** de **Ribersoft Platform**. Este mapa orquesta tanto V1 operativo del boliche como las fases SaaS comerciales. Ver `backend/SAAS_5_RIBERSOFT_PLATFORM_AUDIT.md` y `frontend/SAAS_5_RIBERSOFT_PLATFORM_AUDIT.md`.
 **Fecha:** 2026-06-06
 **Estado del documento:** Vigente — reemplaza la sección "Roadmap" de auditorías previas como guía de ejecución.
 **Fuentes:** `NIGHTPOS_MASTER_AUDIT.md`, `NIGHTPOS_OPERATION_AUDIT.md`, `CURRENT_SYSTEM_AUDIT.md`, reportes `PHASE_*` / `PHASE_C*` / `PHASE_R*` (backend + frontend), reportes de venta directa, caja, liquidaciones, comandas, garzón y limpieza, y los nuevos `POS_CAT_REPORT.md`.
@@ -15,7 +17,7 @@
 |-----------|--------|
 | **Clasificación** | **MVP operativo con reportes → listo para piloto real** |
 | **% estimado hacia V1 (boliche operable)** | **~99%** (post P0+P1 frontend) |
-| **% estimado hacia producción comercial SaaS** | ~88% (post SAAS-1) |
+| **% estimado hacia producción comercial SaaS** | ~92% operativo / ~45% comercial Ribersoft (post auditoría SAAS-2) |
 | **¿Opera una noche de prueba controlada?** | **Sí** (1 caja, datos precargados, sin impresión obligatoria) |
 | **¿Listo para piloto en local real?** | **Sí** — solo bloquea decisión de impresión y preproducción |
 | **Suite de tests** | **529 passing (100% verde)** |
@@ -519,6 +521,7 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Limpieza | `backend/CLEANING_MOBILE_MODE_REPORT.md`, `ROOM_SERVICE_NOTIFICATIONS_REPORT.md` |
 | Despliegue | `DEPLOYMENT_CHECKLIST.md` |
 | SaaS planes (SAAS-1) | `backend/SAAS_PLAN_MANAGEMENT_REPORT.md`, `frontend/SAAS_PLAN_MANAGEMENT_REPORT.md` |
+| SaaS Control Center (SAAS-1.5) | `backend/SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md`, `frontend/SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md` |
 
 ---
 
@@ -533,7 +536,26 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Dashboard SaaS ampliado | ✅ |
 | Tests `TenantProvisioningTest`, `PlanManagementTest` | ✅ |
 
-**Siguiente fase:** SAAS-2 — Suscripciones (no iniciada).
+**Siguiente fase:** SAAS-1.5 Control Center (implementado 2026-06-25) → luego SAAS-2 Billing.
+
+---
+
+## SAAS-1.5 — Platform Operations / Ribersoft Control Center (completado 2026-06-25)
+
+| Entrega | Estado |
+|---------|--------|
+| API `/admin/platform/operations/*` (dashboard, tenants, detalle, agentes, checklist, perfil técnico) | ✅ |
+| Health score + estados operativos por tenant | ✅ |
+| `PlatformOperationsDashboardBuilder` + analyzer + metrics reader | ✅ |
+| Tablas `tenant_technical_profiles`, `tenant_operation_checklist_items` | ✅ |
+| Metadata opcional heartbeat agente | ✅ |
+| Permiso `platform.operations.view` | ✅ |
+| UI `/nightpos/platform/control-center` + clientes + detalle + agentes | ✅ |
+| Tests `Saas15PlatformOperationsTest` (16) | ✅ |
+| Reportes `SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md` | ✅ |
+| Bugfix índice MySQL + Control Center 404 (2026-06-25) | ✅ |
+
+**Siguiente fase:** SAAS-2 V1 — Suscripciones + cobro manual (auditoría completada 2026-06-25). **No iniciar SAAS-2 hasta QA Control Center.**
 
 ---
 
@@ -1176,6 +1198,230 @@ Todos **PASS** en backend (tests + código). Smoke manual UI recomendado: Caso 9
 **Docs:** `backend/HOSTING_ADMIN_CASH_SESSION_PERMISSION_FIX_REPORT.md`, `frontend/HOSTING_ADMIN_CASH_SESSION_PERMISSION_FIX_REPORT.md`
 
 **Hosting (obligatorio):** `php artisan optimize:clear` → `php artisan migrate --force` → logout/login admin → verificar `GET /auth/me` trae `admin.cash_sessions.summary` y `admin.cash_sessions.force_close`.
+
+---
+
+## AUDITORÍA — Desktop + App Garzón instalable (2026-06-25)
+
+**Estado:** Propuesta aprobada para planificación — **sin código aún**
+
+**Objetivo:** NightPOS como sistema instalado (escritorio sucursal + app garzón móvil), sin duplicar lógica — mismo frontend/backend SaaS.
+
+### Veredicto
+
+| Producto | V1 recomendado | V1.1 | V2 |
+|----------|----------------|------|-----|
+| **PC sucursal (caja/admin)** | PWA Windows + guía instalación (o acceso directo) | Electron + `config.json` + status agente | Auto-update Electron |
+| **Garzón móvil** | PWA (completar SW + iconos) | Capacitor APK si hace falta | Push nativo |
+| **Print Agent** | **Separado** (servicio actual) | Instalador unificado opcional | Version check |
+
+### Hallazgos clave (codebase)
+
+| Área | Estado |
+|------|--------|
+| Login contexto (empresa/sucursal/PIN) | ✅ Cookies 30 d — `login.vue`, `context.js` |
+| Modo garzón móvil | ✅ Rutas `/nightpos/waiter/**` |
+| Manifest PWA | ⚠️ Parcial — garzón, solo favicon, sin SW prod |
+| Service worker | ❌ Solo MSW dev |
+| Agente impresión | ✅ Go service, poll backend, `status.json` local |
+| Integración browser↔agente | ❌ No existe (correcto V1) |
+
+### Entregables auditoría
+
+| Documento | Contenido |
+|-----------|-----------|
+| `desktop/NIGHTPOS_DESKTOP_APP_AUDIT.md` | Electron vs Tauri vs PWA vs shortcut; MVP V1 |
+| `frontend/PWA_WAITER_APP_AUDIT.md` | Gap PWA, propuesta SW/icons, Capacitor V1.1 |
+| `agent/DESKTOP_AGENT_INTEGRATION_AUDIT.md` | Arquitectura agente, status.json, instalador V1.1 |
+
+### Implementación futura (backlog, post-aprobación)
+
+1. `vite-plugin-pwa` + iconos 192/512
+2. Manifest desktop (`start_url: /login`) vs garzón
+3. Pantalla offline / sin conexión
+4. Banner “Instalar app” garzón
+5. Guías operativas sucursal
+6. Spike Electron V1.1 si cliente exige config URL local
+
+**No prometer V1:** offline comandar, push, instalador único, auto-update, status agente en PWA pura.
+
+---
+
+## FEATURE — NightPOS como app instalable PWA V1 (2026-06-25)
+
+**Estado:** ✅ Implementado
+
+| Componente | Detalle |
+|------------|---------|
+| `vite-plugin-pwa` + Workbox | SW producción, precache assets, NetworkOnly API, navigateFallback SPA |
+| `manifest.webmanifest` | Caja/Admin — `start_url: /login`, `orientation: any` |
+| `manifest-waiter.webmanifest` | Garzón — `start_url: /nightpos/waiter`, `orientation: portrait` |
+| Iconos SVG | `public/icons/icon-192.svg`, `icon-512.svg`, `icon-maskable.svg` |
+| `index.html` | Metas iOS PWA, apple-touch-icon, id `pwa-manifest` para swap |
+| `usePwaManifest.js` | Swap manifest por ruta (waiter vs caja) |
+| `useNetworkStatus.js` | Online/offline via VueUse `useOnline` |
+| `useSwUpdate.js` | Detecta SW nuevo, snackbar no-disruptivo en App.vue |
+| `InstallPwaBanner.vue` | Prompt Android/Chrome/Edge + pasos iOS Safari |
+| `OfflineBanner.vue` | Alerta offline + chip "Conexión restaurada" |
+| `App.vue` | Manifest switch + SW update global |
+| `CashierShell.vue` + `waiter/index.vue` | Banners integrados |
+
+**Documentos:** `frontend/PWA_IMPLEMENTATION_REPORT.md`, `frontend/WAITER_PWA_INSTALL_GUIDE.md`, `desktop/INSTALL_WINDOWS_PWA.md`
+
+**Backlog V1.1:** Iconos PNG, Capacitor APK, Electron config URL local, `/app-setup` cambio dominio, instalador único Desktop+Agent.
+
+---
+
+## RIBERSOFT PLATFORM — Visión SAAS-5 (2026-06-25)
+
+**Estado:** Plan maestro arquitectónico — **sin implementación**
+
+NightPOS evoluciona como **producto** dentro de **Ribersoft Platform**: plataforma SaaS multi-producto compartida (CRM, CS, Billing, Marketplace, White Label, Partners, Support, Observability, Public API, Executive Dashboard).
+
+### Capas acumulativas (no reemplazar)
+
+| Capa | Estado | Documento |
+|------|--------|-----------|
+| NightPOS V1 operativo | ~99% | Este mapa §2–4 |
+| SAAS P0 onboarding | ✅ | `SAAS_P0_*_IMPLEMENTATION_REPORT.md` |
+| SAAS-1 planes | ✅ | `SAAS_PLAN_MANAGEMENT_REPORT.md` |
+| SAAS-1.5 Control Center | ✅ | `SAAS_1_5_PLATFORM_OPERATIONS_IMPLEMENTATION_REPORT.md` |
+| SAAS-2 comercial manual | Auditoría | `SAAS_2_COMMERCIAL_AUDIT.md` |
+| SAAS-3 partners/support | Planificado | (dentro SAAS-5) |
+| SAAS-4 automatización | Planificado | (dentro SAAS-5) |
+| **SAAS-5 Ribersoft Platform** | **Plan maestro** | `SAAS_5_RIBERSOFT_PLATFORM_AUDIT.md` (be+fe) |
+
+### Reglas de evolución
+
+1. **No romper** operación POS (Order, Cash, Shift, Room, …).
+2. **No big-bang rewrite** — Strangler Fig + aliases API/rutas.
+3. **SAAS-2 sigue siendo el próximo paso implementable** tras QA de SAAS-1.5; SAAS-5 es el norte a 10 años.
+4. Segundo producto (BeautyPOS, etc.) solo después de `products` registry.
+
+### Próximo paso recomendado
+
+1. QA **SAAS-1.5 Control Center** en entorno Ribersoft (tenants reales + agentes).
+2. Implementar **SAAS-2 V1** (subscriptions + pagos manuales).
+2. Introducir **`products` + `tenant_products`** como puente hacia multi-producto.
+3. Planificar **SAAS-5a CRM** en paralelo diseño, implementación tras SAAS-2 estable.
+
+---
+
+## SAAS-2 — Auditoría comercial (2026-06-25)
+
+**Estado:** Auditoría completada — **sin implementación**
+
+**Entregables:**
+
+- `backend/SAAS_2_COMMERCIAL_AUDIT.md`
+- `frontend/SAAS_2_COMMERCIAL_AUDIT.md`
+
+### Hallazgos clave
+
+| Área | Existe | Falta |
+|------|--------|-------|
+| Planes + límites (SAAS-1) | CRUD, usage informativo | Enforcement, MRR |
+| Suscripciones | Fechas en `tenants` | Tabla `subscriptions`, estados, trial real |
+| Cobros Ribersoft | Nada | Pagos manuales, deuda, periodos |
+| Datos comerciales | name/slug | NIT, contacto, notas, origen |
+| Partners / instaladores | Nada | SAAS-3 |
+| Dashboard | Conteos básicos | MRR, vencimientos, churn |
+| Suspensión | Backend login block | UX banner, past_due, grace |
+| UI plataforma | Planes, tenants, setup | Suscripciones, pagos, vencimientos |
+
+### Fases aprobadas para planificación
+
+| Fase | Alcance |
+|------|---------|
+| **SAAS-2 V1** | Suscripciones, estados tenant, cobros manuales, vencimientos, suspender/reactivar, perfil comercial, historial plan, MRR básico |
+| **SAAS-3 V1.1** | Partners, comisiones, instaladores, tickets, notificaciones internas |
+| **SAAS-4 V2** | Billing auto, pasarela, WhatsApp/email, 2FA, enforcement límites, API pública |
+
+**Prerrequisito cumplido:** SAAS P0 (onboarding operativo) ✅
+
+**Siguiente paso:** Aprobar alcance SAAS-2 V1 e iniciar migraciones `subscriptions` + `subscription_payments`.
+
+---
+
+## SAAS P0 — Superadmin producción + onboarding tenant ✅ (2026-06-25)
+
+**Estado:** Implementado
+
+**Entregables:**
+
+- `backend/SAAS_P0_SUPERADMIN_ONBOARDING_IMPLEMENTATION_REPORT.md`
+- `frontend/SAAS_P0_SUPERADMIN_ONBOARDING_IMPLEMENTATION_REPORT.md`
+- `backend/SAAS_SUPERADMIN_SECURITY_AUDIT.md` (actualizado)
+- `frontend/SAAS_SUPERADMIN_SECURITY_AUDIT.md` (actualizado)
+
+### Completado P0
+
+| Ítem | Estado |
+|------|--------|
+| `php artisan nightpos:create-superadmin` | ✅ |
+| Permisos wizard = demo (`TenantDefaultRolePermissions`) | ✅ |
+| Rol `cashier_senior` en provisioner | ✅ |
+| Bootstrap operativo automático al crear tenant | ✅ |
+| `PATCH /auth/me/password` y `/pin` + audit | ✅ |
+| UI `/nightpos/account/profile` | ✅ |
+| Checklist post-wizard Setup | ✅ |
+| 14 tests `SaasP0SuperadminOnboardingTest` | ✅ |
+
+### Pendiente post-P0 (V1.1+)
+
+- CRUD usuarios globales superadmin (UI/API)
+- Forgot-password backend
+- Enforcement límites plan / billing SAAS-2
+- 2FA / lockout
+
+---
+
+## AUDITORÍA — SaaS Superadmin, seguridad y onboarding tenant (2026-06-25)
+
+**Estado:** Auditoría completada — **P0 implementado** (ver sección anterior)
+
+**Problema original:** Superadmin dependía de seeder demo; tenant wizard sin Impresoras ni config base.
+
+### Causa raíz impresoras / config incompleta (resuelta P0)
+
+| Capa | Hallazgo |
+|------|----------|
+| **No es** | Tablas `printer_settings`, `print_devices` vacías, ni bug impresión |
+| **Sí es** | `TenantDefaultRolePermissions` desalineado vs `SeedsNightPosFoundation` — falta `settings.printers` y ~20 permisos más en `tenant_owner` |
+| **También** | Wizard no invoca `BootstrapBranchOperationalDataUseCase` (métodos pago, áreas, catálogo base) |
+| **También** | Wizard crea 5 roles; demo tiene `cashier_senior` |
+
+### Seguridad — gaps
+
+- Sin `PATCH /auth/me/password|pin`
+- Sin CRUD usuarios globales superadmin
+- Sin forgot-password backend
+- Sin auditoría cambios credenciales
+- Política contraseña débil (login min:4)
+- Sin lockout / 2FA (V2)
+- `settings/security` y `platform/settings` = placeholders frontend
+
+### SaaS comercial — gaps
+
+- Planes CRUD ✅ — enforcement límites ❌
+- Suscripciones SAAS-2 pendiente
+- Sin billing/contacto/notas internas tenant
+
+### Entregables auditoría
+
+- `backend/SAAS_SUPERADMIN_SECURITY_AUDIT.md`
+- `frontend/SAAS_SUPERADMIN_SECURITY_AUDIT.md`
+
+### Plan V1 propuesto (prioridad Ribersoft)
+
+1. `php artisan nightpos:create-superadmin` (bootstrap prod)
+2. Unificar matriz permisos onboarding = demo operativo
+3. Provisioner + bootstrap branch automático
+4. Auth self-service password/PIN + audit log
+5. UI perfil + usuarios globales superadmin
+6. Test: tenant wizard → `/auth/me` incluye `settings.printers`
+
+**Seeders:** solo desarrollo/demo — nunca producción.
 
 ---
 

@@ -323,6 +323,39 @@ final class EloquentUserRepository implements UserRepositoryInterface
         ]);
     }
 
+    public function updatePasswordById(int $userId, string $passwordPlain): void
+    {
+        $model = UserModel::query()->find($userId);
+
+        if ($model === null) {
+            throw UserDomainException::notFound();
+        }
+
+        $model->update([
+            'password' => $passwordPlain,
+        ]);
+    }
+
+    public function updatePinById(int $userId, string $pinPlain): void
+    {
+        $model = UserModel::query()->find($userId);
+
+        if ($model === null) {
+            throw UserDomainException::notFound();
+        }
+
+        $pinFingerprint = PinFingerprint::fromPlain($pinPlain, (string) config('app.key'));
+
+        if ($this->isPinFingerprintTaken($pinFingerprint, $userId)) {
+            throw UserDomainException::duplicatePin();
+        }
+
+        $model->update([
+            'pin_hash' => Hash::make($pinPlain),
+            'pin_fingerprint' => $pinFingerprint,
+        ]);
+    }
+
     public function grantBranchAccess(int $userId, int $tenantId, int $branchId): void
     {
         $this->requireModelForTenant($userId, $tenantId);

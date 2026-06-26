@@ -10,6 +10,8 @@ import {
 import { useShowMaterializeCustomizer } from '@/composables/useShowMaterializeCustomizer'
 import NightPosGlobalSnackbar from '@/components/nightpos/layout/NightPosGlobalSnackbar.vue'
 import { hexToRgb } from '@layouts/utils'
+import { usePwaManifest } from '@/composables/usePwaManifest'
+import { useSwUpdate } from '@/composables/useSwUpdate'
 
 const { global } = useTheme()
 
@@ -19,6 +21,12 @@ initConfigStore()
 
 const configStore = useConfigStore()
 const { showMaterializeCustomizer } = useShowMaterializeCustomizer()
+
+// PWA — dynamically swap manifest per route context.
+usePwaManifest()
+
+// PWA — track service worker updates.
+const { needsUpdate, applyUpdate } = useSwUpdate()
 </script>
 
 <template>
@@ -29,6 +37,26 @@ const { showMaterializeCustomizer } = useShowMaterializeCustomizer()
       <NightPosGlobalSnackbar />
       <ScrollToTop />
       <TheCustomizer v-if="showMaterializeCustomizer" />
+
+      <!-- PWA update notification -->
+      <VSnackbar
+        v-if="needsUpdate"
+        :model-value="needsUpdate"
+        location="bottom"
+        color="primary"
+        timeout="-1"
+        multi-line
+      >
+        <span>Nueva versión disponible.</span>
+        <template #actions>
+          <VBtn
+            variant="text"
+            @click="applyUpdate"
+          >
+            Actualizar
+          </VBtn>
+        </template>
+      </VSnackbar>
     </VApp>
   </VLocaleProvider>
 </template>

@@ -30,6 +30,7 @@ func main() {
 	restart := flag.Bool("restart", false, "Reiniciar servicio")
 	status := flag.Bool("status", false, "Estado del servicio")
 	trayMode := flag.Bool("tray", false, "Modo bandeja del sistema (interno)")
+	openConfig := flag.Bool("open-config", false, "Abrir config.json en el editor")
 	run := flag.Bool("run", false, "Ejecutar agente en primer plano (consola)")
 	dryRun := flag.Bool("dry-run", false, "Forzar dry_run (no imprime en impresora)")
 	flag.Parse()
@@ -55,6 +56,9 @@ func main() {
 	if *trayMode {
 		tray.Run()
 		return
+	}
+	if *openConfig {
+		exitWith(cli.OpenConfig())
 	}
 	if *run || *dryRun {
 		exitWith(runForeground(*dryRun))
@@ -109,6 +113,7 @@ func printUsage() {
 	fmt.Println("  NightPOSPrintAgent.exe --stop         Detener servicio")
 	fmt.Println("  NightPOSPrintAgent.exe --restart      Reiniciar servicio")
 	fmt.Println("  NightPOSPrintAgent.exe --status       Ver estado")
+	fmt.Println("  NightPOSPrintAgent.exe --open-config  Abrir config.json")
 	fmt.Println("  NightPOSPrintAgent.exe --run          Ejecutar en consola (debug)")
 	fmt.Println("  NightPOSPrintAgent.exe --dry-run      Consola sin imprimir (archivo)")
 	fmt.Println()

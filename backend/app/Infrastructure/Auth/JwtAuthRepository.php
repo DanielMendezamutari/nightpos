@@ -35,6 +35,10 @@ final class JwtAuthRepository implements AuthRepositoryInterface
 
     public function invalidateCurrentToken(): void
     {
+        if (! config('jwt.blacklist_enabled')) {
+            return;
+        }
+
         $token = JWTAuth::getToken();
 
         if ($token !== null) {

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!--
+    Maskable icon: content must be within the center 80% circle
+    (safe zone: ~204px radius centered at 256,256 for 512px canvas).
+    Background fills the full canvas.
+  -->
+  <rect width="512" height="512" fill="#1a1a2e"/>
+  <!-- Logo scaled to ~60% to stay well inside safe zone -->
+  <g transform="translate(256 256) scale(0.72)">
+    <!-- Left pillar -->
+    <rect x="-140" y="-118" width="64" height="188" rx="32"
+          fill="#666CFF"
+          transform="rotate(-30)"/>
+    <!-- Right pillar -->
+    <rect x="76" y="-118" width="64" height="188" rx="32"
+          fill="#666CFF"
+          transform="rotate(30)"/>
+    <!-- Cross bar -->
+    <rect x="-96" y="-22" width="192" height="52" rx="26"
+          fill="#666CFF"
+          transform="rotate(-15) skewX(30)"/>
+  </g>
+</svg>

@@ -170,7 +170,9 @@ export const setupGuards = router => {
       ? !requiredPermissions.some(permission => session.permissions.includes(permission))
       : requiredPermission && !session.permissions.includes(requiredPermission)
 
-    if (lacksPermission) {
+    const isSuperAdmin = session.user?.role === 'super_admin'
+
+    if (lacksPermission && !isSuperAdmin) {
       if (isUserHomeRoute(to, session.user, session.context)) {
         purgeCorruptSession()
 

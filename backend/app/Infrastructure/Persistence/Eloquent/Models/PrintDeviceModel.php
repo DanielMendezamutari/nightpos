@@ -24,8 +24,16 @@ class PrintDeviceModel extends Model
         'paper_width_mm',
         'auto_print_order',
         'last_seen_at',
+        'last_printed_at',
         'last_error',
         'agent_version',
+        'host_name',
+        'os_name',
+        'os_version',
+        'arch',
+        'ip_address',
+        'printer_model',
+        'installed_at',
     ];
 
     protected function casts(): array
@@ -34,6 +42,8 @@ class PrintDeviceModel extends Model
             'enabled' => 'boolean',
             'auto_print_order' => 'boolean',
             'last_seen_at' => 'datetime',
+            'last_printed_at' => 'datetime',
+            'installed_at' => 'datetime',
             'paper_width_mm' => 'integer',
         ];
     }

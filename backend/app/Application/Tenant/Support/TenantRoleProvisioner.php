@@ -10,13 +10,14 @@ use App\Infrastructure\Persistence\Eloquent\Models\RoleModel;
 final class TenantRoleProvisioner
 {
     /**
-     * @return array{tenant_owner: int, cashier: int, waiter: int, cleaning: int, girl: int}
+     * @return array{tenant_owner: int, cashier: int, cashier_senior: int, waiter: int, cleaning: int, girl: int}
      */
     public function provision(int $tenantId): array
     {
         $map = [
             'tenant_owner' => ['name' => 'Administrador', 'perms' => TenantDefaultRolePermissions::tenantOwner()],
             'cashier' => ['name' => 'Cajero', 'perms' => TenantDefaultRolePermissions::cashier()],
+            'cashier_senior' => ['name' => 'Cajera Senior', 'perms' => TenantDefaultRolePermissions::cashierSenior()],
             'waiter' => ['name' => 'Garzón', 'perms' => TenantDefaultRolePermissions::waiter()],
             'cleaning' => ['name' => 'Limpieza', 'perms' => TenantDefaultRolePermissions::cleaning()],
             'girl' => ['name' => 'Chica', 'perms' => TenantDefaultRolePermissions::girl()],

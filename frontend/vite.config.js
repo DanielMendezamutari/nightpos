@@ -8,6 +8,7 @@ import { VueRouterAutoImports, getPascalCaseRouteName } from 'unplugin-vue-route
 import VueRouter from 'unplugin-vue-router/vite'
 import { defineConfig } from 'vite'
 import Layouts from 'vite-plugin-vue-layouts'
+import { VitePWA } from 'vite-plugin-pwa'
 import vuetify from 'vite-plugin-vuetify'
 import svgLoader from 'vite-svg-loader'
 
@@ -92,6 +93,53 @@ export default defineConfig({
       ],
     }),
     svgLoader(),
+
+    VitePWA({
+      registerType: 'prompt',
+      injectRegister: 'script',
+      // Manifests are managed in public/ and injected dynamically per context.
+      manifest: false,
+      devOptions: {
+        enabled: false,
+      },
+      workbox: {
+        // Precache all build artifacts.
+        globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico,webmanifest}'],
+        // SPA: serve cached shell for any navigation when offline.
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [
+          /^\/api\//,
+          /\/manifest.*\.webmanifest$/,
+        ],
+        runtimeCaching: [
+          {
+            // API: always network — never cache responses.
+            urlPattern: /^.*\/api\//,
+            handler: 'NetworkOnly',
+          },
+          {
+            // Versioned assets already in precache; this catches unversioned ones.
+            urlPattern: /\.(png|jpg|jpeg|webp|ico|gif)(\?.*)?$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'nightpos-images',
+              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
+          {
+            // Fonts from CDN if any.
+            urlPattern: /\.(woff|woff2|ttf|eot)(\?.*)?$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'nightpos-fonts',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+            },
+          },
+        ],
+        skipWaiting: false,
+        clientsClaim: false,
+      },
+    }),
   ],
   define: { 'process.env': {} },
   resolve: {

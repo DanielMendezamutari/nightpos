@@ -82,6 +82,11 @@ Tras instalar, el sistema usa:
 
 ## Paso 3 — Configurar config.json
 
+> Importante: este archivo no aparece dentro de "Programas" ni en la carpeta de instalación del EXE. El agente lo guarda en `C:\ProgramData\NightPOS\PrintAgent\config.json`, que es una carpeta oculta de Windows.
+>
+> Si no lo encuentra, abra el Explorador de archivos y pegue esta ruta en la barra de direcciones: `%ProgramData%\NightPOS\PrintAgent`.
+> O bien, desde la carpeta del agente, ejecute `edit-config.bat` para abrirlo directamente en Bloc de notas.
+
 Edite `C:\ProgramData\NightPOS\PrintAgent\config.json`:
 
 ```json

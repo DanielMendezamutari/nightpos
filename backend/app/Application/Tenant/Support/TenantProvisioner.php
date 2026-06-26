@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Tenant\Support;
 
+use App\Application\Settings\Services\BranchOperationalBootstrapService;
 use App\Application\Tenant\DTOs\TenantProvisionInput;
 use App\Application\User\Support\UserAdminMapper;
 use App\Domain\Branch\Repositories\BranchRepositoryInterface;
@@ -26,6 +27,7 @@ final class TenantProvisioner
         private readonly BranchRepositoryInterface $branches,
         private readonly UserRepositoryInterface $users,
         private readonly TenantRoleProvisioner $roleProvisioner,
+        private readonly BranchOperationalBootstrapService $operationalBootstrap,
     ) {
     }
 
@@ -68,6 +70,8 @@ final class TenantProvisioner
                 status: $input->branchStatus,
             );
 
+            $bootstrapCreated = $this->operationalBootstrap->bootstrap($tenant->id, $branch->id);
+
             $this->users->createForTenant(
                 tenantId: $tenant->id,
                 branchId: $branch->id,
@@ -107,6 +111,7 @@ final class TenantProvisioner
                 ],
                 'admin' => $adminModel ? UserAdminMapper::user($adminModel) : null,
                 'roles' => array_keys($roleIds),
+                'bootstrap' => $bootstrapCreated,
             ];
         });
     }

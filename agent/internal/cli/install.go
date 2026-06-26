@@ -187,6 +187,9 @@ func stopTray() {
 }
 
 func OpenConfig() error {
+	if err := config.WriteExampleIfMissing(); err != nil {
+		return err
+	}
 	return exec.Command("notepad.exe", paths.ConfigPath()).Start()
 }
 

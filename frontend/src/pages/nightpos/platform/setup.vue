@@ -138,7 +138,47 @@ const setupSummary = computed(() => {
 
     branchCodeValue: data.branch?.code ?? null,
 
+    roles: data.roles ?? [],
+
+    bootstrap: data.bootstrap ?? [],
+
   }
+
+})
+
+
+
+const postWizardChecklist = computed(() => {
+
+  const summary = setupSummary.value
+
+  if (!summary)
+
+    return []
+
+
+
+  const bootstrap = summary.bootstrap ?? []
+
+
+
+  return [
+
+    { label: 'Empresa creada', done: true },
+
+    { label: 'Sucursal creada', done: true },
+
+    { label: 'Admin creado', done: true },
+
+    { label: 'Permisos iniciales listos', done: summary.roles.includes('tenant_owner') },
+
+    { label: 'Métodos de pago creados', done: bootstrap.includes('payment_methods') },
+
+    { label: 'Configuración de caja creada', done: bootstrap.includes('cash_reasons') || bootstrap.includes('cash_register') },
+
+    { label: 'Impresoras disponibles para configurar', done: summary.roles.includes('tenant_owner') },
+
+  ]
 
 })
 
@@ -437,6 +477,49 @@ onMounted(async () => {
             Plan: <strong>{{ setupSummary.planLabel }}</strong>.
 
           </VAlert>
+
+          <VCard
+            variant="outlined"
+            class="mb-4"
+          >
+            <VCardTitle>Checklist post-alta</VCardTitle>
+            <VCardText>
+              <VList density="compact">
+                <VListItem
+                  v-for="item in postWizardChecklist"
+                  :key="item.label"
+                  :prepend-icon="item.done ? 'ri-checkbox-circle-fill' : 'ri-checkbox-blank-circle-line'"
+                  :class="item.done ? 'text-success' : ''"
+                >
+                  <VListItemTitle>{{ item.label }}</VListItemTitle>
+                </VListItem>
+              </VList>
+
+              <div class="d-flex flex-wrap gap-2 mt-4">
+                <VBtn
+                  variant="tonal"
+                  prepend-icon="ri-printer-line"
+                  :to="{ name: 'nightpos-settings-printers' }"
+                >
+                  Configurar impresoras
+                </VBtn>
+                <VBtn
+                  variant="tonal"
+                  prepend-icon="ri-user-add-line"
+                  :to="{ name: 'nightpos-users-create' }"
+                >
+                  Crear usuarios
+                </VBtn>
+                <VBtn
+                  variant="tonal"
+                  prepend-icon="ri-shopping-bag-line"
+                  :to="{ name: 'nightpos-products' }"
+                >
+                  Cargar productos
+                </VBtn>
+              </div>
+            </VCardText>
+          </VCard>
 
           <VBtn
 

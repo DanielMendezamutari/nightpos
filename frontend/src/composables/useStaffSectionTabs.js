@@ -9,6 +9,7 @@ export const STAFF_SECTION_TABS = [
 
 export const PLATFORM_SECTION_TABS = [
   { title: 'Dashboard', value: 'dash', to: 'nightpos-platform-dashboard', icon: 'ri-dashboard-line' },
+  { title: 'Control Center', value: 'control', to: 'nightpos-platform-control-center', icon: 'ri-radar-line' },
   { title: 'Empresas', value: 'tenants', to: 'nightpos-platform-tenants', icon: 'ri-building-4-line' },
   { title: 'Sucursales', value: 'branches', to: 'nightpos-platform-branches', icon: 'ri-store-3-line' },
   { title: 'Planes', value: 'plans', to: 'nightpos-platform-plans', icon: 'ri-vip-crown-line' },
