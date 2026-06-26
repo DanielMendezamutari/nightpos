@@ -229,7 +229,7 @@ notepad C:\ProgramData\NightPOS\PrintAgent\config.json
 }
 ```
 
-**Alternativa sin vhost:**
+**Alternativa sin vhost (solo desarrollo XAMPP — no usar en producción cPanel):**
 
 ```json
 {
@@ -242,11 +242,11 @@ notepad C:\ProgramData\NightPOS\PrintAgent\config.json
 }
 ```
 
-### Ejemplo — Producción (HTTPS)
+### Ejemplo — Producción Ribersoft (HTTPS, Opción A)
 
 ```json
 {
-  "backend_url": "https://nightpos.cliente.com/api/v1",
+  "backend_url": "https://nightpos.ribersoft.com/api/v1",
   "device_key": "npd_live_REEMPLAZAR",
   "printer_name": "BARRA_CENTRO",
   "poll_interval_ms": 1500,

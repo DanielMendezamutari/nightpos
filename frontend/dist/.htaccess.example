@@ -1,30 +1,25 @@
-# NightPOS — SPA en raíz + Laravel en /backend/public/
-# Copiar a la raíz del dominio (junto a index.html) como .htaccess
-# Ajustar según hosting (LiteSpeed suele ser compatible con mod_rewrite)
+# NightPOS — raíz del dominio — Arquitectura oficial Opción A
+# Copiar como frontend/public/.htaccess (se incluye en dist/ al build)
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
+    RewriteBase /
 
-    # Archivos y carpetas reales (assets, backend/, health.php en raíz si existe)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Laravel — no reescribir a index.html del frontend
+    RewriteRule ^api/ backend/public/index.php [L,QSA]
+    RewriteRule ^storage/(.*)$ backend/public/storage/$1 [L]
     RewriteRule ^backend/ - [L]
 
-    # API legacy en /api/v1 (si existe proxy o symlink; si no, omitir bloque)
-    RewriteRule ^api/ backend/public/index.php [L,QSA]
+    RewriteRule ^(sw\.js|registerSW\.js|workbox-[^/]+\.js|mockServiceWorker\.js)$ - [R=404,L]
 
-    # SPA — solo rutas Vue; nunca API ni backend
-    RewriteCond %{REQUEST_URI} !^/backend/
     RewriteCond %{REQUEST_URI} !^/api/
+    RewriteCond %{REQUEST_URI} !^/backend/
+    RewriteCond %{REQUEST_URI} !^/storage/
     RewriteRule ^ index.html [L]
-</IfModule>
-
-# Service worker: no cachear agresivamente (evita SW viejo tras deploy)
-<IfModule mod_headers.c>
-    <FilesMatch "^(sw\.js|registerSW\.js|workbox-.*\.js)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-    </FilesMatch>
 </IfModule>

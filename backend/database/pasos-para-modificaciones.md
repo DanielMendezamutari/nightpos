@@ -1,27 +1,96 @@
-Bien. Tu carpeta pública es:
+# Deploy hosting — nightpos.ribersoft.com (Opción A)
 
+Document root cPanel:
+
+```
 /home/vnplktsg/nightpos.ribersoft.com
+```
 
-Ahora copia el frontend compilado ahí.
+## Arquitectura oficial
 
-1. Desde la raíz del proyecto NightPOS
+| Componente | Ubicación / URL |
+|--------------|-----------------|
+| Frontend SPA | Raíz del dominio (`index.html`, `assets/`) |
+| API | `https://nightpos.ribersoft.com/api/v1` |
+| Laravel | `/backend/public/index.php` (no exponer en clientes) |
+| Agente | `backend_url`: `https://nightpos.ribersoft.com/api/v1` |
 
-Primero ubícate donde está el repo, por ejemplo:
+---
 
-cd /home/vnplktsg/nightpos
+## 1. Backend (`backend/.env`)
 
-Verifica que exista el dist:
+```env
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://nightpos.ribersoft.com
+APP_KEY=base64:...
+JWT_SECRET=...
+```
 
-ls frontend/dist
-2. Limpia la carpeta pública sin borrar backend si existe
+```bash
+cd backend
+composer install --no-dev --optimize-autoloader
+php artisan key:generate --force    # si falta APP_KEY
+php artisan jwt:secret --force      # si falta JWT_SECRET
+php artisan migrate --force
+php artisan optimize:clear
+```
 
+---
 
+## 2. Frontend
+
+```bash
+cd frontend
+# .env.production ya tiene VITE_API_BASE_URL=/api/v1 y VITE_PWA_ENABLED=false
+npm run build
+```
+
+---
+
+## 3. Publicar en raíz (conservar `backend/`)
+
+```bash
 cd /home/vnplktsg/nightpos.ribersoft.com
 
-find . -maxdepth 1 -type f -name "*.md" -delete
-rm -f admin-full-version.zip
-rm -rf restaurant_bolivia-1
+# Limpiar artefactos PWA viejos
+rm -f sw.js registerSW.js workbox-*.js mockServiceWorker.js
 
-find /home/vnplktsg/nightpos.ribersoft.com -mindepth 1 ! -name backend -exec rm -rf {} +
-3. Copia el frontend compilado
-cp -r /home/vnplktsg/nightpos/frontend/dist/* /home/vnplktsg/nightpos.ribersoft.com/
+# Limpiar frontend anterior (NO borrar backend/)
+find . -maxdepth 1 ! -name backend ! -name . ! -name .. -exec rm -rf {} +
+
+# Copiar dist
+cp -r /home/vnplktsg/nightpos/frontend/dist/* .
+```
+
+---
+
+## 4. Smoke tests
+
+```bash
+curl -sS https://nightpos.ribersoft.com/api/v1/health
+curl -sS https://nightpos.ribersoft.com/api/v1/auth/login-context/tenants
+curl -sS -o /dev/null -w "%{http_code}" https://nightpos.ribersoft.com/sw.js   # debe ser 404
+```
+
+Navegador: login PIN, login password, refresh en `/nightpos/cashier`.
+
+---
+
+## 5. Agente en PC del local
+
+`config.json`:
+
+```json
+"backend_url": "https://nightpos.ribersoft.com/api/v1"
+```
+
+Ver `agent/HOSTING_DEPLOY_ARCHITECTURE_AUDIT.md`.
+
+---
+
+## Documentación completa
+
+- `backend/HOSTING_DEPLOY_ARCHITECTURE_AUDIT.md`
+- `frontend/HOSTING_DEPLOY_ARCHITECTURE_AUDIT.md`
+- `agent/HOSTING_DEPLOY_ARCHITECTURE_AUDIT.md`

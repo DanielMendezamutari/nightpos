@@ -12,7 +12,7 @@
 ## Backend (`backend/`)
 
 - [ ] Copiar `.env.example` → `.env`
-- [ ] `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://tu-dominio`
+- [ ] `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://tu-dominio` (**sin** `/backend/public`)
 - [ ] `DB_*` credenciales producción
 - [ ] `JWT_SECRET` generado (`php artisan jwt:secret`)
 - [ ] `php artisan migrate --force`
@@ -22,9 +22,10 @@
 
 ## Frontend (`frontend/`)
 
-- [ ] `pnpm install && pnpm run build`
-- [ ] Servir `dist/` detrás del mismo dominio o CDN
-- [ ] Variable `VITE_API_BASE_URL` apuntando a `/api/v1` del backend
+- [ ] `pnpm install && pnpm run build` (`.env.production`: `VITE_API_BASE_URL=/api/v1`, `VITE_PWA_ENABLED=false`)
+- [ ] Copiar **todo** `dist/` a document root (conservar `backend/`)
+- [ ] Verificar `.htaccess` en raíz (rewrite `/api/` → Laravel)
+- [ ] API oficial: `https://{dominio}/api/v1` (no `/backend/public/api/v1`)
 
 ## Red y seguridad
 

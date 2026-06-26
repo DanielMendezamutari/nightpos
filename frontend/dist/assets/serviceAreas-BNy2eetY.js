@@ -1,1 +1,0 @@
-import{eV as r,eW as s}from"./index-UQ56zYDF.js";async function n(e={}){const a=await r.get("/service-areas",{params:e});return s(a).service_areas??[]}async function i(e){const a=await r.post("/service-areas",e);return s(a).service_area}async function o(e,a){const c=await r.put(`/service-areas/${e}`,a);return s(c).service_area}export{i as c,n as f,o as u};

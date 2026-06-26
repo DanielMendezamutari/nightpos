@@ -1,1 +1,0 @@
-import{r}from"./index-UQ56zYDF.js";function l(){const e=r(new Set);return{isLoading:n=>e.value.has(n),run:async(n,t)=>{const o=new Set(e.value);o.add(n),e.value=o;try{return await t()}finally{const a=new Set(e.value);a.delete(n),e.value=a}},keyFor:(n,t)=>`${t}:${n}`}}export{l as u};

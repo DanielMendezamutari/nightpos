@@ -1,1 +1,0 @@
-import{eV as n,eW as e}from"./index-UQ56zYDF.js";async function a(){const s=await n.get("/shows");return e(s)}async function c(s){const t=await n.post("/shows",s);return e(t)}async function i(s){const t=await n.get(`/shows/${s}`);return e(t)}async function p(s,{reprint:t=!1}={}){const o=await n.post(`/shows/${s}/print`,t?{reprint:!0}:{});return e(o)}export{a,c,i as f,p};

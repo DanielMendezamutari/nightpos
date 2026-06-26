@@ -525,6 +525,7 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Hosting auth/API stability | `backend/HOSTING_AUTH_API_STABILITY_AUDIT.md`, `frontend/HOSTING_AUTH_API_STABILITY_AUDIT.md`, `*_FIX_REPORT.md` |
 | Hosting ERR_CONNECTION_RESET (P0) | `backend/HOSTING_CONNECTION_RESET_FIX_REPORT.md`, `frontend/HOSTING_CONNECTION_RESET_FIX_REPORT.md` |
 | PWA rollback hosting (P0) | `frontend/PWA_HOSTING_ROLLBACK_FIX_REPORT.md`, `backend/HOSTING_DEPLOY_STRUCTURE_FIX_REPORT.md` |
+| Hosting deploy architecture (P0) | `backend/HOSTING_DEPLOY_ARCHITECTURE_*`, `frontend/HOSTING_DEPLOY_ARCHITECTURE_*`, `agent/HOSTING_DEPLOY_ARCHITECTURE_*` |
 | Hosting login PIN JWT (P0) | `backend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md` |
 
 ---
@@ -619,6 +620,27 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 **Fix hosting:** `php artisan jwt:secret --force` + `php artisan optimize:clear` + verificar `jwt: up` en health.
 
 **Reportes:** `backend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`.
+
+---
+
+## Hosting — Deploy architecture oficial (P0 — 2026-06-25)
+
+**Decisión:** Opción A — API limpia `https://{dominio}/api/v1`
+
+| Componente | Oficial |
+|------------|---------|
+| Document root | Frontend `dist/` + carpeta `backend/` |
+| `VITE_API_BASE_URL` | `/api/v1` |
+| `APP_URL` | `https://nightpos.ribersoft.com` (sin `/backend/public`) |
+| Agente `backend_url` | `https://nightpos.ribersoft.com/api/v1` |
+| PWA producción | **Off** (`VITE_PWA_ENABLED=false`) |
+| `.htaccess` raíz | `/api/` → `backend/public/index.php`; SPA → `index.html`; `sw.js` → 404 |
+
+**Legacy (transición):** `/backend/public/api/v1` — no usar en clientes nuevos.
+
+**Playbook:** `backend/database/pasos-para-modificaciones.md`
+
+**Audits:** `HOSTING_DEPLOY_ARCHITECTURE_AUDIT.md` (backend, frontend, agent)
 
 ---
 
