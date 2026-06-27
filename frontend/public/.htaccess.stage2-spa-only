@@ -1,5 +1,6 @@
-# Plantilla NightPOS — raíz dominio (copiar a .htaccess en hosting)
-# Archivos por etapa: .htaccess.stage2-spa-only | .htaccess.stage3-api | .htaccess (final)
+# ETAPA 2 — Solo SPA fallback (diagnóstico cPanel/LiteSpeed)
+# Renombrar a .htaccess en la raíz del dominio y probar / /login /nightpos/test
+# Si esto provoca ERR_CONNECTION_RESET, el problema NO es la API.
 
 DirectoryIndex index.html
 
@@ -7,22 +8,16 @@ DirectoryIndex index.html
     RewriteEngine On
     RewriteBase /
 
-    RewriteCond %{HTTP:Authorization} .
-    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    RewriteRule ^api/ backend/public/index.php [L,QSA]
-    RewriteRule ^storage/(.*)$ backend/public/storage/$1 [L]
     RewriteRule ^(sw\.js|registerSW\.js|mockServiceWorker\.js|workbox-[^/]+\.js)$ - [R=404,L]
 
-    RewriteCond %{REQUEST_URI} !^/api/
     RewriteCond %{REQUEST_URI} !^/backend/
-    RewriteCond %{REQUEST_URI} !^/storage/
     RewriteRule ^ index.html [L]
 </IfModule>
 
 # php -- BEGIN cPanel-generated handler, do not edit
+# (conservar en servidor el bloque que cPanel ya tenga; no borrarlo al pegar)
 # php -- END cPanel-generated handler, do not edit

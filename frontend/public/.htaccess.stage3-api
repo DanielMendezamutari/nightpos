@@ -1,5 +1,5 @@
-# Plantilla NightPOS — raíz dominio (copiar a .htaccess en hosting)
-# Archivos por etapa: .htaccess.stage2-spa-only | .htaccess.stage3-api | .htaccess (final)
+# ETAPA 3 — SPA + API limpia (sin Authorization aún)
+# Probar /api/v1/health y /api/v1/auth/login-context/tenants → JSON
 
 DirectoryIndex index.html
 
@@ -7,15 +7,14 @@ DirectoryIndex index.html
     RewriteEngine On
     RewriteBase /
 
-    RewriteCond %{HTTP:Authorization} .
-    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
     RewriteRule ^api/ backend/public/index.php [L,QSA]
+
     RewriteRule ^storage/(.*)$ backend/public/storage/$1 [L]
+
     RewriteRule ^(sw\.js|registerSW\.js|mockServiceWorker\.js|workbox-[^/]+\.js)$ - [R=404,L]
 
     RewriteCond %{REQUEST_URI} !^/api/

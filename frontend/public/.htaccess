@@ -1,51 +1,42 @@
 # NightPOS — raíz del dominio (nightpos.ribersoft.com)
-# Arquitectura oficial Opción A: API limpia /api/v1 → backend/public/index.php
-# LiteSpeed / Apache + mod_rewrite — NO borrar bloque PHP de cPanel
+# Vue SPA + Laravel API — versión MÍNIMA para cPanel/LiteSpeed
+# NO eliminar el bloque php de cPanel al final de este archivo en el servidor.
+
+DirectoryIndex index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
 
-    # JWT / print agent device_key
+    # Authorization → PHP/Laravel (agente impresión, JWT Bearer)
     RewriteCond %{HTTP:Authorization} .
     RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
-    # Archivos y carpetas reales (assets, icons, backend/public/health.php, …)
+    # Archivos reales (assets/, icons/, manifest, backend/public/health.php, …)
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # API limpia → Laravel (URL oficial: /api/v1/...)
+    # API limpia: /api/v1/* → Laravel front controller
     RewriteRule ^api/ backend/public/index.php [L,QSA]
 
-    # Storage público Laravel (symlink backend/public/storage)
+    # Storage público Laravel (/storage/ → symlink backend/public/storage)
     RewriteRule ^storage/(.*)$ backend/public/storage/$1 [L]
 
-    # Acceso directo legacy /backend/public/... (transición; preferir /api/v1)
-    RewriteRule ^backend/ - [L]
+    # PWA off: 404 explícito — evita servir index.html como sw.js (MIME text/html)
+    RewriteRule ^(sw\.js|registerSW\.js|mockServiceWorker\.js|workbox-[^/]+\.js)$ - [R=404,L]
 
-    # PWA off: no servir index.html como sw.js (evita MIME text/html)
-    RewriteRule ^(sw\.js|registerSW\.js|workbox-[^/]+\.js|mockServiceWorker\.js)$ - [R=404,L]
-
-    # SPA Vue — rutas de la app (refresh en /login, /nightpos/*, …)
+    # Vue Router history: /login, /nightpos/* — excluir API, legacy backend y storage
     RewriteCond %{REQUEST_URI} !^/api/
     RewriteCond %{REQUEST_URI} !^/backend/
     RewriteCond %{REQUEST_URI} !^/storage/
     RewriteRule ^ index.html [L]
 </IfModule>
 
-<IfModule mod_headers.c>
-    <FilesMatch "^(sw\.js|registerSW\.js|workbox-.*\.js|mockServiceWorker\.js)$">
-        Header set Cache-Control "no-cache, no-store, must-revalidate"
-    </FilesMatch>
-</IfModule>
-
-<FilesMatch "^\.">
-    <IfModule mod_authz_core.c>
-        Require all denied
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-        Order allow,deny
-        Deny from all
-    </IfModule>
-</FilesMatch>
+# php -- BEGIN cPanel-generated handler, do not edit
+# cPanel inyecta AddHandler aquí. En el servidor: pegar reglas rewrite ARRIBA
+# y dejar intacto el bloque que ya exista abajo. Ejemplo típico PHP 8.2:
+# <IfModule mime_module>
+#   AddHandler application/x-httpd-ea-php82 .php .php8 .phtml
+# </IfModule>
+# php -- END cPanel-generated handler, do not edit

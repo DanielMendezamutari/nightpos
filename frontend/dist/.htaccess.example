@@ -1,5 +1,6 @@
-# NightPOS — raíz del dominio — Arquitectura oficial Opción A
-# Copiar como frontend/public/.htaccess (se incluye en dist/ al build)
+# Plantilla — ver frontend/public/.htaccess y CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md
+
+DirectoryIndex index.html
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -14,12 +15,13 @@
 
     RewriteRule ^api/ backend/public/index.php [L,QSA]
     RewriteRule ^storage/(.*)$ backend/public/storage/$1 [L]
-    RewriteRule ^backend/ - [L]
-
-    RewriteRule ^(sw\.js|registerSW\.js|workbox-[^/]+\.js|mockServiceWorker\.js)$ - [R=404,L]
+    RewriteRule ^(sw\.js|registerSW\.js|mockServiceWorker\.js|workbox-[^/]+\.js)$ - [R=404,L]
 
     RewriteCond %{REQUEST_URI} !^/api/
     RewriteCond %{REQUEST_URI} !^/backend/
     RewriteCond %{REQUEST_URI} !^/storage/
     RewriteRule ^ index.html [L]
 </IfModule>
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# php -- END cPanel-generated handler, do not edit

@@ -530,6 +530,7 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Hosting login-context timeout (P0) | `backend/HOSTING_LOGIN_CONTEXT_TIMEOUT_AUDIT.md`, `frontend/HOSTING_LOGIN_CONTEXT_TIMEOUT_AUDIT.md` |
 | Hosting login-context timeout (P1 fix) | `backend/HOSTING_LOGIN_CONTEXT_TIMEOUT_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_CONTEXT_TIMEOUT_FIX_REPORT.md` |
 | Hosting login PIN JWT (P0) | `backend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md` |
+| cPanel `.htaccess` deploy (P0 urgente) | `backend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `frontend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `agent/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md` |
 
 ---
 
@@ -637,13 +638,38 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | `APP_URL` | `https://nightpos.ribersoft.com` (sin `/backend/public`) |
 | Agente `backend_url` | `https://nightpos.ribersoft.com/api/v1` |
 | PWA producción | **Off** (`VITE_PWA_ENABLED=false`) |
-| `.htaccess` raíz | `/api/` → `backend/public/index.php`; SPA → `index.html`; `sw.js` → 404 |
+| `.htaccess` raíz | **Mínimo** — ver `frontend/public/.htaccess`; etapas `.htaccess.stage2-spa-only` / `.htaccess.stage3-api` |
+| Deploy `.htaccess` | Probar Etapa 1→4; **conservar bloque PHP cPanel**; sin headers/FilesMatch complejos por ahora |
 
-**Legacy (transición):** `/backend/public/api/v1` — no usar en clientes nuevos.
+**Legacy (transición):** `/backend/public/api/v1` — fallback si rewrite `/api/` falla en hosting.
 
-**Playbook:** `backend/database/pasos-para-modificaciones.md`
+**Playbook:** `backend/database/pasos-para-modificaciones.md`  
+**Deploy `.htaccess`:** `*/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`
 
 **Audits:** `HOSTING_DEPLOY_ARCHITECTURE_AUDIT.md` (backend, frontend, agent)
+
+---
+
+## Hosting — cPanel `.htaccess` deploy (P0 urgente — 2026-06-25)
+
+**Problema:** reglas complejas o mal ordenadas → `/login` 404 al recargar, agente recibe HTML, ERR_CONNECTION_RESET.
+
+**Solución repo:** `.htaccess` **mínimo** en `frontend/public/.htaccess`:
+
+1. Archivos reales → directo  
+2. `^api/` → `backend/public/index.php`  
+3. `^storage/` → `backend/public/storage/`  
+4. `sw.js` → 404  
+5. SPA → `index.html` (excl. `/api/`, `/backend/`, `/storage/`)  
+6. `Authorization` → env (Etapa 4)
+
+**Método obligatorio en servidor:** renombrar `.htaccess.bak` → Etapa 2 SPA → Etapa 3 API → Etapa 4 final.
+
+**Probe 2026-06-25:** dominio con **connection reset** en todas las URLs — estabilizar LiteSpeed **antes** de validar rewrite.
+
+**Fallback estable:** `VITE_API_BASE_URL=/backend/public/api/v1` + agente `backend_url=.../backend/public/api/v1`.
+
+**Reportes:** `backend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `frontend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `agent/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`
 
 ---
 
