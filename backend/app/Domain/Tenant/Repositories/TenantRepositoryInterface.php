@@ -16,6 +16,9 @@ interface TenantRepositoryInterface extends RepositoryInterface
     /** @return list<Tenant> */
     public function listAll(): array;
 
+    /** Active tenants with valid subscription — minimal columns for login context. @return list<Tenant> */
+    public function listActiveForLogin(): array;
+
     public function create(
         string $name,
         string $slug,

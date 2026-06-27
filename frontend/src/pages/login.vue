@@ -41,6 +41,7 @@ const sessionExpiredHint = computed(() =>
 const loginMode = ref('pin')
 const errorMessage = ref('')
 const suggestContextChange = ref(false)
+const tenantsLoadFailed = ref(false)
 const refVForm = ref()
 
 const tenantSlugCookie = useCookie('tenantSlug', COOKIE_OPTS)
@@ -143,15 +144,46 @@ const clearSavedUser = () => {
 
 const loadTenants = async () => {
   loadingTenants.value = true
+  tenantsLoadFailed.value = false
   try {
     tenants.value = await fetchLoginContextTenants()
   }
   catch (error) {
+    tenantsLoadFailed.value = true
     errorMessage.value = getApiErrorMessage(error)
+    if (hasSavedContext.value) {
+      syncPinFormFromCookies()
+      suggestContextChange.value = true
+    }
   }
   finally {
     loadingTenants.value = false
   }
+}
+
+const retryLoadTenants = async () => {
+  errorMessage.value = ''
+  tenantsLoadFailed.value = false
+  await loadTenants()
+}
+
+const clearLocalContextAndRetry = async () => {
+  clearSavedContext()
+  useCookie('accessToken').value = null
+  useCookie('userData').value = null
+  selectedTenantSlug.value = null
+  selectedBranchCode.value = null
+  branches.value = []
+  suggestContextChange.value = false
+  pinStep.value = 'select-context'
+  await retryLoadTenants()
+}
+
+const useSavedContextOnPinStep = () => {
+  errorMessage.value = ''
+  tenantsLoadFailed.value = false
+  syncPinFormFromCookies()
+  pinStep.value = 'pin'
 }
 
 const loadBranches = async slug => {
@@ -228,6 +260,7 @@ const startChangeContext = async () => {
   auth.loading = false
   errorMessage.value = ''
   suggestContextChange.value = false
+  tenantsLoadFailed.value = false
   pinForm.value.pin = ''
   selectedTenantSlug.value = null
   selectedBranchCode.value = null
@@ -363,6 +396,7 @@ watch(selectedTenantSlug, slug => {
 watch(loginMode, () => {
   errorMessage.value = ''
   suggestContextChange.value = false
+  tenantsLoadFailed.value = false
   refVForm.value?.resetValidation()
   if (loginMode.value === 'pin')
     hydratePinStep()
@@ -423,9 +457,7 @@ const submit = async () => {
       suggestContextChange.value = true
     }
     else {
-      errorMessage.value = /timeout/i.test(raw)
-        ? 'No se pudo conectar con el servidor. Verifique que Apache, MySQL y el backend estén activos e intente de nuevo.'
-        : raw
+      errorMessage.value = raw
     }
   }
 }
@@ -545,8 +577,36 @@ const onSubmit = async () => {
             class="mb-4"
           >
             {{ errorMessage }}
+            <div
+              v-if="tenantsLoadFailed"
+              class="d-flex flex-wrap ga-2 mt-2"
+            >
+              <VBtn
+                size="small"
+                variant="tonal"
+                :loading="loadingTenants"
+                @click="retryLoadTenants"
+              >
+                Reintentar
+              </VBtn>
+              <VBtn
+                size="small"
+                variant="text"
+                @click="clearLocalContextAndRetry"
+              >
+                Limpiar contexto local
+              </VBtn>
+              <VBtn
+                v-if="hasSavedContext"
+                size="small"
+                variant="text"
+                @click="useSavedContextOnPinStep"
+              >
+                Usar contexto guardado
+              </VBtn>
+            </div>
             <VBtn
-              v-if="loginMode === 'pin' && suggestContextChange"
+              v-else-if="loginMode === 'pin' && suggestContextChange"
               variant="text"
               size="small"
               class="mt-2"
@@ -708,7 +768,7 @@ const onSubmit = async () => {
                     label="Empresa"
                     placeholder="Seleccione empresa"
                     :loading="loadingTenants"
-                    :disabled="loadingTenants"
+                    :disabled="loadingTenants && !tenantsLoadFailed"
                     class="mb-3"
                   />
 
@@ -718,9 +778,39 @@ const onSubmit = async () => {
                     label="Sucursal"
                     placeholder="Seleccione sucursal"
                     :loading="loadingBranches"
-                    :disabled="!selectedTenantSlug || loadingBranches"
+                    :disabled="!selectedTenantSlug || (loadingBranches && !branches.length)"
                     class="mb-2"
                   />
+
+                  <div
+                    v-if="hasSavedContext && tenantsLoadFailed"
+                    class="d-flex flex-wrap ga-1 mb-2"
+                  >
+                    <VBtn
+                      variant="text"
+                      size="small"
+                      class="px-0"
+                      @click="useSavedContextOnPinStep"
+                    >
+                      Continuar con contexto guardado
+                    </VBtn>
+                    <VBtn
+                      variant="text"
+                      size="small"
+                      class="px-0"
+                      @click="startChangeTenant"
+                    >
+                      Cambiar empresa
+                    </VBtn>
+                    <VBtn
+                      variant="text"
+                      size="small"
+                      class="px-0"
+                      @click="startChangeBranch"
+                    >
+                      Cambiar sucursal
+                    </VBtn>
+                  </div>
 
                   <VBtn
                     v-if="hasSavedContext"

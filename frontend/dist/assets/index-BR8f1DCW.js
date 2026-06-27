@@ -1,1 +1,0 @@
-import{eP as o,R as r,o as t,c as a}from"./index-DTF6M3zX.js";const u={__name:"index",setup(s){const e=o();return r(()=>{e.replace({name:"nightpos-rooms-dashboard"})}),(n,c)=>(t(),a("div"))}};export{u as default};

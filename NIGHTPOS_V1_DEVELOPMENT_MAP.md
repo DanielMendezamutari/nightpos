@@ -526,6 +526,9 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Hosting ERR_CONNECTION_RESET (P0) | `backend/HOSTING_CONNECTION_RESET_FIX_REPORT.md`, `frontend/HOSTING_CONNECTION_RESET_FIX_REPORT.md` |
 | PWA rollback hosting (P0) | `frontend/PWA_HOSTING_ROLLBACK_FIX_REPORT.md`, `backend/HOSTING_DEPLOY_STRUCTURE_FIX_REPORT.md` |
 | Hosting deploy architecture (P0) | `backend/HOSTING_DEPLOY_ARCHITECTURE_*`, `frontend/HOSTING_DEPLOY_ARCHITECTURE_*`, `agent/HOSTING_DEPLOY_ARCHITECTURE_*` |
+| Hosting login-context 404 (P0) | `backend/HOSTING_LOGIN_CONTEXT_404_AUDIT.md`, `frontend/HOSTING_LOGIN_CONTEXT_404_AUDIT.md` |
+| Hosting login-context timeout (P0) | `backend/HOSTING_LOGIN_CONTEXT_TIMEOUT_AUDIT.md`, `frontend/HOSTING_LOGIN_CONTEXT_TIMEOUT_AUDIT.md` |
+| Hosting login-context timeout (P1 fix) | `backend/HOSTING_LOGIN_CONTEXT_TIMEOUT_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_CONTEXT_TIMEOUT_FIX_REPORT.md` |
 | Hosting login PIN JWT (P0) | `backend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md` |
 
 ---
@@ -641,6 +644,51 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 **Playbook:** `backend/database/pasos-para-modificaciones.md`
 
 **Audits:** `HOSTING_DEPLOY_ARCHITECTURE_AUDIT.md` (backend, frontend, agent)
+
+---
+
+## Hosting — Login context 404 inconsistente (P0 — 2026-06-25)
+
+**Síntoma:** Navegador con cookies (CASA22/EL JEFE) login OK; navegador nuevo → 404 en empresas.
+
+| Hallazgo | Detalle |
+|----------|---------|
+| Causa raíz | **`/api/v1/*` → 404 HTML** en hosting (rewrite no activo) |
+| API que sí funciona hoy | `/backend/public/api/v1/*` → JSON 200 |
+| Por qué difiere por navegador | Con cookies **no llama tenants**; solo branches vía URL legacy cacheada |
+| Navegador nuevo | Llama **tenants** con build `/api/v1` → 404 |
+| tenant CASA22 | slug real en BD: **`C22`**, sucursal **`1`** |
+| Mensaje axios crudo | 404 HTML sin JSON → `classifyApiError` no traduce |
+
+**Plan:** activar `.htaccess` Opción A **o** rollback temporal `VITE_API_BASE_URL=/backend/public/api/v1` + deploy limpio.
+
+**Audits:** `backend/HOSTING_LOGIN_CONTEXT_404_AUDIT.md`, `frontend/HOSTING_LOGIN_CONTEXT_404_AUDIT.md`
+
+---
+
+## Hosting — Login context timeout (P0 audit → P1 fix — 2026-06-25)
+
+**Síntoma:** *"El servidor tardó demasiado en responder"* al cargar empresas en `/login`.
+
+| Hallazgo | Detalle |
+|----------|---------|
+| Backend login-context | **1 query**, ~117 ms local — **no es lento** |
+| SAAS-1.5 en ruta login | **No involucrado** |
+| Producción | Resets intermitentes + cola PHP; timeout axios 15 s |
+| Frontend (pre-P1) | `VITE_API_TIMEOUT_MS` no en `.env.production`; login-context no excluido de refresh JWT |
+
+**P1 implementado (resiliencia):**
+
+| Área | Entrega |
+|------|---------|
+| Frontend | `VITE_API_TIMEOUT_MS=30000`; skip refresh en `/auth/login-context/`; `classifyApiError` (timeout/network/404 HTML); UX Reintentar/Limpiar contexto en login |
+| Backend | `listActiveForLogin()` — SQL mínima `status=active` + suscripción válida |
+| Tests | `http.spec.js`, `loginContext.spec.js`, `LoginContextSelectionTest` #7–8 |
+
+**P0 hosting sigue obligatorio:** estabilizar LiteSpeed → curl tenants <1 s → `.htaccess` Opción A → deploy limpio.
+
+**Audits:** `backend/HOSTING_LOGIN_CONTEXT_TIMEOUT_AUDIT.md`, `frontend/HOSTING_LOGIN_CONTEXT_TIMEOUT_AUDIT.md`  
+**Fix reports:** `backend/HOSTING_LOGIN_CONTEXT_TIMEOUT_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_CONTEXT_TIMEOUT_FIX_REPORT.md`
 
 ---
 

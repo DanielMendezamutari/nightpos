@@ -23,10 +23,7 @@ final class ListLoginContextTenantsUseCase implements UseCaseInterface
                 'name' => $tenant->name,
                 'slug' => $tenant->slug,
             ],
-            array_filter(
-                $this->tenants->listAll(),
-                static fn ($tenant) => $tenant->isActive() && $tenant->hasValidSubscription(),
-            ),
+            $this->tenants->listActiveForLogin(),
         ));
 
         return OperationResult::ok('Empresas disponibles para login.', ['tenants' => $items]);

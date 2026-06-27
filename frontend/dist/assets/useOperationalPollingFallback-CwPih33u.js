@@ -1,0 +1,1 @@
+import{u as s}from"./useOperationalEvents-oH-6OLf4.js";import{R as c,cS as i}from"./index-BQ1dVA52.js";function m(t,o={}){const{intervalMs:l=3e4,onlyWhenDisconnected:a=!1}=o,{connected:e}=s();let n=null;const r=()=>{a&&e.value||t()};return c(()=>{n=setInterval(r,l)}),i(()=>{n&&clearInterval(n)}),{connected:e}}export{m as u};

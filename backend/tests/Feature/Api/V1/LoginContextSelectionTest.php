@@ -96,3 +96,34 @@ it('6. no lista branches inactivas', function () {
 
     expect($codes)->not->toContain('CERRADA');
 });
+
+it('7. no lista tenants con suscripcion vencida', function () {
+    TenantModel::query()->create([
+        'name' => 'Bar Expirado',
+        'slug' => 'bar-expirado',
+        'status' => 'active',
+        'plan_name' => 'pro',
+        'subscription_starts_at' => now()->subYear(),
+        'subscription_ends_at' => now()->subDay(),
+    ]);
+
+    $slugs = collect(
+        $this->getJson('/api/v1/auth/login-context/tenants')->json('data.tenants'),
+    )->pluck('slug')->all();
+
+    expect($slugs)->not->toContain('bar-expirado');
+});
+
+it('8. login-context tenants usa una sola query minima sin relaciones', function () {
+    \Illuminate\Support\Facades\DB::enableQueryLog();
+
+    $response = $this->getJson('/api/v1/auth/login-context/tenants')
+        ->assertOk();
+
+    $queries = \Illuminate\Support\Facades\DB::getQueryLog();
+
+    expect($queries)->toHaveCount(1)
+        ->and(strtolower($queries[0]['query']))->toContain('status')
+        ->and($response->json('data.tenants.0'))->toHaveKeys(['id', 'name', 'slug'])
+        ->and($response->json('data.tenants.0'))->not->toHaveKey('plan_name');
+});

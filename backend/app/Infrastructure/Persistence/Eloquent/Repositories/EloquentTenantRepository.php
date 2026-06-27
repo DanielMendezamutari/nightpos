@@ -33,6 +33,23 @@ final class EloquentTenantRepository implements TenantRepositoryInterface
             ->all();
     }
 
+    public function listActiveForLogin(): array
+    {
+        $now = now();
+
+        return TenantModel::query()
+            ->select(['id', 'name', 'slug', 'status', 'subscription_ends_at'])
+            ->where('status', 'active')
+            ->where(function ($query) use ($now) {
+                $query->whereNull('subscription_ends_at')
+                    ->orWhere('subscription_ends_at', '>=', $now);
+            })
+            ->orderBy('name')
+            ->get()
+            ->map(fn (TenantModel $model) => $this->map($model))
+            ->all();
+    }
+
     public function create(
         string $name,
         string $slug,

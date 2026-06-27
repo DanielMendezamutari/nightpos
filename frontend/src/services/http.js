@@ -17,10 +17,37 @@ const api = axios.create({
 
 let refreshInFlight = null
 
-function isAuthEndpoint(url = '') {
-  return url.includes('/auth/login-')
+export function isAuthEndpoint(url = '') {
+  return url.includes('/auth/login-context/')
+    || url.includes('/auth/login-')
     || url.includes('/auth/refresh')
     || url.includes('/auth/logout')
+}
+
+function responseLooksLikeHtml(error) {
+  const contentType = String(error.response?.headers?.['content-type'] || '')
+  const data = error.response?.data
+
+  if (contentType.includes('text/html'))
+    return true
+
+  if (typeof data === 'string' && /<!DOCTYPE|<html/i.test(data))
+    return true
+
+  return false
+}
+
+function isNetworkOrResetError(error) {
+  if (error.response)
+    return false
+
+  const code = error.code
+  const message = error.message || ''
+
+  return code === 'ERR_NETWORK'
+    || code === 'ECONNRESET'
+    || message === 'Network Error'
+    || /connection reset|network error|unexpected end of json/i.test(message)
 }
 
 function decodeTokenExpiryMs(token) {
@@ -119,14 +146,21 @@ export function classifyApiError(error) {
   if (code === 'ECONNABORTED' || /timeout/i.test(error.message || '')) {
     return {
       kind: 'timeout',
-      userMessage: 'El servidor tardó demasiado en responder. Verifique la conexión e intente de nuevo.',
+      userMessage: 'El servidor está tardando más de lo normal. Intente nuevamente en unos segundos.',
     }
   }
 
-  if (!error.response && (code === 'ERR_NETWORK' || error.message === 'Network Error')) {
+  if (isNetworkOrResetError(error)) {
     return {
       kind: 'network',
-      userMessage: 'Sin conexión con el servidor. Verifique internet o que el backend esté activo.',
+      userMessage: 'No se pudo conectar con el servidor. Verifique internet o hosting.',
+    }
+  }
+
+  if (status === 404 && responseLooksLikeHtml(error)) {
+    return {
+      kind: 'api_routing',
+      userMessage: 'La API no está respondiendo correctamente. Verifique configuración del hosting.',
     }
   }
 
@@ -165,13 +199,27 @@ export function classifyApiError(error) {
   if (status >= 500) {
     return {
       kind: 'server',
-      userMessage: serverMessage || 'Error interno del servidor. Intente de nuevo en unos minutos.',
+      userMessage: serverMessage || 'El servidor no responde correctamente. Intente de nuevo en unos minutos.',
+    }
+  }
+
+  if (serverMessage && status && status >= 400 && status < 500) {
+    return {
+      kind: 'client',
+      userMessage: serverMessage,
+    }
+  }
+
+  if (!error.response) {
+    return {
+      kind: 'no_response',
+      userMessage: 'El servidor no responde. Verifique internet o hosting.',
     }
   }
 
   return {
     kind: 'unknown',
-    userMessage: serverMessage || error.message || 'Error de comunicación con el servidor',
+    userMessage: serverMessage || 'Error de comunicación con el servidor',
   }
 }
 
