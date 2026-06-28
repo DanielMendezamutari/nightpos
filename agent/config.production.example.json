@@ -2,7 +2,7 @@
   "backend_url": "https://nightpos.ribersoft.com/backend/public/api/v1",
   "device_key": "npd_live_REEMPLAZAR",
   "printer_name": "POS-80",
-  "poll_interval_ms": 1500,
+  "poll_interval_ms": 15000,
   "dry_run": false,
   "dry_run_dir": "C:\\ProgramData\\NightPOS\\PrintAgent\\dry-run-output",
   "log_level": "info"

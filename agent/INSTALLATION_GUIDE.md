@@ -207,10 +207,10 @@ notepad C:\ProgramData\NightPOS\PrintAgent\config.json
 
 | Campo | Obligatorio | Descripción |
 |-------|-------------|-------------|
-| `backend_url` | **Sí** | URL base de la API NightPOS, **incluyendo** `/api/v1`. Sin barra final. |
+| `backend_url` | **Sí** | URL base de la API. **Producción cPanel (temporal):** `https://…/backend/public/api/v1`. Sin barra final. |
 | `device_key` | **Sí** | Clave del dispositivo (`npd_live_...`). Se obtiene una sola vez al registrar en NightPOS. |
 | `printer_name` | **Sí** (salvo dry_run) | Nombre **exacto** de la impresora en Windows. |
-| `poll_interval_ms` | No | Intervalo de consulta al backend en milisegundos. Default: `1500`. |
+| `poll_interval_ms` | No | Intervalo normal entre ciclos cuando el backend responde. Default código: `1500`. **Producción cPanel recomendado:** `15000`. Tras fallos de red el agente aplica backoff automático (30s→300s). |
 | `dry_run` | No | `true` = no imprime en impresora; guarda contenido en archivo. Default: `false`. |
 | `dry_run_dir` | No | Carpeta de salida cuando `dry_run` es true. |
 | `log_level` | No | Nivel de log: `debug`, `info`, `warn`, `error`. Default: `info`. |
@@ -242,14 +242,33 @@ notepad C:\ProgramData\NightPOS\PrintAgent\config.json
 }
 ```
 
-### Ejemplo — Producción Ribersoft (HTTPS, Opción A)
+### Ejemplo — Producción Ribersoft (cPanel / LiteSpeed — URL legacy temporal)
+
+Usar la misma base API que el frontend desplegado (`/backend/public/api/v1`).
+
+Plantilla: `config.production.example.json`
+
+```json
+{
+  "backend_url": "https://nightpos.ribersoft.com/backend/public/api/v1",
+  "device_key": "npd_live_REEMPLAZAR",
+  "printer_name": "BARRA_CENTRO",
+  "poll_interval_ms": 15000,
+  "dry_run": false,
+  "log_level": "info"
+}
+```
+
+> El agente v2.0+ usa **HTTP/1.1** y `User-Agent: NightPOSPrintAgent/2.0` para compatibilidad con LiteSpeed. Si el hosting corta conexiones, aplica **backoff** (30s→300s) antes de reintentar.
+
+### Ejemplo — Producción futura (Opción A, cuando `/api/v1` raíz esté validado)
 
 ```json
 {
   "backend_url": "https://nightpos.ribersoft.com/api/v1",
   "device_key": "npd_live_REEMPLAZAR",
   "printer_name": "BARRA_CENTRO",
-  "poll_interval_ms": 1500,
+  "poll_interval_ms": 15000,
   "dry_run": false,
   "log_level": "info"
 }

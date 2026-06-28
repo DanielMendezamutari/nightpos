@@ -2,13 +2,19 @@ package api
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 )
+
+const UserAgent = "NightPOSPrintAgent/2.0"
+
+const requestTimeout = 30 * time.Second
 
 type Client struct {
 	baseURL    string
@@ -26,13 +32,34 @@ type PrintJob struct {
 	CreatedAt   string `json:"created_at"`
 }
 
+func NewHTTPClient() *http.Client {
+	transport := &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     false,
+		TLSNextProto:          make(map[string]func(authority string, c *tls.Conn) http.RoundTripper),
+		MaxIdleConns:          4,
+		MaxIdleConnsPerHost:   2,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		ResponseHeaderTimeout: 20 * time.Second,
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   requestTimeout,
+	}
+}
+
 func New(baseURL, deviceKey string) *Client {
 	return &Client{
-		baseURL:   strings.TrimRight(baseURL, "/"),
-		deviceKey: deviceKey,
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		deviceKey:  deviceKey,
+		httpClient: NewHTTPClient(),
 	}
 }
 
@@ -58,6 +85,7 @@ func (c *Client) request(method, route string, body any) (json.RawMessage, error
 	}
 	req.Header.Set("Authorization", "Bearer "+c.deviceKey)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", UserAgent)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -138,10 +166,27 @@ func IsNetworkError(err error) bool {
 		return false
 	}
 	s := strings.ToLower(err.Error())
-	return strings.Contains(s, "timeout") ||
-		strings.Contains(s, "connection refused") ||
-		strings.Contains(s, "no such host") ||
-		strings.Contains(s, "network is unreachable") ||
-		strings.Contains(s, "i/o timeout") ||
-		strings.Contains(s, "connection reset")
+	needles := []string{
+		"timeout",
+		"connection refused",
+		"connection reset",
+		"no such host",
+		"network is unreachable",
+		"i/o timeout",
+		"stream error",
+		"cancel",
+		"forcibly closed",
+		"wsarecv",
+		"empty reply",
+		"eof",
+		"unexpected eof",
+		"broken pipe",
+		"tls:",
+	}
+	for _, n := range needles {
+		if strings.Contains(s, n) {
+			return true
+		}
+	}
+	return err == io.EOF || err == io.ErrUnexpectedEOF
 }

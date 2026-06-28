@@ -14,11 +14,21 @@ import (
 
 const Version = "2.0.0"
 
+var networkBackoffSteps = []time.Duration{
+	30 * time.Second,
+	60 * time.Second,
+	120 * time.Second,
+	300 * time.Second,
+}
+
 type Runtime struct {
 	cfg    config.Config
 	client *api.Client
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+
+	backoffMu     sync.Mutex
+	netFailStreak int
 }
 
 func NewRuntime(cfg config.Config) *Runtime {
@@ -63,11 +73,8 @@ func (r *Runtime) loop(ctx context.Context) {
 		}
 	}
 
-	interval := time.Duration(r.cfg.PollIntervalMS) * time.Millisecond
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	r.tick(ctx)
+	netErr := r.tick(ctx)
+	wait := r.nextWait(netErr)
 
 	for {
 		select {
@@ -77,16 +84,40 @@ func (r *Runtime) loop(ctx context.Context) {
 				s.Message = "Detenido"
 			})
 			return
-		case <-ticker.C:
-			r.tick(ctx)
+		case <-time.After(wait):
+			netErr = r.tick(ctx)
+			wait = r.nextWait(netErr)
 		}
 	}
 }
 
-func (r *Runtime) tick(ctx context.Context) {
+func (r *Runtime) nextWait(networkErr bool) time.Duration {
+	r.backoffMu.Lock()
+	defer r.backoffMu.Unlock()
+
+	base := time.Duration(r.cfg.PollIntervalMS) * time.Millisecond
+
+	if !networkErr {
+		r.netFailStreak = 0
+		return base
+	}
+
+	if r.netFailStreak < len(networkBackoffSteps) {
+		r.netFailStreak++
+	}
+	idx := r.netFailStreak - 1
+	if idx >= len(networkBackoffSteps) {
+		idx = len(networkBackoffSteps) - 1
+	}
+	wait := networkBackoffSteps[idx]
+	logger.Info("Backoff hosting: próximo intento en %s (fallo de red #%d)", wait, r.netFailStreak)
+	return wait
+}
+
+func (r *Runtime) tick(ctx context.Context) (networkErr bool) {
 	select {
 	case <-ctx.Done():
-		return
+		return false
 	default:
 	}
 
@@ -98,14 +129,14 @@ func (r *Runtime) tick(ctx context.Context) {
 				s.Message = "Sin conexión al backend"
 				s.LastError = err.Error()
 			})
-		} else {
-			status.Update(func(s *status.Snapshot) {
-				s.State = status.StateConfigError
-				s.Message = err.Error()
-				s.LastError = err.Error()
-			})
+			return true
 		}
-		return
+		status.Update(func(s *status.Snapshot) {
+			s.State = status.StateConfigError
+			s.Message = err.Error()
+			s.LastError = err.Error()
+		})
+		return false
 	}
 
 	status.Update(func(s *status.Snapshot) {
@@ -127,18 +158,21 @@ func (r *Runtime) tick(ctx context.Context) {
 				s.Message = "Sin conexión al backend"
 				s.LastError = err.Error()
 			})
+			return true
 		}
-		return
+		return false
 	}
 
 	for _, job := range jobs {
 		select {
 		case <-ctx.Done():
-			return
+			return false
 		default:
 			r.processJob(job)
 		}
 	}
+
+	return false
 }
 
 func (r *Runtime) processJob(job api.PrintJob) {

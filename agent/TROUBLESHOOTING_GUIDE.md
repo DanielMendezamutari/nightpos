@@ -32,7 +32,8 @@ Para checklist de sucursal nueva, consultar [DEPLOYMENT_CHECKLIST.md](./DEPLOYME
 12. [Error SQLite o 500 en backend (desarrollo)](#12-error-sqlite-o-500-en-backend-desarrollo)
 13. [Firewall y antivirus](#13-firewall-y-antivirus)
 14. [device_key inválida o rotada](#14-device_key-inválida-o-rotada)
-15. [Preguntas frecuentes (FAQ)](#15-preguntas-frecuentes-faq)
+15. [Connection reset / wsarecv / stream CANCEL (hosting)](#15-connection-reset--wsarecv--stream-cancel-hosting)
+16. [Preguntas frecuentes (FAQ)](#16-preguntas-frecuentes-faq)
 
 ---
 
@@ -395,7 +396,62 @@ Heartbeat HTTP **401** en logs o curl manual.
 
 ---
 
-## 15. Preguntas frecuentes (FAQ)
+## 15. Connection reset / wsarecv / stream CANCEL (hosting)
+
+### Síntoma en logs
+
+```
+[WARN] Error conexión backend: Post ".../print-devices/heartbeat":
+read tcp ... wsarecv: Se ha forzado la interrupción...
+```
+
+O:
+
+```
+stream error: stream ID 1; CANCEL; received from peer
+```
+
+### Causa
+
+LiteSpeed/cPanel puede cerrar conexiones HTTP/2 o bloquear el User-Agent por defecto de Go. También puede ocurrir si el hosting está saturado (entry processes).
+
+### Qué hace el agente v2.0+
+
+- Fuerza **HTTP/1.1** (no negocia HTTP/2).
+- Envía `User-Agent: NightPOSPrintAgent/2.0`.
+- Tras fallo de **red**, aplica **backoff**: 30s → 60s → 120s → 300s máx.
+- Tras heartbeat OK, vuelve al `poll_interval_ms` normal.
+
+En logs debe aparecer:
+
+```
+[INFO] Backoff hosting: próximo intento en 30s (fallo de red #1)
+```
+
+### Diagnóstico
+
+1. Verificar `backend_url` legacy: `https://…/backend/public/api/v1`
+2. `poll_interval_ms`: **15000** en producción cPanel
+3. Probar desde la misma PC:
+
+```powershell
+curl.exe -i -X POST https://nightpos.ribersoft.com/backend/public/api/v1/print-devices/heartbeat `
+  -H "Authorization: Bearer SU_DEVICE_KEY" `
+  -H "Content-Type: application/json" `
+  -d "{\"agent_version\":\"2.0.0\",\"printer_name\":\"CAJA\"}"
+```
+
+| Resultado curl | Acción |
+|----------------|--------|
+| JSON success | Recompilar/instalar EXE v2.0+ con fix HTTP/1.1 |
+| 401 JSON | Revisar `device_key` |
+| Reset | Escalar hosting (ModSecurity / entry processes) |
+
+4. Recompilar EXE tras actualizar código — ver `PRINT_AGENT_HTTP1_BACKOFF_FIX_REPORT.md`
+
+---
+
+## 16. Preguntas frecuentes (FAQ)
 
 ### ¿Por qué el agente usa ProgramData?
 
@@ -418,7 +474,7 @@ El agente deja de autenticarse (401) hasta actualizar `config.json`. Rotar clave
 
 ### ¿Qué pasa si no hay internet?
 
-El agente pasa a estado 🟡 (sin conexión), reintenta solo. Los jobs quedan **PENDING** en el servidor. Al volver la conexión, se imprimen en orden.
+El agente pasa a estado 🟡 (sin conexión) y aplica **backoff** (30s→300s) antes de reintentar — no martilla cada 15 s. Los jobs quedan **PENDING** en el servidor. Al volver la conexión, se imprimen en orden.
 
 ### ¿Qué pasa si la PC se apaga?
 

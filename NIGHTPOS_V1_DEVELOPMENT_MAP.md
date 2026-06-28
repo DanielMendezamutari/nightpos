@@ -533,6 +533,10 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | cPanel `.htaccess` deploy (P0 urgente) | `backend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `frontend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `agent/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md` |
 | PWA/Desktop hosting regression (P0 audit) | `backend/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md`, `frontend/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md`, `agent/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md` |
 | PWA full rollback estabilización (P0) | `backend/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`, `frontend/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`, `agent/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md` |
+| Print agent hosting overload (P0 audit) | `backend/PRINT_AGENT_HOSTING_OVERLOAD_AUDIT.md`, `frontend/PRINT_AGENT_HOSTING_OVERLOAD_AUDIT.md`, `agent/PRINT_AGENT_HOSTING_OVERLOAD_AUDIT.md` |
+| Print agent regression diff (estable 121fade vs HEAD) | `fix agente de impresion/agent/PRINT_AGENT_REGRESSION_DIFF_AUDIT.md`, `fix agente de impresion/backend/PRINT_AGENT_REGRESSION_DIFF_AUDIT.md` |
+| Print agent heartbeat connection reset deep audit | `agent/PRINT_AGENT_HEARTBEAT_CONNECTION_RESET_DEEP_AUDIT.md`, `backend/PRINT_AGENT_HEARTBEAT_CONNECTION_RESET_DEEP_AUDIT.md` |
+| Print agent HTTP/1.1 + backoff fix | `agent/PRINT_AGENT_HTTP1_BACKOFF_FIX_REPORT.md` |
 
 ---
 
@@ -720,6 +724,58 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 **En servidor:** borrar residuos PWA + raíz SPA vieja → subir `dist/` → agente `backend_url` legacy → browsers unregister SW.
 
 **Reportes:** `backend/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`, `frontend/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`, `agent/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`
+
+---
+
+## Hosting — Print agent overload (P0 audit — 2026-06-27)
+
+**Hipótesis confirmada en código:** agente puede tumbar hosting compartido si:
+
+- `backend_url` apunta a `/api/v1` (incorrecto post-rollback) → resets
+- `poll_interval_ms` muy bajo (**100 ms** en repo dev = ~10 req/s; **1500 ms** default código)
+- **Sin backoff** en errores de red
+- Cada ciclo: heartbeat + pending = **2× bootstrap Laravel + bcrypt** por ciclo
+- Backend: **UPDATE DB en cada heartbeat** exitoso
+
+**Acción manual inmediata:** `sc stop NightPOSPrintAgent` → verificar sitio → config en `C:\ProgramData\NightPOS\PrintAgent\config.json` con URL legacy + `poll_interval_ms` ≥ 15000.
+
+**Audits:** `backend/PRINT_AGENT_HOSTING_OVERLOAD_AUDIT.md`, `frontend/PRINT_AGENT_HOSTING_OVERLOAD_AUDIT.md`, `agent/PRINT_AGENT_HOSTING_OVERLOAD_AUDIT.md`
+
+---
+
+## Print agent — regresión diff (121fade vs HEAD — 2026-06-27)
+
+**Conclusión git:** código Go del agente (`runtime.go`, `config.go`, `client.go`) **sin cambios** desde commit estable `121fade`. `poll_interval_ms=1500` funcionaba con URL legacy.
+
+**Regresión:** commit `256f3a8` (*fix de impresion*) — `.env.production` → `/api/v1`, `.htaccess` raíz, docs agente Opción A. Agente en PC con `/api/v1` + hosting/rewrite inestable → resets en bucle (sin backoff, igual que antes).
+
+**Recuperación mínima:** `backend_url=https://nightpos.ribersoft.com/backend/public/api/v1` en ProgramData + mantener **1500 ms** + frontend rollback legacy desplegado.
+
+**Diff audit:** `fix agente de impresion/agent/PRINT_AGENT_REGRESSION_DIFF_AUDIT.md`, `fix agente de impresion/backend/PRINT_AGENT_REGRESSION_DIFF_AUDIT.md`
+
+---
+
+## Print agent — heartbeat connection reset deep audit (2026-06-28)
+
+**Síntoma:** URL legacy + poll 15s → sigue `wsarecv` reset en POST heartbeat.
+
+**Conclusión:** URL/poll descartados. Hosting **intermitente** (GET health también resetea). POST sin auth → **401 JSON** cuando responde → Laravel OK. Agente Go usa **HTTP/2 por defecto**, sin User-Agent custom, sin backoff.
+
+**Fix candidato #1 (futuro):** forzar HTTP/1.1 + User-Agent `NightPOSPrintAgent/2.0` + backoff.
+
+**Pendiente sucursal:** curl POST con **device_key real** + logs cPanel ModSecurity + `migrate:status` SAAS.
+
+**Audits:** `agent/PRINT_AGENT_HEARTBEAT_CONNECTION_RESET_DEEP_AUDIT.md`, `backend/PRINT_AGENT_HEARTBEAT_CONNECTION_RESET_DEEP_AUDIT.md`
+
+---
+
+## Print agent — HTTP/1.1 + backoff fix (2026-06-28)
+
+**Implementado en agente Go:** transport HTTP/1.1 forzado, `User-Agent: NightPOSPrintAgent/2.0`, `IsNetworkError` ampliado, backoff 30→300s en fallos de red, reset al heartbeat OK.
+
+**Producción:** `config.production.example.json` → URL legacy + `poll_interval_ms=15000`.
+
+**Reporte:** `agent/PRINT_AGENT_HTTP1_BACKOFF_FIX_REPORT.md` — rebuild EXE e instalar en sucursal.
 
 ---
 
