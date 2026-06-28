@@ -1,4 +1,5 @@
-# Plantilla — ver frontend/public/.htaccess y CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md
+# Plantilla NightPOS — raíz dominio (copiar a .htaccess en hosting)
+# Archivos por etapa: .htaccess.stage2-spa-only | .htaccess.stage3-api | .htaccess (final)
 
 DirectoryIndex index.html
 

@@ -25,11 +25,11 @@ const { showMaterializeCustomizer } = useShowMaterializeCustomizer()
 
 const pwaEnabled = isPwaEnabled()
 
-// PWA — dynamically swap manifest per route context (no-op when disabled).
-usePwaManifest()
+if (pwaEnabled) {
+  usePwaManifest()
+}
 
-// PWA — track service worker updates (no-op when disabled).
-const { needsUpdate, applyUpdate } = useSwUpdate()
+const { needsUpdate, applyUpdate } = pwaEnabled ? useSwUpdate() : { needsUpdate: ref(false), applyUpdate: () => {} }
 </script>
 
 <template>

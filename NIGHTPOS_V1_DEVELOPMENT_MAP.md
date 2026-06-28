@@ -531,6 +531,8 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Hosting login-context timeout (P1 fix) | `backend/HOSTING_LOGIN_CONTEXT_TIMEOUT_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_CONTEXT_TIMEOUT_FIX_REPORT.md` |
 | Hosting login PIN JWT (P0) | `backend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md`, `frontend/HOSTING_LOGIN_PIN_DEVICE_KEY_FIX_REPORT.md` |
 | cPanel `.htaccess` deploy (P0 urgente) | `backend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `frontend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `agent/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md` |
+| PWA/Desktop hosting regression (P0 audit) | `backend/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md`, `frontend/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md`, `agent/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md` |
+| PWA full rollback estabilización (P0) | `backend/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`, `frontend/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`, `agent/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md` |
 
 ---
 
@@ -634,10 +636,10 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Componente | Oficial |
 |------------|---------|
 | Document root | Frontend `dist/` + carpeta `backend/` |
-| `VITE_API_BASE_URL` | `/api/v1` |
+| `VITE_API_BASE_URL` | **`/backend/public/api/v1`** (estabilización P0) |
 | `APP_URL` | `https://nightpos.ribersoft.com` (sin `/backend/public`) |
-| Agente `backend_url` | `https://nightpos.ribersoft.com/api/v1` |
-| PWA producción | **Off** (`VITE_PWA_ENABLED=false`) |
+| Agente `backend_url` | `https://nightpos.ribersoft.com/backend/public/api/v1` |
+| PWA producción | **Off** (`VITE_PWA_ENABLED=false`) hasta V1.1 |
 | `.htaccess` raíz | **Mínimo** — ver `frontend/public/.htaccess`; etapas `.htaccess.stage2-spa-only` / `.htaccess.stage3-api` |
 | Deploy `.htaccess` | Probar Etapa 1→4; **conservar bloque PHP cPanel**; sin headers/FilesMatch complejos por ahora |
 
@@ -670,6 +672,54 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 **Fallback estable:** `VITE_API_BASE_URL=/backend/public/api/v1` + agente `backend_url=.../backend/public/api/v1`.
 
 **Reportes:** `backend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `frontend/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`, `agent/CPANEL_HTACCESS_DEPLOY_FIX_REPORT.md`
+
+---
+
+## Hosting — PWA / Desktop / App instalable regresión (P0 audit — 2026-06-27)
+
+**Contexto:** antes de PWA/app instalable/desktop/garzón móvil el hosting funcionaba con `VITE_API_BASE_URL=/backend/public/api/v1`. Tras PWA (Jun 2026) + migración Opción A `/api/v1` aparecieron resets, 404 login reload, agente HTML, sw.js MIME text/html.
+
+### Causa raíz más probable (combinación)
+
+| Capa | Peso |
+|------|------|
+| LiteSpeed/CloudLinux inestable (reset incluso en `health.php`) | **Alto** |
+| Cambio URL API + `.htaccess` raíz no validado en hosting | **Alto** |
+| Deploy dist mezclado + residuos PWA (`sw.js`, chunks viejos) | **Medio** |
+| PWA activa (periodo previo al rollback) | **Medio (agravante)** |
+
+### Estado repo actual
+
+- `VITE_PWA_ENABLED=false` ✓
+- `dist/` sin `sw.js` / `registerSW` ✓
+- `VITE_API_BASE_URL=/api/v1` (requiere rewrite)
+- `.htaccess` raíz mínimo en `frontend/public/.htaccess`
+
+### Plan estable (sin code aún)
+
+**Opción A rápida:** hosting estable → limpiar SW en docroot → deploy limpio → **temporal** `/backend/public/api/v1` frontend+agente → PWA off hasta V1.1
+
+**Opción B definitiva:** Etapas `.htaccess` 2→4 → `/api/v1` unificado → smoke curls
+
+**Audits:** `backend/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md`, `frontend/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md`, `agent/PWA_DESKTOP_HOSTING_REGRESSION_AUDIT.md`
+
+---
+
+## Hosting — PWA full rollback estabilización (P0 — 2026-06-27)
+
+**Implementado** — volver al estado estable pre-PWA/Opción A.
+
+| Entrega | Estado |
+|---------|--------|
+| `VITE_PWA_ENABLED=false` | ✅ |
+| `VITE_API_BASE_URL=/backend/public/api/v1` | ✅ |
+| Build sin sw/registerSW/workbox/MSW | ✅ `vite.config.js` post-build strip |
+| Agente URL legacy documentada | ✅ `config.production.example.json` |
+| Deploy limpio hosting (instrucciones) | ✅ ver reportes |
+
+**En servidor:** borrar residuos PWA + raíz SPA vieja → subir `dist/` → agente `backend_url` legacy → browsers unregister SW.
+
+**Reportes:** `backend/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`, `frontend/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`, `agent/PWA_FULL_ROLLBACK_STABILIZATION_REPORT.md`
 
 ---
 

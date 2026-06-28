@@ -7,8 +7,8 @@ export function isPwaEnabled() {
 }
 
 /**
- * Unregister any service workers left from a previous PWA build.
- * Safe to call when PWA is disabled; no-op when enabled.
+ * Limpia service workers de builds PWA anteriores (solo cuando PWA está off).
+ * No registra SW — solo desregistra legacy en el navegador del usuario.
  */
 export async function unregisterServiceWorkersIfDisabled() {
   if (isPwaEnabled())

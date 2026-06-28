@@ -1,0 +1,23 @@
+# ETAPA 2 — Solo SPA fallback (diagnóstico cPanel/LiteSpeed)
+# Renombrar a .htaccess en la raíz del dominio y probar / /login /nightpos/test
+# Si esto provoca ERR_CONNECTION_RESET, el problema NO es la API.
+
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    RewriteRule ^(sw\.js|registerSW\.js|mockServiceWorker\.js|workbox-[^/]+\.js)$ - [R=404,L]
+
+    RewriteCond %{REQUEST_URI} !^/backend/
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# (conservar en servidor el bloque que cPanel ya tenga; no borrarlo al pegar)
+# php -- END cPanel-generated handler, do not edit

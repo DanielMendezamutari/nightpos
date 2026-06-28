@@ -1,0 +1,27 @@
+# ETAPA 3 — SPA + API limpia (sin Authorization aún)
+# Probar /api/v1/health y /api/v1/auth/login-context/tenants → JSON
+
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    RewriteRule ^api/ backend/public/index.php [L,QSA]
+
+    RewriteRule ^storage/(.*)$ backend/public/storage/$1 [L]
+
+    RewriteRule ^(sw\.js|registerSW\.js|mockServiceWorker\.js|workbox-[^/]+\.js)$ - [R=404,L]
+
+    RewriteCond %{REQUEST_URI} !^/api/
+    RewriteCond %{REQUEST_URI} !^/backend/
+    RewriteCond %{REQUEST_URI} !^/storage/
+    RewriteRule ^ index.html [L]
+</IfModule>
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# php -- END cPanel-generated handler, do not edit

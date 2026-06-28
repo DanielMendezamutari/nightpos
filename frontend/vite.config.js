@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url'
-import { unlinkSync } from 'node:fs'
+import { readdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import vue from '@vitejs/plugin-vue'
@@ -172,15 +172,29 @@ export default defineConfig(({ mode }) => {
     })
   }
 
-  if (env.VITE_USE_MSW !== 'true') {
+  if (!pwaEnabled || env.VITE_USE_MSW !== 'true') {
     plugins.push({
-      name: 'nightpos-strip-msw-artifact',
+      name: 'nightpos-strip-pwa-msw-artifacts',
       closeBundle() {
+        const distDir = join(process.cwd(), 'dist')
+
+        for (const name of ['mockServiceWorker.js', 'sw.js', 'registerSW.js']) {
+          try {
+            unlinkSync(join(distDir, name))
+          }
+          catch {
+            // absent — OK
+          }
+        }
+
         try {
-          unlinkSync(join(process.cwd(), 'dist', 'mockServiceWorker.js'))
+          for (const name of readdirSync(distDir)) {
+            if (/^workbox-.*\.js$/i.test(name))
+              unlinkSync(join(distDir, name))
+          }
         }
         catch {
-          // dist/mockServiceWorker.js absent — OK
+          // dist/ missing — OK
         }
       },
     })
