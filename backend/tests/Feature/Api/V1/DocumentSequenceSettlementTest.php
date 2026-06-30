@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 use App\Application\DocumentSequence\Services\DocumentSequenceService;
 use App\Application\StaffSettlement\Services\SettlementTicketNumberGenerator;
-use App\Domain\StaffSettlement\Exceptions\StaffSettlementDomainException;
 use App\Infrastructure\Persistence\Eloquent\Models\BranchModel;
 use App\Infrastructure\Persistence\Eloquent\Models\DocumentSequenceModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
@@ -366,10 +365,115 @@ it('does not block payment when same ticket exists in another branch', function 
         ->value('ticket_number'))->toBe('CENTRO-'.now()->format('Y').'-000001');
 });
 
-it('returns controlled 409 instead of raw 500 on duplicate ticket_number', function () {
+it('recovers from lagged sequence and reserves 000003 when ticket 000002 already exists', function () {
     $branch = dssBranch();
     $shift = OfficialShiftModel::query()->where('status', 'OPEN')->firstOrFail();
     $year = now()->format('Y');
+    $branch->update(['code' => '1']);
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $branch->tenant_id,
+        'branch_id' => $branch->id,
+        'official_shift_id' => $shift->id,
+        'staff_user_id' => dssGirlId(),
+        'staff_role' => 'GIRL',
+        'settlement_type' => 'GIRL',
+        'total_amount' => 40,
+        'gross_amount' => 40,
+        'adjustments_total' => 0,
+        'net_amount' => 40,
+        'status' => 'PAID',
+        'paid_at' => now(),
+        'ticket_number' => '1-'.$year.'-000002',
+    ]);
+
+    DocumentSequenceModel::query()->updateOrCreate(
+        [
+            'tenant_id' => $branch->tenant_id,
+            'branch_id' => $branch->id,
+            'document_type' => DocumentSequenceType::SettlementPayment->value,
+            'period_key' => $year,
+        ],
+        [
+            'last_value' => 1,
+        ],
+    );
+
+    $reserved = DB::transaction(fn () => app(DocumentSequenceService::class)->reserveNext(
+        (int) $branch->tenant_id,
+        (int) $branch->id,
+        DocumentSequenceType::SettlementPayment,
+        $year,
+    ));
+
+    expect($reserved)->toBe(3)
+        ->and(app(DocumentSequenceService::class)->currentValue(
+            (int) $branch->tenant_id,
+            (int) $branch->id,
+            DocumentSequenceType::SettlementPayment,
+            $year,
+        ))->toBe(3);
+});
+
+it('pays settlement without 409 when document_sequences was lagged behind ticket 000002', function () {
+    $branch = dssBranch();
+    $shift = OfficialShiftModel::query()->where('status', 'OPEN')->firstOrFail();
+    $year = now()->format('Y');
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $branch->tenant_id,
+        'branch_id' => $branch->id,
+        'official_shift_id' => $shift->id,
+        'staff_user_id' => dssGirlId(),
+        'staff_role' => 'GIRL',
+        'settlement_type' => 'GIRL',
+        'total_amount' => 40,
+        'gross_amount' => 40,
+        'adjustments_total' => 0,
+        'net_amount' => 40,
+        'status' => 'PAID',
+        'paid_at' => now()->subHour(),
+        'ticket_number' => 'CENTRO-'.$year.'-000002',
+    ]);
+
+    DocumentSequenceModel::query()->updateOrCreate(
+        [
+            'tenant_id' => $branch->tenant_id,
+            'branch_id' => $branch->id,
+            'document_type' => DocumentSequenceType::SettlementPayment->value,
+            'period_key' => $year,
+        ],
+        [
+            'last_value' => 1,
+        ],
+    );
+
+    dssChargeGirl(70, 'DSS lagged seq');
+    dssGenerate();
+    $pending = dssGirlSettlement();
+    dssMarkPaid($pending->id);
+
+    $fresh = StaffSettlementModel::query()->findOrFail($pending->id);
+
+    expect($fresh->ticket_number)->toBe('CENTRO-'.$year.'-000003');
+});
+
+it('assigns next free ticket when higher numbers already exist', function () {
+    $branch = dssBranch();
+    $shift = OfficialShiftModel::query()->where('status', 'OPEN')->firstOrFail();
+    $year = now()->format('Y');
+
+    DocumentSequenceModel::query()->updateOrCreate(
+        [
+            'tenant_id' => $branch->tenant_id,
+            'branch_id' => $branch->id,
+            'document_type' => DocumentSequenceType::SettlementPayment->value,
+            'period_key' => $year,
+        ],
+        [
+            'last_value' => 102,
+        ],
+    );
 
     StaffSettlementModel::query()->create([
         'tenant_id' => $branch->tenant_id,
@@ -384,24 +488,28 @@ it('returns controlled 409 instead of raw 500 on duplicate ticket_number', funct
         'net_amount' => 30,
         'status' => 'PAID',
         'paid_at' => now(),
-        'ticket_number' => 'CENTRO-'.$year.'-000099',
+        'ticket_number' => 'CENTRO-'.$year.'-000103',
     ]);
-
-    DocumentSequenceModel::query()->updateOrCreate(
-        [
-            'tenant_id' => $branch->tenant_id,
-            'branch_id' => $branch->id,
-            'document_type' => DocumentSequenceType::SettlementPayment->value,
-            'period_key' => $year,
-        ],
-        [
-            'last_value' => 98,
-        ],
-    );
 
     dssChargeGirl(70);
     dssGenerate();
     $pending = dssGirlSettlement();
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $branch->tenant_id,
+        'branch_id' => $branch->id,
+        'official_shift_id' => $shift->id,
+        'staff_user_id' => dssWaiterId(),
+        'staff_role' => 'WAITER',
+        'settlement_type' => 'WAITER',
+        'total_amount' => 20,
+        'gross_amount' => 20,
+        'adjustments_total' => 0,
+        'net_amount' => 20,
+        'status' => 'PAID',
+        'paid_at' => now(),
+        'ticket_number' => 'CENTRO-'.$year.'-000104',
+    ]);
 
     nightposResetApiAuth();
     nightposOpenCashSession(dssAdminToken(), 500);
@@ -409,6 +517,8 @@ it('returns controlled 409 instead of raw 500 on duplicate ticket_number', funct
     test()->postJson("/api/v1/settlements/{$pending->id}/mark-paid", [
         'payment_method' => 'CASH',
     ], nightposOperationalHeaders(dssAdminToken()))
-        ->assertStatus(409)
-        ->assertJsonPath('message', StaffSettlementDomainException::ticketNumberConflict()->getMessage());
+        ->assertOk();
+
+    expect(StaffSettlementModel::query()->findOrFail($pending->id)->ticket_number)
+        ->toBe('CENTRO-'.$year.'-000105');
 });

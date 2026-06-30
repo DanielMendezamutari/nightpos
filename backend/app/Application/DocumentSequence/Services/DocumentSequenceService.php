@@ -8,7 +8,6 @@ use App\Infrastructure\Persistence\Eloquent\Models\DocumentSequenceModel;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel;
 use App\Shared\Domain\Enums\DocumentSequenceType;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Facades\DB;
 
 final class DocumentSequenceService
 {
@@ -22,11 +21,9 @@ final class DocumentSequenceService
         DocumentSequenceType $documentType,
         string $periodKey,
     ): int {
-        if (DB::getDriverName() === 'mysql') {
-            return $this->reserveNextWithUpsert($tenantId, $branchId, $documentType, $periodKey);
-        }
+        $row = $this->lockOrCreateSequenceRow($tenantId, $branchId, $documentType, $periodKey);
 
-        return $this->reserveNextWithLock($tenantId, $branchId, $documentType, $periodKey);
+        return $this->incrementLockedRow($row, $tenantId, $branchId, $documentType, $periodKey);
     }
 
     /**
@@ -42,16 +39,15 @@ final class DocumentSequenceService
             ->orderBy('id')
             ->chunk(500, function ($rows) use (&$maxByKey): void {
                 foreach ($rows as $row) {
-                    if (! is_string($row->ticket_number)) {
+                    $parsed = $this->parseSettlementTicketSequence(
+                        is_string($row->ticket_number) ? $row->ticket_number : null,
+                    );
+
+                    if ($parsed === null) {
                         continue;
                     }
 
-                    if (preg_match('/-(\d{4})-(\d{6})$/', $row->ticket_number, $matches) !== 1) {
-                        continue;
-                    }
-
-                    $periodKey = $matches[1];
-                    $sequence = (int) $matches[2];
+                    [$periodKey, $sequence] = $parsed;
                     $key = sprintf(
                         '%d:%d:%s:%s',
                         (int) $row->tenant_id,
@@ -97,33 +93,46 @@ final class DocumentSequenceService
         return $value === null ? null : (int) $value;
     }
 
-    private function reserveNextWithUpsert(
+    /**
+     * Máximo correlativo ya emitido en tickets de liquidación para el alcance dado.
+     */
+    public function maxSettlementTicketSequence(
         int $tenantId,
         int $branchId,
-        DocumentSequenceType $documentType,
         string $periodKey,
     ): int {
-        $type = $documentType->value;
-        $now = now();
+        $suffix = '-'.$periodKey.'-';
+        $max = 0;
 
-        DB::insert(
-            'INSERT INTO document_sequences (tenant_id, branch_id, document_type, period_key, last_value, created_at, updated_at)
-             VALUES (?, ?, ?, ?, LAST_INSERT_ID(1), ?, ?)
-             ON DUPLICATE KEY UPDATE
-                last_value = LAST_INSERT_ID(last_value + 1),
-                updated_at = VALUES(updated_at)',
-            [$tenantId, $branchId, $type, $periodKey, $now, $now],
-        );
+        StaffSettlementModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->whereNotNull('ticket_number')
+            ->where('ticket_number', 'like', '%'.$suffix.'%')
+            ->select(['ticket_number'])
+            ->orderBy('id')
+            ->cursor()
+            ->each(function (StaffSettlementModel $row) use ($periodKey, &$max): void {
+                $parsed = $this->parseSettlementTicketSequence(
+                    is_string($row->ticket_number) ? $row->ticket_number : null,
+                    $periodKey,
+                );
 
-        return (int) DB::getPdo()->lastInsertId();
+                if ($parsed !== null) {
+                    [, $sequence] = $parsed;
+                    $max = max($max, $sequence);
+                }
+            });
+
+        return $max;
     }
 
-    private function reserveNextWithLock(
+    private function lockOrCreateSequenceRow(
         int $tenantId,
         int $branchId,
         DocumentSequenceType $documentType,
         string $periodKey,
-    ): int {
+    ): DocumentSequenceModel {
         $criteria = [
             'tenant_id' => $tenantId,
             'branch_id' => $branchId,
@@ -137,34 +146,73 @@ final class DocumentSequenceService
             ->first();
 
         if ($row !== null) {
-            $next = $row->last_value + 1;
-            $row->update(['last_value' => $next]);
-
-            return $next;
+            return $row;
         }
 
         try {
             DocumentSequenceModel::query()->create([
                 ...$criteria,
-                'last_value' => 1,
+                'last_value' => 0,
             ]);
-
-            return 1;
         } catch (QueryException $exception) {
             if (! $this->isUniqueConstraintViolation($exception)) {
                 throw $exception;
             }
-
-            $row = DocumentSequenceModel::query()
-                ->where($criteria)
-                ->lockForUpdate()
-                ->firstOrFail();
-
-            $next = $row->last_value + 1;
-            $row->update(['last_value' => $next]);
-
-            return $next;
         }
+
+        return DocumentSequenceModel::query()
+            ->where($criteria)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    private function incrementLockedRow(
+        DocumentSequenceModel $row,
+        int $tenantId,
+        int $branchId,
+        DocumentSequenceType $documentType,
+        string $periodKey,
+    ): int {
+        $current = (int) $row->last_value;
+
+        if ($documentType === DocumentSequenceType::SettlementPayment) {
+            $maxIssued = $this->maxSettlementTicketSequence($tenantId, $branchId, $periodKey);
+
+            if ($current < $maxIssued) {
+                $current = $maxIssued;
+            }
+        }
+
+        $next = $current + 1;
+        $row->update(['last_value' => $next]);
+
+        return $next;
+    }
+
+    /**
+     * @return array{0: string, 1: int}|null [periodKey, sequence]
+     */
+    private function parseSettlementTicketSequence(?string $ticketNumber, ?string $periodKey = null): ?array
+    {
+        if ($ticketNumber === null || $ticketNumber === '') {
+            return null;
+        }
+
+        if ($periodKey !== null) {
+            $pattern = '/-'.preg_quote($periodKey, '/').'-(\d{6})$/';
+
+            if (preg_match($pattern, $ticketNumber, $matches) !== 1) {
+                return null;
+            }
+
+            return [$periodKey, (int) $matches[1]];
+        }
+
+        if (preg_match('/-(\d{4})-(\d{6})$/', $ticketNumber, $matches) !== 1) {
+            return null;
+        }
+
+        return [$matches[1], (int) $matches[2]];
     }
 
     private function isUniqueConstraintViolation(QueryException $exception): bool

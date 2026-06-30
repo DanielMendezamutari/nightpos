@@ -34,12 +34,14 @@ Migración: `2026_06_28_100000_document_sequences_and_settlement_ticket_unique.p
 
 ### 2. `DocumentSequenceService`
 
-Reserva atómica:
+Reserva atómica con **`SELECT ... FOR UPDATE`** (todos los drivers, incluido MySQL):
 
-- **MySQL (producción):** `INSERT ... ON DUPLICATE KEY UPDATE` + `LAST_INSERT_ID`
-- **SQLite (tests):** `SELECT ... FOR UPDATE` + incremento
+1. Lock fila de secuencia.
+2. Incrementar `last_value` y devolver el correlativo.
 
-Método `syncSettlementPaymentSequencesFromExistingTickets()` inicializa desde tickets PAID existentes.
+> **Nota 2026-06-30:** el path MySQL con `INSERT ... ON DUPLICATE KEY UPDATE` + `PDO::lastInsertId()` fue retirado — devolvía `1` en el 2.do pago. Ver `DOCUMENT_SEQUENCE_409_FIX_REPORT.md`.
+
+`syncSettlementPaymentSequencesFromExistingTickets()` inicializa desde tickets PAID existentes (migración).
 
 ### 3. `SettlementTicketNumberGenerator`
 
