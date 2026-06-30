@@ -111,9 +111,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof GirlIncomeDomainException,
                 $exception instanceof RoomDomainException,
                 $exception instanceof ShowTypeDomainException,
-                $exception instanceof StaffSettlementDomainException,
                 $exception instanceof StaffFineDomainException,
                 $exception instanceof SettlementCashSessionRequiredException => 422,
+                $exception instanceof StaffSettlementDomainException => $exception->statusCode,
                 default => 422,
             };
 

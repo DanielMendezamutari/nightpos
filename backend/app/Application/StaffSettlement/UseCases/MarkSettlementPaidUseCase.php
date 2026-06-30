@@ -50,6 +50,8 @@ use App\Shared\Contracts\TenantContextInterface;
 
 use App\Shared\Contracts\UseCaseInterface;
 
+use Illuminate\Database\QueryException;
+
 use Illuminate\Support\Facades\DB;
 
 use Illuminate\Support\Facades\Log;
@@ -197,7 +199,8 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
 
 
-        $settlement = DB::transaction(function () use ($model, $tenant, $branch, $cashierId, $settlementId, $notes, $paymentMethod, $appliedFineIds, &$sessionId, &$cashMovementId, &$ticketNumber) {
+        try {
+            $settlement = DB::transaction(function () use ($model, $tenant, $branch, $cashierId, $settlementId, $notes, $paymentMethod, $appliedFineIds, &$sessionId, &$cashMovementId, &$ticketNumber) {
 
             $session = $this->requireOpenCashSession($tenant->id, $branch->id, $cashierId);
 
@@ -253,7 +256,7 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
             $cashMovementId = $movement->id;
 
-            $ticketNumber = $this->ticketNumbers->next($branch->id);
+            $ticketNumber = $this->ticketNumbers->next($tenant->id, $branch->id);
 
 
 
@@ -285,7 +288,22 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
             );
 
-        });
+            });
+        } catch (QueryException $exception) {
+            if ($this->isDuplicateTicketNumber($exception)) {
+                Log::error('mark-paid duplicate ticket_number', [
+                    'tenant_id' => $tenant->id,
+                    'branch_id' => $branch->id,
+                    'settlement_id' => $settlementId,
+                    'ticket_number' => $ticketNumber,
+                    'message' => $exception->getMessage(),
+                ]);
+
+                throw StaffSettlementDomainException::ticketNumberConflict();
+            }
+
+            throw $exception;
+        }
 
 
 
@@ -538,6 +556,16 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
         };
 
+    }
+
+    private function isDuplicateTicketNumber(QueryException $exception): bool
+    {
+        $message = $exception->getMessage();
+
+        return str_contains($message, 'staff_settlements_ticket_scope_unique')
+            || str_contains($message, 'staff_settlements_ticket_number_unique')
+            || (str_contains($message, 'Duplicate entry') && str_contains($message, 'ticket_number'))
+            || (str_contains($message, 'UNIQUE constraint failed') && str_contains($message, 'ticket_number'));
     }
 
 }

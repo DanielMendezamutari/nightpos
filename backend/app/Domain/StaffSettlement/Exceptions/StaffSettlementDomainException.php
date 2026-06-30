@@ -8,6 +8,13 @@ use App\Shared\Domain\Exceptions\DomainException;
 
 final class StaffSettlementDomainException extends DomainException
 {
+    public function __construct(
+        string $message,
+        public readonly int $statusCode = 422,
+    ) {
+        parent::__construct($message);
+    }
+
     public static function shiftRequired(): self
     {
         return new self('Debe haber un turno oficial para liquidar.');
@@ -91,5 +98,10 @@ final class StaffSettlementDomainException extends DomainException
     public static function settlementNotPaid(): self
     {
         return new self('La liquidación debe estar pagada para imprimir el comprobante.');
+    }
+
+    public static function ticketNumberConflict(): self
+    {
+        return new self('No se pudo asignar el número de comprobante. Intente nuevamente.', 409);
     }
 }

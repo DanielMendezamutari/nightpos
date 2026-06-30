@@ -4,30 +4,30 @@ declare(strict_types=1);
 
 namespace App\Application\StaffSettlement\Services;
 
+use App\Application\DocumentSequence\Services\DocumentSequenceService;
 use App\Infrastructure\Persistence\Eloquent\Models\BranchModel;
-use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel;
+use App\Shared\Domain\Enums\DocumentSequenceType;
 
 final class SettlementTicketNumberGenerator
 {
-    public function next(int $branchId): string
+    public function __construct(
+        private readonly DocumentSequenceService $sequences,
+    ) {
+    }
+
+    public function next(int $tenantId, int $branchId): string
     {
         $branch = BranchModel::query()->findOrFail($branchId);
         $prefix = strtoupper(trim((string) ($branch->code ?: ('B'.$branchId))));
         $year = (int) now()->format('Y');
-        $pattern = $prefix.'-'.$year.'-%';
+        $periodKey = (string) $year;
 
-        $lastTicket = StaffSettlementModel::query()
-            ->where('branch_id', $branchId)
-            ->whereNotNull('ticket_number')
-            ->where('ticket_number', 'like', $pattern)
-            ->orderByDesc('ticket_number')
-            ->value('ticket_number');
-
-        $sequence = 1;
-
-        if (is_string($lastTicket) && preg_match('/-(\d{6})$/', $lastTicket, $matches) === 1) {
-            $sequence = (int) $matches[1] + 1;
-        }
+        $sequence = $this->sequences->reserveNext(
+            tenantId: $tenantId,
+            branchId: $branchId,
+            documentType: DocumentSequenceType::SettlementPayment,
+            periodKey: $periodKey,
+        );
 
         return sprintf('%s-%d-%06d', $prefix, $year, $sequence);
     }

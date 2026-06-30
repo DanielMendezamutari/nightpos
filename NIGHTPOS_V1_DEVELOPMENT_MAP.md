@@ -537,6 +537,8 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Print agent regression diff (estable 121fade vs HEAD) | `fix agente de impresion/agent/PRINT_AGENT_REGRESSION_DIFF_AUDIT.md`, `fix agente de impresion/backend/PRINT_AGENT_REGRESSION_DIFF_AUDIT.md` |
 | Print agent heartbeat connection reset deep audit | `agent/PRINT_AGENT_HEARTBEAT_CONNECTION_RESET_DEEP_AUDIT.md`, `backend/PRINT_AGENT_HEARTBEAT_CONNECTION_RESET_DEEP_AUDIT.md` |
 | Print agent HTTP/1.1 + backoff fix | `agent/PRINT_AGENT_HTTP1_BACKOFF_FIX_REPORT.md` |
+| Numeración documental / ticket_number duplicate (audit) | `backend/DOCUMENT_NUMBER_SEQUENCE_AUDIT.md` |
+| Document sequence fix (liquidaciones) | `backend/DOCUMENT_SEQUENCE_FIX_REPORT.md` |
 
 ---
 
@@ -776,6 +778,20 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 **Producción:** `config.production.example.json` → URL legacy + `poll_interval_ms=15000`.
 
 **Reporte:** `agent/PRINT_AGENT_HTTP1_BACKOFF_FIX_REPORT.md` — rebuild EXE e instalar en sucursal.
+
+---
+
+## BUG CRÍTICO — ticket_number duplicado en liquidaciones (audit 2026-06-28)
+
+**Síntoma:** HTTP 500 al pagar — `Duplicate entry '1-2026-000001' for key staff_settlements_ticket_number_unique`.
+
+**Causa raíz (código):** no hay servicio único de secuencias. `SettlementTicketNumberGenerator` hace read-modify-write sin `FOR UPDATE`; UNIQUE en `ticket_number` es **global** pero el generador filtra solo por `branch_id` → colisión concurrente o cross-sucursal con mismo `branch.code` (ej. `"1"`).
+
+**Riesgo similar:** `nextOrderNumber` / `nextSaleNumber` (comandas/ventas) — mismo anti-patrón; UNIQUE por branch mitiga parcialmente.
+
+**Audit:** `backend/DOCUMENT_NUMBER_SEQUENCE_AUDIT.md` — arquitectura objetivo: tabla `document_sequences` + reserva transaccional.
+
+**Estado:** **Implementado 2026-06-28** — liquidaciones pagadas. Ver `backend/DOCUMENT_SEQUENCE_FIX_REPORT.md`.
 
 ---
 

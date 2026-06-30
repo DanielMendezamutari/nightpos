@@ -33,7 +33,9 @@ use App\Application\Shift\UseCases\OpenOfficialShiftUseCase;
 use App\Application\ShiftConsole\UseCases\GetCurrentShiftConsoleUseCase;
 use App\Application\StaffSettlement\Services\SettlementAccessPolicy;
 use App\Application\StaffSettlement\Services\SettlementAdjustmentEngine;
+use App\Application\DocumentSequence\Services\DocumentSequenceService;
 use App\Application\StaffSettlement\Services\SettlementFineApplier;
+use App\Application\StaffSettlement\Services\SettlementTicketNumberGenerator;
 use App\Application\StaffSettlement\Services\SettlementStaffValidator;
 use App\Application\StaffSettlement\Services\SettlementTotalsCalculator;
 use App\Application\StaffSettlement\UseCases\CancelStaffFineUseCase;
@@ -513,6 +515,8 @@ final class NightPosServiceProvider extends ServiceProvider
         $this->app->singleton(SettlementAdjustmentEngine::class);
         $this->app->singleton(SettlementTotalsCalculator::class);
         $this->app->singleton(SettlementFineApplier::class);
+        $this->app->singleton(DocumentSequenceService::class);
+        $this->app->singleton(SettlementTicketNumberGenerator::class);
         $this->app->singleton(SettlementStaffValidator::class);
         $this->app->singleton(GenerateCurrentShiftSettlementsUseCase::class);
         $this->app->singleton(GetCurrentShiftSettlementsUseCase::class);
