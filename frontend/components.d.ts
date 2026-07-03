@@ -456,6 +456,7 @@ declare module 'vue' {
     UserInfoEditDialog: typeof import('./src/components/dialogs/UserInfoEditDialog.vue')['default']
     UsersListPanel: typeof import('./src/components/nightpos/users/UsersListPanel.vue')['default']
     UserUpgradePlanDialog: typeof import('./src/components/dialogs/UserUpgradePlanDialog.vue')['default']
+    VueApexCharts: typeof import('vue3-apexcharts')['default']
     WaiterBottomNav: typeof import('./src/components/nightpos/waiter/WaiterBottomNav.vue')['default']
     WaiterKpiCard: typeof import('./src/components/nightpos/waiter/WaiterKpiCard.vue')['default']
     WaiterMobileHeader: typeof import('./src/components/nightpos/waiter/WaiterMobileHeader.vue')['default']
