@@ -6,17 +6,21 @@ import SettlementListRowActions from '@/components/nightpos/settlements/Settleme
 import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
+import { updateSettlementManualCompensation } from '@/api/settlements'
 import { useCurrentShiftSettlements } from '@/composables/useCurrentShiftSettlements'
+import { useNightPosNotify } from '@/composables/useNightPosNotify'
 import { useFilteredSettlementTabs } from '@/composables/useSettlementSectionTabs'
 import { useSettlementPayment } from '@/composables/useSettlementPayment'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useOperationalEvents } from '@/composables/useOperationalEvents'
+import { getApiErrorMessage } from '@/services/http'
 
 definePage({ meta: { permission: 'settlements.access' } })
 
 const settlementTabs = useFilteredSettlementTabs()
 const router = useRouter()
 const { can, canManageSettlementFines } = useNightPosPermissions()
+const { notify } = useNightPosNotify()
 const { loading, shift, waiters, reload } = useCurrentShiftSettlements()
 const { paySettlement, showOpenCash, refreshCashSession } = useSettlementPayment({ onPaid: reload })
 
@@ -41,12 +45,18 @@ const showFineDialog = ref(false)
 const payingItem = ref(null)
 const finePrefill = ref(null)
 const payDialogRef = ref(null)
+const showManualDialog = ref(false)
+const manualLoading = ref(false)
+const manualItem = ref(null)
+const manualForm = ref({ amount: '', notes: '' })
 
 const headers = [
   { title: 'Garzón', key: 'staff_name' },
   { title: 'Corte', key: 'cut_label' },
+  { title: 'Modo', key: 'compensation_mode' },
   { title: '%', key: 'commission_percent' },
   { title: 'Ventas', key: 'sales_count' },
+  { title: 'Monto manual', key: 'manual_amount_input' },
   { title: 'Comisión', key: 'total_amount' },
   { title: 'Estado', key: 'status' },
   { title: 'Generado', key: 'created_at' },
@@ -59,6 +69,15 @@ const statusColor = status => ({
   PAID: 'success',
   CANCELLED: 'secondary',
 }[status] || 'default')
+
+const compensationModeLabel = mode => ({
+  AUTO_PERCENT: 'Auto %',
+  MANUAL: 'Manual',
+}[mode] || mode || 'N/A')
+
+const canAssignManual = item => item.compensation_mode === 'MANUAL'
+const requiresManualAmount = item => item.requires_manual_amount === true
+const payDisabledReason = item => requiresManualAmount(item) ? 'Asigne monto manual antes de pagar.' : ''
 
 const openPayDialog = async item => {
   await refreshCashSession()
@@ -85,6 +104,48 @@ const confirmPay = async ({ payment_method, notes, applied_fine_ids }) => {
 const openFineDialog = item => {
   finePrefill.value = item
   showFineDialog.value = true
+}
+
+const openManualDialog = item => {
+  manualItem.value = item
+  manualForm.value = {
+    amount: item.manual_amount_input ?? '',
+    notes: item.compensation_notes ?? '',
+  }
+  showManualDialog.value = true
+}
+
+const submitManualCompensation = async () => {
+  if (!manualItem.value)
+    return
+
+  const amount = Number(manualForm.value.amount)
+
+  if (Number.isNaN(amount) || amount < 0) {
+    notify('Ingrese un monto manual valido (>= 0).', 'warning')
+
+    return
+  }
+
+  manualLoading.value = true
+
+  try {
+    await updateSettlementManualCompensation(manualItem.value.id, {
+      amount,
+      notes: manualForm.value.notes || null,
+    })
+
+    notify('Monto manual guardado.', 'success')
+    showManualDialog.value = false
+    manualItem.value = null
+    await reload()
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error), 'error')
+  }
+  finally {
+    manualLoading.value = false
+  }
 }
 
 const openFineFromPay = () => {
@@ -155,13 +216,29 @@ const onFineCreated = async () => {
             {{ item.status === 'PENDING' ? 'Pendiente' : item.status === 'PAID' ? 'Pagado' : item.status }}
           </VChip>
         </template>
+        <template #item.compensation_mode="{ item }">
+          <VChip
+            size="small"
+            :color="item.compensation_mode === 'MANUAL' ? 'info' : 'primary'"
+            variant="tonal"
+          >
+            {{ compensationModeLabel(item.compensation_mode) }}
+          </VChip>
+        </template>
+        <template #item.manual_amount_input="{ item }">
+          {{ item.manual_amount_input ?? 'Pendiente' }}
+        </template>
         <template #item.actions="{ item }">
           <SettlementListRowActions
             :item="item"
             :can-pay="canPay"
             :can-multar="canManageSettlementFines"
+            :can-assign-manual="canAssignManual(item)"
+            :pay-disabled="requiresManualAmount(item)"
+            :pay-disabled-reason="payDisabledReason(item)"
             @pay="openPayDialog"
             @multar="openFineDialog"
+            @assign-manual="openManualDialog"
             @detail="item => router.push({ name: 'nightpos-settlements-id', params: { id: item.id } })"
           />
         </template>
@@ -188,5 +265,50 @@ const onFineCreated = async () => {
     />
 
     <QuickOpenCashDialog v-model="showOpenCash" @opened="refreshCashSession" />
+
+    <VDialog
+      v-model="showManualDialog"
+      max-width="520"
+    >
+      <VCard>
+        <VCardTitle>Asignar compensacion manual</VCardTitle>
+        <VCardText>
+          <div class="mb-3 text-body-2">
+            Garzon: <strong>{{ manualItem?.staff_name ?? '-' }}</strong>
+          </div>
+          <VTextField
+            v-model="manualForm.amount"
+            label="Monto manual (BOB)"
+            type="number"
+            min="0"
+            step="0.01"
+            density="comfortable"
+          />
+          <VTextarea
+            v-model="manualForm.notes"
+            label="Notas"
+            rows="3"
+            density="comfortable"
+          />
+        </VCardText>
+        <VCardActions>
+          <VSpacer />
+          <VBtn
+            variant="text"
+            :disabled="manualLoading"
+            @click="showManualDialog = false"
+          >
+            Cancelar
+          </VBtn>
+          <VBtn
+            color="primary"
+            :loading="manualLoading"
+            @click="submitManualCompensation"
+          >
+            Guardar
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>

@@ -219,6 +219,37 @@ Logros:
 
 ### FASE P0 — FAST OPERATION MODE (COMANDAS TIEMPO REAL) ✅ (COMPLETADA 2026-06-16)
 
+---
+
+## Hito 2026-07-03 — Compensacion de Garzones (Fase 1 y Fase 2) ✅
+
+Estado: implementado en backend y frontend.
+
+Alcance funcional:
+
+- Se formaliza modo de compensacion WAITER por settlement: AUTO_PERCENT y MANUAL.
+- Se generan liquidaciones WAITER para ventas con garzon asociado incluso cuando comision automatica snapshot es 0.00.
+- Se agrega endpoint PATCH para asignar monto manual y bloquear pago hasta definirlo.
+- Se exponen metadatos de compensacion en DTO de settlement para UI operativa.
+
+Backend:
+
+- Migracion de campos de compensacion en staff_settlements.
+- Guard de pago en MarkSettlementPaidUseCase para MANUAL sin monto.
+- Auditoria de asignacion manual con accion SETTLEMENT_MANUAL_COMPENSATION_SET.
+
+Frontend:
+
+- Garzones: columnas de modo y monto manual.
+- Accion Asignar monto por fila manual.
+- Boton pagar deshabilitado si requires_manual_amount = true.
+
+Evidencia:
+
+- backend/WAITER_COMPENSATION_IMPLEMENTATION_REPORT.md
+- frontend/WAITER_COMPENSATION_IMPLEMENTATION_REPORT.md
+- tests/Feature/Api/V1/SettlementsPhase14Test.php actualizado (12 PASS)
+
 **Objetivo:** garzón, cajera y admin ven cambios de comandas sin F5 (caso reportado: cajera no ve comanda nueva).
 
 **Backend:**

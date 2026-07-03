@@ -175,6 +175,7 @@ use App\Application\Notification\UseCases\MarkNotificationReadUseCase;
 use App\Application\RoomService\Services\RoomServiceDueNotifier;
 use App\Application\GirlIncome\UseCases\ListCurrentShiftShowsUseCase;
 use App\Application\StaffSettlement\UseCases\MarkSettlementPaidUseCase;
+use App\Application\StaffSettlement\UseCases\UpdateManualCompensationUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Application\SSE\UseCases\IssueOperationalEventTokenUseCase;
 use App\Domain\SSE\Repositories\OperationalEventRepositoryInterface;
@@ -523,6 +524,7 @@ final class NightPosServiceProvider extends ServiceProvider
         $this->app->singleton(GetSettlementUseCase::class);
         $this->app->singleton(GetSettlementPayPreviewUseCase::class);
         $this->app->singleton(MarkSettlementPaidUseCase::class);
+        $this->app->singleton(UpdateManualCompensationUseCase::class);
         $this->app->singleton(ListSettlementHistoryUseCase::class);
         $this->app->singleton(GetSettlementPendingSourcesUseCase::class);
         $this->app->singleton(ListStaffFinesUseCase::class);

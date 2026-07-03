@@ -95,6 +95,26 @@ final class StaffSettlementDomainException extends DomainException
         return new self('No hay descuento manual para cancelar.');
     }
 
+    public static function invalidManualCompensationAmount(): self
+    {
+        return new self('El monto manual debe ser mayor o igual a cero.');
+    }
+
+    public static function manualCompensationOnlyForWaiters(): self
+    {
+        return new self('La compensación manual solo aplica a liquidaciones de garzones.');
+    }
+
+    public static function manualCompensationNotAllowedForMode(): self
+    {
+        return new self('La liquidación no está en modo de compensación manual.');
+    }
+
+    public static function manualCompensationRequiredBeforePayment(): self
+    {
+        return new self('Debe asignar un monto manual antes de pagar esta liquidación.');
+    }
+
     public static function settlementNotPaid(): self
     {
         return new self('La liquidación debe estar pagada para imprimir el comprobante.');

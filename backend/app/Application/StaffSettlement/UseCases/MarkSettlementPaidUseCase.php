@@ -171,6 +171,14 @@ final class MarkSettlementPaidUseCase implements UseCaseInterface
 
         }
 
+        if (
+            $model->settlement_type === 'WAITER'
+            && $model->compensation_mode === 'MANUAL'
+            && $model->manual_amount_input === null
+        ) {
+            throw StaffSettlementDomainException::manualCompensationRequiredBeforePayment();
+        }
+
 
 
         if ($this->scopeResolver->usesMyCashSessionScope()) {

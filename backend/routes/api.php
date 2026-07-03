@@ -400,6 +400,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.pay'])->group(function () {
             Route::get('settlements/{id}/pay-preview', [SettlementController::class, 'payPreview'])->whereNumber('id');
             Route::post('settlements/{id}/mark-paid', [SettlementController::class, 'markPaid'])->whereNumber('id');
+            Route::patch('settlements/{id}/manual-compensation', [SettlementController::class, 'updateManualCompensation'])->whereNumber('id');
             Route::post('settlements/{id}/print', [SettlementController::class, 'print'])->whereNumber('id');
         });
 

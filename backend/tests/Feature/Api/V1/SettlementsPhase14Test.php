@@ -298,3 +298,82 @@ it('returns current shift overview with summary cards data', function () {
         ->assertJsonPath('data.summary.total_waiters', '2.50')
         ->assertJsonPath('data.waiters.0.commission_percent', '5.00');
 });
+
+it('generates waiter settlement with MANUAL mode when waiter commission percent is zero', function () {
+    $admin = nightposLoginPassword('admin.demo', 'AdminDemo123!');
+    $cashier = nightposLoginPin('1234');
+    $waiter = nightposLoginPin('5678');
+
+    $waiterUserId = (int) UserModel::query()->where('username', 'garzon.demo')->value('id');
+
+    StaffProfileModel::query()
+        ->where('user_id', $waiterUserId)
+        ->update(['waiter_commission_percent' => 0]);
+
+    nightposChargeSoloOrder($cashier, $waiter);
+
+    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders($admin))
+        ->assertCreated();
+
+    $waiterSettlement = StaffSettlementModel::query()
+        ->where('settlement_type', 'WAITER')
+        ->first();
+
+    expect($waiterSettlement)->not->toBeNull()
+        ->and($waiterSettlement->compensation_mode)->toBe('MANUAL')
+        ->and($waiterSettlement->manual_amount_input)->toBeNull();
+
+    expect(StaffSettlementItemModel::query()->where('source_type', 'WAITER_COMMISSION')->count())->toBe(1);
+});
+
+it('blocks mark-paid for waiter manual settlement without manual amount', function () {
+    $admin = nightposLoginPassword('admin.demo', 'AdminDemo123!');
+    $cashier = nightposLoginPin('1234');
+    $waiter = nightposLoginPin('5678');
+
+    $waiterUserId = (int) UserModel::query()->where('username', 'garzon.demo')->value('id');
+
+    StaffProfileModel::query()
+        ->where('user_id', $waiterUserId)
+        ->update(['waiter_commission_percent' => 0]);
+
+    nightposChargeSoloOrder($cashier, $waiter);
+    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders($admin))->assertCreated();
+
+    $id = (int) StaffSettlementModel::query()->where('settlement_type', 'WAITER')->value('id');
+
+    test()->postJson("/api/v1/settlements/{$id}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'Debe asignar un monto manual antes de pagar esta liquidación.');
+});
+
+it('updates manual compensation and then allows waiter payment', function () {
+    $admin = nightposLoginPassword('admin.demo', 'AdminDemo123!');
+    $cashier = nightposLoginPin('1234');
+    $waiter = nightposLoginPin('5678');
+
+    $waiterUserId = (int) UserModel::query()->where('username', 'garzon.demo')->value('id');
+
+    StaffProfileModel::query()
+        ->where('user_id', $waiterUserId)
+        ->update(['waiter_commission_percent' => 0]);
+
+    nightposChargeSoloOrder($cashier, $waiter);
+    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders($admin))->assertCreated();
+
+    $id = (int) StaffSettlementModel::query()->where('settlement_type', 'WAITER')->value('id');
+
+    test()->patchJson("/api/v1/settlements/{$id}/manual-compensation", [
+        'amount' => 18.5,
+        'notes' => 'Compensacion acordada de turno',
+    ], nightposOperationalHeaders($admin))
+        ->assertOk()
+        ->assertJsonPath('data.settlement.manual_amount_input', '18.50')
+        ->assertJsonPath('data.settlement.compensation_mode', 'MANUAL')
+        ->assertJsonPath('data.settlement.requires_manual_amount', false);
+
+    test()->postJson("/api/v1/settlements/{$id}/mark-paid", ['payment_method' => 'CASH'], nightposOperationalHeaders($admin))
+        ->assertOk()
+        ->assertJsonPath('data.settlement.status', 'PAID')
+        ->assertJsonPath('data.settlement.total_amount', '18.50');
+});

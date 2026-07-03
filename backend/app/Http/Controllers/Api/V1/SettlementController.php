@@ -16,11 +16,13 @@ use App\Application\StaffSettlement\UseCases\GetSettlementUseCase;
 use App\Application\StaffSettlement\UseCases\ListSettlementHistoryUseCase;
 use App\Application\StaffSettlement\UseCases\MarkSettlementPaidUseCase;
 use App\Application\StaffSettlement\UseCases\PreviewManualDiscountUseCase;
+use App\Application\StaffSettlement\UseCases\UpdateManualCompensationUseCase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Settlement\ApplyManualDiscountRequest;
 use App\Http\Requests\Api\V1\Settlement\MarkSettlementPaidRequest;
 use App\Http\Requests\Api\V1\Settlement\PreviewManualDiscountRequest;
 use App\Http\Requests\Api\V1\Settlement\PrintSettlementRequest;
+use App\Http\Requests\Api\V1\Settlement\UpdateManualCompensationRequest;
 use App\Infrastructure\Presentation\Http\Contracts\ApiResponsePresenterInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,6 +41,7 @@ final class SettlementController extends Controller
         private readonly ApplyManualDiscountUseCase $applyManualDiscount,
         private readonly CancelManualDiscountUseCase $cancelManualDiscount,
         private readonly PreviewManualDiscountUseCase $previewManualDiscount,
+        private readonly UpdateManualCompensationUseCase $updateManualCompensation,
         private readonly PrintSettlementPaymentUseCase $printSettlement,
     ) {
     }
@@ -120,6 +123,17 @@ final class SettlementController extends Controller
     {
         return $this->presenter->present($this->cancelManualDiscount->execute((object) [
             'settlementId' => $id,
+        ]));
+    }
+
+    public function updateManualCompensation(int $id, UpdateManualCompensationRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        return $this->presenter->present($this->updateManualCompensation->execute((object) [
+            'settlementId' => $id,
+            'amount' => (float) $validated['amount'],
+            'notes' => $validated['notes'] ?? null,
         ]));
     }
 

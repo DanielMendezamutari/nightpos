@@ -172,10 +172,14 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             &$touchedSettlementIds,
         ) {
             foreach ($saleItems as $line) {
+                $waiterPercent = (float) ($line->waiter_commission_percent_snapshot ?? 0);
                 $waiterAmount = (float) ($line->waiter_commission_amount_snapshot ?? 0);
 
-                if ($waiterAmount > 0 && $line->sale_waiter_user_id) {
+                if ($line->sale_waiter_user_id) {
                     if (! $this->saleItemAlreadySettled((int) $line->id, 'WAITER_COMMISSION')) {
+                        $waiterCompensationMode = $waiterPercent > 0 ? 'AUTO_PERCENT' : 'MANUAL';
+                        $waiterCompensationSource = $waiterPercent > 0 ? 'PROFILE_PERCENT' : 'REQUIRES_MANUAL_INPUT';
+
                         $settlementId = $this->ensureSettlement(
                             $tenantId,
                             $branchId,
@@ -184,6 +188,8 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                             (int) $line->sale_waiter_user_id,
                             'WAITER',
                             'WAITER',
+                            $waiterCompensationMode,
+                            $waiterCompensationSource,
                         );
 
                         if ($this->canAddItemsToSettlement($settlementId)) {
@@ -198,9 +204,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                                 'WAITER_COMMISSION',
                                 sprintf('Comisión — %s (%s)', $line->product_name_snapshot, $line->sale_number),
                                 (string) $line->line_total,
-                                $line->waiter_commission_percent_snapshot !== null
-                                    ? (string) $line->waiter_commission_percent_snapshot
-                                    : null,
+                                $line->waiter_commission_percent_snapshot !== null ? (string) $line->waiter_commission_percent_snapshot : null,
                                 (string) $line->waiter_commission_amount_snapshot,
                             );
 
@@ -654,9 +658,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             ->get();
 
         foreach ($saleItems as $line) {
-            $waiterAmount = (float) ($line->waiter_commission_amount_snapshot ?? 0);
-
-            if ($waiterAmount > 0 && $line->sale_waiter_user_id) {
+            if ($line->sale_waiter_user_id) {
                 if (! $this->saleItemAlreadySettled((int) $line->id, 'WAITER_COMMISSION')) {
                     $count++;
                 }
@@ -1037,6 +1039,8 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         int $staffUserId,
         string $staffRole,
         string $settlementType,
+        ?string $compensationMode = null,
+        ?string $compensationSource = null,
     ): int {
         $existingQuery = StaffSettlementModel::query()
             ->where('official_shift_id', $officialShiftId)
@@ -1051,6 +1055,22 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         $existingPending = $existingQuery->orderBy('id')->first();
 
         if ($existingPending !== null) {
+            if ($settlementType === 'WAITER') {
+                $updates = [];
+
+                if ($existingPending->compensation_mode === null && $compensationMode !== null) {
+                    $updates['compensation_mode'] = $compensationMode;
+                }
+
+                if ($existingPending->compensation_source === null && $compensationSource !== null) {
+                    $updates['compensation_source'] = $compensationSource;
+                }
+
+                if ($updates !== []) {
+                    $existingPending->update($updates);
+                }
+            }
+
             return (int) $existingPending->id;
         }
 
@@ -1062,6 +1082,8 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             'staff_user_id' => $staffUserId,
             'staff_role' => $staffRole,
             'settlement_type' => $settlementType,
+            'compensation_mode' => $settlementType === 'WAITER' ? $compensationMode : null,
+            'compensation_source' => $settlementType === 'WAITER' ? $compensationSource : null,
             'total_amount' => 0,
             'status' => 'PENDING',
         ]);
@@ -1371,6 +1393,17 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             'version' => (int) ($model->version ?? 1),
             'has_ticket' => $model->ticket_number !== null,
             'notes' => $model->notes,
+            'compensation_mode' => $model->compensation_mode,
+            'compensation_source' => $model->compensation_source,
+            'manual_amount_input' => $model->manual_amount_input !== null
+                ? number_format((float) $model->manual_amount_input, 2, '.', '')
+                : null,
+            'compensation_locked_at' => $model->compensation_locked_at?->format('Y-m-d H:i:s'),
+            'compensation_locked_by_user_id' => $model->compensation_locked_by_user_id,
+            'compensation_notes' => $model->compensation_notes,
+            'requires_manual_amount' => $model->settlement_type === 'WAITER'
+                && $model->compensation_mode === 'MANUAL'
+                && $model->manual_amount_input === null,
             'sales_count' => $salesCount,
             'commission_percent' => $waiterSnapshot['commission_percent'] ?? $percent,
             'commission_amount' => $waiterSnapshot['commission_amount'] ?? null,

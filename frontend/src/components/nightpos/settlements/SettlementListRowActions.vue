@@ -12,9 +12,21 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  canAssignManual: {
+    type: Boolean,
+    default: false,
+  },
+  payDisabled: {
+    type: Boolean,
+    default: false,
+  },
+  payDisabledReason: {
+    type: String,
+    default: '',
+  },
 })
 
-const emit = defineEmits(['pay', 'multar', 'detail'])
+const emit = defineEmits(['pay', 'multar', 'detail', 'assign-manual'])
 
 const isPending = item => item.status === 'PENDING'
 const isCancelled = item => item.status === 'CANCELLED'
@@ -29,9 +41,21 @@ const isCancelled = item => item.status === 'CANCELLED'
       variant="tonal"
       prepend-icon="ri-check-line"
       class="settlement-row-actions__btn"
+      :disabled="payDisabled"
       @click="emit('pay', item)"
     >
       Pagar
+    </VBtn>
+    <VBtn
+      v-if="canAssignManual && isPending(item)"
+      size="small"
+      color="info"
+      variant="flat"
+      prepend-icon="ri-money-dollar-circle-line"
+      class="settlement-row-actions__btn"
+      @click="emit('assign-manual', item)"
+    >
+      Asignar monto
     </VBtn>
     <VBtn
       v-if="canMultar && !isCancelled(item)"
@@ -52,6 +76,12 @@ const isCancelled = item => item.status === 'CANCELLED'
     >
       Ver detalle
     </VBtn>
+    <small
+      v-if="payDisabled && payDisabledReason"
+      class="text-warning"
+    >
+      {{ payDisabledReason }}
+    </small>
   </div>
 </template>
 
