@@ -1,4 +1,5 @@
 <script setup>
+import SettlementPaymentBreakdown from '@/components/nightpos/settlements/SettlementPaymentBreakdown.vue'
 import SettlementsCashBanner from '@/components/nightpos/settlements/SettlementsCashBanner.vue'
 import SettlementPayDialog from '@/components/nightpos/settlements/SettlementPayDialog.vue'
 import SettlementManualDiscountDialog from '@/components/nightpos/settlements/SettlementManualDiscountDialog.vue'
@@ -7,7 +8,7 @@ import StaffFineDialog from '@/components/nightpos/settlements/StaffFineDialog.v
 import StaffFinesList from '@/components/nightpos/settlements/StaffFinesList.vue'
 import QuickOpenCashDialog from '@/components/nightpos/cash/QuickOpenCashDialog.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
-import { fetchSettlement } from '@/api/settlements'
+import { fetchSettlement, updateSettlementCleaningDeduction } from '@/api/settlements'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useSettlementPayment } from '@/composables/useSettlementPayment'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
@@ -33,6 +34,8 @@ const showPayDialog = ref(false)
 const showFineDialog = ref(false)
 const showDiscountDialog = ref(false)
 const settlement = ref(null)
+const savingCleaning = ref(false)
+const cleaningAmountInput = ref('0.00')
 const payDialogRef = ref(null)
 const items = ref([])
 const adjustments = ref([])
@@ -77,8 +80,24 @@ const canPayPending = computed(() => settlement.value?.status === 'PENDING' && c
 const canAddFine = computed(() => settlement.value?.status === 'PENDING' && canManageSettlementFines.value)
 const canAddDiscount = computed(() => settlement.value?.status === 'PENDING' && canManageSettlementFines.value)
 const canReprint = computed(() => settlement.value?.status === 'PAID' && can('settlements.pay'))
+const canEditCleaning = computed(() => settlement.value?.status === 'PENDING' && settlement.value?.settlement_type === 'GIRL' && can('settlements.pay'))
 const settlementTypeLabelText = computed(() => settlementTypeLabel(settlement.value?.settlement_type))
 const requiresCashToPay = computed(() => canPayPending.value && !loadingCash.value && !cashSessionOpen.value)
+
+const currentCleaningAdjustment = computed(() =>
+  adjustments.value.find(row => row.adjustment_type === 'CLEANING_DEDUCTION'))
+
+const currentCleaningAmount = computed(() => {
+  const amount = Number(currentCleaningAdjustment.value?.amount ?? 0)
+
+  return amount < 0 ? Math.abs(amount) : amount
+})
+
+const paymentBreakdownAdjustments = computed(() => summaryAdjustments.value)
+
+watch(currentCleaningAmount, value => {
+  cleaningAmountInput.value = value.toFixed(2)
+}, { immediate: true })
 
 const summaryAdjustments = computed(() => {
   if (settlement.value?.status === 'PAID')
@@ -174,6 +193,33 @@ const onDiscountChanged = async () => {
 const onCashOpened = async () => {
   await refreshCashSession()
   await load()
+}
+
+const saveCleaning = async () => {
+  if (!settlement.value?.id)
+    return
+
+  const amount = Number(cleaningAmountInput.value ?? 0)
+
+  if (Number.isNaN(amount) || amount < 0) {
+    notify('Ingrese un monto de limpieza válido.', 'error')
+    return
+  }
+
+  savingCleaning.value = true
+
+  try {
+    const result = await updateSettlementCleaningDeduction(settlement.value.id, { amount })
+    notify(result?.message || 'Cobro de limpieza guardado.', 'success')
+    await load()
+    await payDialogRef.value?.reloadPreview?.()
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error), 'error')
+  }
+  finally {
+    savingCleaning.value = false
+  }
 }
 
 onMounted(load)
@@ -505,6 +551,65 @@ onMounted(load)
       </VRow>
 
       <SettlementAdjustmentSummary
+        v-if="canEditCleaning"
+        class="mb-4"
+        :gross-amount="settlement.gross_amount ?? settlement.total_amount"
+        :net-amount="settlement.net_amount ?? settlement.total_amount"
+        :adjustments="paymentBreakdownAdjustments"
+        title="Detalle de ajustes"
+        :show-net-highlight="false"
+      />
+
+      <VCard
+        v-if="canEditCleaning"
+        class="mb-4"
+        variant="outlined"
+      >
+        <VCardTitle class="text-subtitle-1 text-uppercase">
+          Cobro de limpieza
+        </VCardTitle>
+        <VCardText>
+          <VRow class="mb-2">
+            <VCol cols="12" md="4">
+              <VTextField
+                v-model="cleaningAmountInput"
+                type="number"
+                min="0"
+                step="0.01"
+                label="Monto"
+                suffix="Bs"
+                :disabled="savingCleaning"
+              />
+            </VCol>
+            <VCol cols="12" md="8" class="d-flex align-center">
+              <VBtn
+                color="primary"
+                prepend-icon="ri-save-line"
+                :loading="savingCleaning"
+                :disabled="savingCleaning"
+                @click="saveCleaning"
+              >
+                Guardar limpieza
+              </VBtn>
+            </VCol>
+          </VRow>
+
+          <VAlert type="info" variant="tonal" class="mb-4">
+            Si guarda <strong>0 Bs</strong>, se elimina cualquier cobro de limpieza previo de esta liquidación.
+          </VAlert>
+
+          <SettlementPaymentBreakdown
+            :gross-amount="settlement.gross_amount ?? settlement.total_amount"
+            :net-amount="settlement.net_amount ?? settlement.total_amount"
+            :adjustments="paymentBreakdownAdjustments"
+            title="Resumen de liquidación"
+            gross-label="Bruto"
+          />
+        </VCardText>
+      </VCard>
+
+      <SettlementAdjustmentSummary
+        v-if="!canEditCleaning"
         class="mb-4"
         :gross-amount="settlement.gross_amount ?? settlement.total_amount"
         :net-amount="settlement.net_amount ?? settlement.total_amount"

@@ -63,8 +63,28 @@ final class GenerateCurrentShiftSettlementsUseCase implements UseCaseInterface
                 throw StaffSettlementDomainException::cashRequiredForGeneration();
             }
 
-            $shiftId = $scopeInfo['shift_id'];
-            $result = $this->settlements->generateForShift($tenant->id, $branch->id, $shiftId, $cashSessionId);
+            $shiftIds = $this->settlements->resolveCashSessionShiftIdsWithActivity($tenant->id, $branch->id, $cashSessionId);
+
+            if ($shiftIds === []) {
+                $shiftIds = [(int) $scopeInfo['shift_id']];
+            }
+
+            $createdItems = 0;
+            $settlementsTouched = 0;
+
+            foreach ($shiftIds as $candidateShiftId) {
+                $partial = $this->settlements->generateForShift($tenant->id, $branch->id, (int) $candidateShiftId, $cashSessionId);
+                $createdItems += (int) ($partial['created_items'] ?? 0);
+                $settlementsTouched += (int) ($partial['settlements_touched'] ?? 0);
+            }
+
+            $shiftId = (int) end($shiftIds);
+            $result = [
+                'created_items' => $createdItems,
+                'settlements_touched' => $settlementsTouched,
+                'shift_id' => $shiftId,
+                'generated_shift_ids' => $shiftIds,
+            ];
         }
         else {
             $shift = $this->ensureOperationalShift->execute($tenant->id, $branch->id, $userId);

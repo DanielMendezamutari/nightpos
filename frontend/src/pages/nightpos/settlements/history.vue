@@ -32,9 +32,27 @@ const filters = ref({
   date_from: '',
   date_to: '',
   official_shift_id: null,
-  staff_user_id: '',
+  staff_user_id: null,
   settlement_type: null,
   status: null,
+})
+
+const staffOptions = computed(() => {
+  const map = new Map()
+
+  for (const row of settlements.value ?? []) {
+    const id = Number(row?.staff_user_id ?? 0)
+    if (!id || map.has(id))
+      continue
+
+    const name = row?.staff_name || 'Sin nombre'
+    map.set(id, {
+      value: id,
+      title: `${name} (ID: ${id})`,
+    })
+  }
+
+  return Array.from(map.values()).sort((a, b) => a.title.localeCompare(b.title, 'es'))
 })
 
 const typeOptions = [
@@ -113,7 +131,7 @@ const resetFilters = () => {
     date_from: '',
     date_to: '',
     official_shift_id: currentShift.value?.id ?? null,
-    staff_user_id: '',
+    staff_user_id: null,
     settlement_type: null,
     status: null,
   }
@@ -209,12 +227,16 @@ useOnContextChange(load)
             cols="12"
             md="3"
           >
-            <VTextField
+            <VAutocomplete
               v-model="filters.staff_user_id"
-              label="ID personal"
-              type="number"
+              :items="staffOptions"
+              item-title="title"
+              item-value="value"
+              label="Personal"
+              placeholder="Seleccione personal"
               density="compact"
               clearable
+              no-data-text="Sin personal en los resultados actuales"
             />
           </VCol>
           <VCol

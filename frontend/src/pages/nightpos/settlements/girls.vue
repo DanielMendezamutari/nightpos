@@ -17,7 +17,7 @@ definePage({ meta: { permission: 'settlements.access' } })
 const settlementTabs = useFilteredSettlementTabs()
 const router = useRouter()
 const { can, canManageSettlementFines } = useNightPosPermissions()
-const { loading, shift, girls, reload } = useCurrentShiftSettlements()
+const { loading, shift, context, girls, reload } = useCurrentShiftSettlements()
 const { paySettlement, showOpenCash, refreshCashSession } = useSettlementPayment({ onPaid: reload })
 
 const { on, start: startSse, stop: stopSse } = useOperationalEvents()
@@ -57,6 +57,21 @@ const statusColor = status => ({
   PAID: 'success',
   CANCELLED: 'secondary',
 }[status] || 'default')
+
+const scopeLabel = computed(() => {
+  if (context.value?.scope === 'my_cash_session') {
+    const ids = context.value?.settlement_official_shift_ids ?? []
+    const idsLabel = ids.length ? ` (turnos incluidos: ${ids.join(', ')})` : ''
+
+    return `Alcance operativo: mi caja actual${idsLabel}`
+  }
+
+  if (context.value?.scope === 'shift') {
+    return 'Alcance operativo: turno oficial'
+  }
+
+  return null
+})
 
 const openPayDialog = async item => {
   await refreshCashSession()
@@ -120,6 +135,15 @@ const onFineCreated = async () => {
       class="mb-4"
     >
       Use <strong>Multar</strong> en cada fila para registrar una multa antes de pagar.
+    </VAlert>
+
+    <VAlert
+      v-if="scopeLabel"
+      type="info"
+      variant="tonal"
+      class="mb-4"
+    >
+      {{ scopeLabel }}
     </VAlert>
 
     <VAlert

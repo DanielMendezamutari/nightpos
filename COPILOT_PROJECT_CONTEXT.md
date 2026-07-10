@@ -27,6 +27,30 @@ Estado sintetico:
 | Impresion automatica plenamente cerrada | Parcial |
 | Riesgo operativo principal | Cierre de turno, liquidaciones, hosting e impresion |
 
+Actualizacion implementacion 2026-07-03:
+
+- Reporte Gerencial Diario Fase 1 implementado (backend + frontend) para owner/admin.
+- Backend: nuevo endpoint `GET /api/v1/reports/managerial-daily` con ensamblado backend completo (scope, kpis, rankings, hourly, rooms, cash health, alerts, formula neto).
+- Frontend: nueva ruta `/nightpos/finance/reports/managerial-daily` y acceso desde Finanzas > Reportes.
+- Tests backend agregados y validados para reporte gerencial diario.
+- Restricciones respetadas: sin tocar caja operativa, liquidaciones operativas, DocumentSequence, impresion, PWA, Fase 2, historicos y multi-sucursal.
+
+Actualizacion implementacion 2026-07-08 (Scope hibrido de liquidaciones):
+
+- Modelo C implementado en liquidaciones: cajera opera por `cash_session_id`; admin/owner mantienen gobierno por `official_shift_id`.
+- En `scope = my_cash_session`, el backend ya no excluye liquidaciones de la misma caja por mismatch de `official_shift_id`.
+- Endpoint `GET /api/v1/settlements/current-shift` devuelve contexto ampliado:
+  - `cash_session_id`
+  - `session_official_shift_id`
+  - `settlement_official_shift_ids`
+- Cierre de caja (`cash/session/current/close-check`) valida pendientes por caja.
+- Cierre de turno (`shifts/current/close-check`) mantiene validacion por turno oficial.
+- Frontend liquidaciones (resumen, garzones, chicas) ahora muestra etiqueta de contexto y turnos incluidos para cajera.
+- Validacion: `tests/Feature/Api/V1/SettlementCashSessionScopeTest.php` con 17 tests PASS / 167 assertions.
+- Evidencia:
+  - `backend/LIQUIDATION_SCOPE_HYBRID_IMPLEMENTATION_REPORT.md`
+  - `frontend/LIQUIDATION_SCOPE_HYBRID_IMPLEMENTATION_REPORT.md`
+
 ---
 
 ## 2. Arquitectura backend

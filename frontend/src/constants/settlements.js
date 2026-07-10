@@ -5,7 +5,7 @@ export const SETTLEMENT_TYPE_LABELS = {
 }
 
 export const ADJUSTMENT_TYPE_LABELS = {
-  CLEANING_DEDUCTION: 'Limpieza única',
+  CLEANING_DEDUCTION: 'Cobro de limpieza',
   MANUAL_FINE: 'Multa',
   MANUAL_DISCOUNT: 'Descuento manual',
 }

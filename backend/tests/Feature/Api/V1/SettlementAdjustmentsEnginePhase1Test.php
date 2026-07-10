@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementAdjustmentModel;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel;
+use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 use App\Shared\Domain\Enums\SettlementAdjustmentType;
 use Database\Seeders\NightPosSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -105,6 +106,18 @@ function saeGirlSettlement(int $girlId): StaffSettlementModel
         ->firstOrFail();
 }
 
+function saeSetCleaning(int $settlementId, float $amount, ?string $token = null): array
+{
+    $token ??= saeCashierToken();
+    nightposResetApiAuth();
+
+    return test()->patchJson("/api/v1/settlements/{$settlementId}/cleaning-deduction", [
+        'amount' => $amount,
+    ], nightposOperationalHeaders($token))
+        ->assertOk()
+        ->json('data');
+}
+
 it('does not apply cleaning deduction when girl gross is below threshold', function () {
     $admin = saeAdminToken();
     $cashier = saeCashierToken();
@@ -123,7 +136,7 @@ it('does not apply cleaning deduction when girl gross is below threshold', funct
         ->and(StaffSettlementAdjustmentModel::query()->where('staff_settlement_id', $settlement->id)->count())->toBe(0);
 });
 
-it('applies cleaning deduction when girl gross reaches threshold', function () {
+it('does not apply cleaning deduction automatically when girl gross reaches threshold', function () {
     $admin = saeAdminToken();
     $cashier = saeCashierToken();
     $waiter = saeWaiterToken();
@@ -135,20 +148,36 @@ it('applies cleaning deduction when girl gross reaches threshold', function () {
     $settlement = saeGirlSettlement($girlId);
 
     expect($settlement->gross_amount)->toBe('100.00')
-        ->and($settlement->adjustments_total)->toBe('-10.00')
-        ->and($settlement->net_amount)->toBe('90.00')
-        ->and($settlement->total_amount)->toBe('90.00');
-
-    $adjustment = StaffSettlementAdjustmentModel::query()
-        ->where('staff_settlement_id', $settlement->id)
-        ->where('adjustment_type', SettlementAdjustmentType::CleaningDeduction->value)
-        ->first();
-
-    expect($adjustment)->not->toBeNull()
-        ->and($adjustment->amount)->toBe('-10.00');
+        ->and($settlement->adjustments_total)->toBe('0.00')
+        ->and($settlement->net_amount)->toBe('100.00')
+        ->and($settlement->total_amount)->toBe('100.00')
+        ->and(StaffSettlementAdjustmentModel::query()
+            ->where('staff_settlement_id', $settlement->id)
+            ->where('adjustment_type', SettlementAdjustmentType::CleaningDeduction->value)
+            ->exists())->toBeFalse();
 });
 
-it('does not duplicate cleaning deduction when settlements are regenerated', function () {
+it('does not apply cleaning deduction automatically when girl gross is 500', function () {
+    $admin = saeAdminToken();
+    $cashier = saeCashierToken();
+    $waiter = saeWaiterToken();
+    $girlId = saeGirlId();
+
+    saeChargeGirlConsumption($cashier, $waiter, $girlId, 500);
+    saeGenerate($admin);
+
+    $settlement = saeGirlSettlement($girlId);
+
+    expect($settlement->gross_amount)->toBe('500.00')
+        ->and($settlement->adjustments_total)->toBe('0.00')
+        ->and($settlement->net_amount)->toBe('500.00')
+        ->and(StaffSettlementAdjustmentModel::query()
+            ->where('adjustment_type', SettlementAdjustmentType::CleaningDeduction->value)
+            ->where('staff_settlement_id', $settlement->id)
+            ->count())->toBe(0);
+});
+
+it('does not apply cleaning automatically when settlements are regenerated', function () {
     $admin = saeAdminToken();
     $cashier = saeCashierToken();
     $waiter = saeWaiterToken();
@@ -163,11 +192,11 @@ it('does not duplicate cleaning deduction when settlements are regenerated', fun
     expect(StaffSettlementAdjustmentModel::query()
         ->where('adjustment_type', SettlementAdjustmentType::CleaningDeduction->value)
         ->where('staff_settlement_id', $settlement->id)
-        ->count())->toBe(1)
-        ->and($settlement->net_amount)->toBe('90.00');
+        ->count())->toBe(0)
+        ->and($settlement->net_amount)->toBe('100.00');
 });
 
-it('does not charge cleaning again on a partial cut after first cut was paid', function () {
+it('does not charge cleaning automatically again on a partial cut after first cut was paid', function () {
     $admin = saeAdminToken();
     $cashier = saeCashierToken();
     $waiter = saeWaiterToken();
@@ -177,7 +206,7 @@ it('does not charge cleaning again on a partial cut after first cut was paid', f
     saeGenerate($admin);
 
     $first = saeGirlSettlement($girlId);
-    expect($first->net_amount)->toBe('90.00');
+    expect($first->net_amount)->toBe('100.00');
 
     test()->postJson("/api/v1/settlements/{$first->id}/mark-paid", [
         'payment_method' => 'CASH',
@@ -234,7 +263,7 @@ it('does not apply girl cleaning deduction to waiter settlements', function () {
         ->and($waiterSettlement->net_amount)->toBe($waiterSettlement->gross_amount);
 });
 
-it('exposes gross net and adjustments on settlement detail api', function () {
+it('exposes gross net and no automatic cleaning adjustments on settlement detail api', function () {
     $admin = saeAdminToken();
     $cashier = saeCashierToken();
     $waiter = saeWaiterToken();
@@ -249,7 +278,191 @@ it('exposes gross net and adjustments on settlement detail api', function () {
         ->assertOk();
 
     expect($response->json('data.settlement.gross_amount'))->toBe('100.00')
-        ->and($response->json('data.settlement.net_amount'))->toBe('90.00')
-        ->and($response->json('data.adjustments.0.adjustment_type'))->toBe('CLEANING_DEDUCTION')
-        ->and($response->json('data.adjustments.0.amount'))->toBe('-10.00');
+        ->and($response->json('data.settlement.net_amount'))->toBe('100.00')
+        ->and($response->json('data.adjustments'))->toBe([]);
+});
+
+it('cashier can register manual cleaning and net decreases correctly', function () {
+    $admin = saeAdminToken();
+    $cashier = saeCashierToken();
+    $waiter = saeWaiterToken();
+    $girlId = saeGirlId();
+
+    saeChargeGirlConsumption($cashier, $waiter, $girlId, 100);
+    saeGenerate($admin);
+
+    $settlement = saeGirlSettlement($girlId);
+    $response = saeSetCleaning($settlement->id, 10, $cashier);
+
+    $settlement->refresh();
+
+    expect($response['cleaning_amount'])->toBe('10.00')
+        ->and($settlement->adjustments_total)->toBe('-10.00')
+        ->and($settlement->net_amount)->toBe('90.00')
+        ->and(StaffSettlementAdjustmentModel::query()
+            ->where('staff_settlement_id', $settlement->id)
+            ->where('adjustment_type', SettlementAdjustmentType::CleaningDeduction->value)
+            ->count())->toBe(1);
+});
+
+it('removes cleaning deduction when cashier saves zero', function () {
+    $admin = saeAdminToken();
+    $cashier = saeCashierToken();
+    $waiter = saeWaiterToken();
+    $girlId = saeGirlId();
+
+    saeChargeGirlConsumption($cashier, $waiter, $girlId, 100);
+    saeGenerate($admin);
+
+    $settlement = saeGirlSettlement($girlId);
+    saeSetCleaning($settlement->id, 10, $cashier);
+    saeSetCleaning($settlement->id, 0, $cashier);
+
+    $settlement->refresh();
+
+    expect($settlement->adjustments_total)->toBe('0.00')
+        ->and($settlement->net_amount)->toBe('100.00')
+        ->and(StaffSettlementAdjustmentModel::query()
+            ->where('staff_settlement_id', $settlement->id)
+            ->where('adjustment_type', SettlementAdjustmentType::CleaningDeduction->value)
+            ->exists())->toBeFalse();
+});
+
+it('updates cleaning from 10 to 20 without duplicating rows', function () {
+    $admin = saeAdminToken();
+    $cashier = saeCashierToken();
+    $waiter = saeWaiterToken();
+    $girlId = saeGirlId();
+
+    saeChargeGirlConsumption($cashier, $waiter, $girlId, 200);
+    saeGenerate($admin);
+
+    $settlement = saeGirlSettlement($girlId);
+    saeSetCleaning($settlement->id, 10, $cashier);
+    saeSetCleaning($settlement->id, 20, $cashier);
+
+    $settlement->refresh();
+
+    expect($settlement->adjustments_total)->toBe('-20.00')
+        ->and($settlement->net_amount)->toBe('180.00')
+        ->and(StaffSettlementAdjustmentModel::query()
+            ->where('staff_settlement_id', $settlement->id)
+            ->where('adjustment_type', SettlementAdjustmentType::CleaningDeduction->value)
+            ->count())->toBe(1);
+});
+
+it('rejects negative manual cleaning amount', function () {
+    $admin = saeAdminToken();
+    $cashier = saeCashierToken();
+    $waiter = saeWaiterToken();
+    $girlId = saeGirlId();
+
+    saeChargeGirlConsumption($cashier, $waiter, $girlId, 100);
+    saeGenerate($admin);
+
+    $settlement = saeGirlSettlement($girlId);
+
+    test()->patchJson("/api/v1/settlements/{$settlement->id}/cleaning-deduction", [
+        'amount' => -5,
+    ], nightposOperationalHeaders($cashier))->assertStatus(422);
+});
+
+it('rejects manual cleaning amount greater than gross', function () {
+    $admin = saeAdminToken();
+    $cashier = saeCashierToken();
+    $waiter = saeWaiterToken();
+    $girlId = saeGirlId();
+
+    saeChargeGirlConsumption($cashier, $waiter, $girlId, 100);
+    saeGenerate($admin);
+
+    $settlement = saeGirlSettlement($girlId);
+
+    test()->patchJson("/api/v1/settlements/{$settlement->id}/cleaning-deduction", [
+        'amount' => 120,
+    ], nightposOperationalHeaders($cashier))
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'El monto de limpieza no puede superar el bruto de la liquidación.');
+});
+
+it('does not allow modifying paid settlement cleaning', function () {
+    $admin = saeAdminToken();
+    $cashier = saeCashierToken();
+    $waiter = saeWaiterToken();
+    $girlId = saeGirlId();
+
+    saeChargeGirlConsumption($cashier, $waiter, $girlId, 100);
+    saeGenerate($admin);
+
+    $settlement = saeGirlSettlement($girlId);
+    test()->postJson("/api/v1/settlements/{$settlement->id}/mark-paid", [
+        'payment_method' => 'CASH',
+    ], nightposOperationalHeaders($cashier))->assertOk();
+
+    test()->patchJson("/api/v1/settlements/{$settlement->id}/cleaning-deduction", [
+        'amount' => 10,
+    ], nightposOperationalHeaders($cashier))
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'Solo se puede modificar una liquidación pendiente.');
+});
+
+it('does not allow manual cleaning for waiter settlements', function () {
+    $admin = saeAdminToken();
+    $cashier = saeCashierToken();
+    $waiter = saeWaiterToken();
+
+    nightposOpenCashSession($cashier, 500);
+
+    $waiterId = (int) UserModel::query()->where('username', 'garzon.demo')->value('id');
+    $orderId = nightposCreateOrderWithItem($waiter, [
+        'table_label' => 'Waiter no cleaning',
+        'waiter_user_id' => $waiterId,
+    ])['order_id'];
+
+    test()->postJson("/api/v1/orders/{$orderId}/charge", [
+        'payments' => [['method' => 'CASH', 'amount' => 50]],
+    ], nightposOperationalHeaders($cashier))->assertCreated();
+
+    saeGenerate($admin);
+
+    $waiterSettlement = StaffSettlementModel::query()
+        ->where('staff_user_id', $waiterId)
+        ->where('settlement_type', 'WAITER')
+        ->where('status', 'PENDING')
+        ->latest('id')
+        ->firstOrFail();
+
+    test()->patchJson("/api/v1/settlements/{$waiterSettlement->id}/cleaning-deduction", [
+        'amount' => 10,
+    ], nightposOperationalHeaders($cashier))
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'El cobro de limpieza manual solo aplica a liquidaciones de chicas.');
+});
+
+it('does not allow manual cleaning for cleaning staff settlements', function () {
+    $tenantId = (int) \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()->where('slug', 'casa-demo')->value('id');
+    $branchId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->where('code', 'CENTRO')->value('id');
+    $shiftId = (int) \App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+    $cleaningUserId = (int) UserModel::query()->where('username', 'limpieza.demo')->value('id');
+
+    $settlement = StaffSettlementModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'official_shift_id' => $shiftId,
+        'cash_session_id' => null,
+        'staff_user_id' => $cleaningUserId,
+        'staff_role' => 'CLEANING',
+        'settlement_type' => 'CLEANING',
+        'total_amount' => '40.00',
+        'gross_amount' => '40.00',
+        'adjustments_total' => '0.00',
+        'net_amount' => '40.00',
+        'status' => 'PENDING',
+    ]);
+
+    test()->patchJson("/api/v1/settlements/{$settlement->id}/cleaning-deduction", [
+        'amount' => 10,
+    ], nightposOperationalHeaders(saeCashierToken()))
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'El cobro de limpieza manual solo aplica a liquidaciones de chicas.');
 });

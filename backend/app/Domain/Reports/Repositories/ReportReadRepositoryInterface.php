@@ -23,4 +23,11 @@ interface ReportReadRepositoryInterface extends RepositoryInterface
     public function getShiftClosureCheck(int $tenantId, int $branchId, int $officialShiftId): array;
 
     public function getProductReconciliation(int $tenantId, int $branchId, array $filters): array;
+
+    /**
+     * @return list<int>
+     */
+    public function getManagerialScopeShiftIds(int $tenantId, int $branchId, array $filters): array;
+
+    public function getManagerialHourlyPerformance(int $tenantId, int $branchId, array $filters): array;
 }

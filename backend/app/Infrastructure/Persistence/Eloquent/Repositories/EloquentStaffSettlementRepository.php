@@ -83,6 +83,53 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         return $latest !== null ? (int) $latest : null;
     }
 
+    /**
+     * @return list<int>
+     */
+    public function resolveCashSessionShiftIdsWithActivity(int $tenantId, int $branchId, int $cashSessionId): array
+    {
+        $saleShiftIds = SaleModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('cash_session_id', $cashSessionId)
+            ->whereNotNull('official_shift_id')
+            ->pluck('official_shift_id');
+
+        $braceletShiftIds = BraceletModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('cash_session_id', $cashSessionId)
+            ->whereNotNull('official_shift_id')
+            ->pluck('official_shift_id');
+
+        $roomShiftIds = RoomServiceModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('cash_session_id', $cashSessionId)
+            ->where('status', 'FINISHED')
+            ->whereNotNull('official_shift_id')
+            ->pluck('official_shift_id');
+
+        $showShiftIds = ShowModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('cash_session_id', $cashSessionId)
+            ->whereNotNull('official_shift_id')
+            ->pluck('official_shift_id');
+
+        return collect()
+            ->merge($saleShiftIds)
+            ->merge($braceletShiftIds)
+            ->merge($roomShiftIds)
+            ->merge($showShiftIds)
+            ->filter(static fn ($id) => $id !== null)
+            ->map(static fn ($id) => (int) $id)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
     public function generateForShift(int $tenantId, int $branchId, int $officialShiftId, ?int $scopeCashSessionId = null): array
     {
         $createdItems = 0;
@@ -565,13 +612,16 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
      *     cleaning_tasks: int
      * }
      */
-    public function countShiftSources(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null): array
+    public function countShiftSources(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): array
     {
         $salesQuery = SaleItemModel::query()
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sales.tenant_id', $tenantId)
-            ->where('sales.branch_id', $branchId)
-            ->where('sales.official_shift_id', $officialShiftId);
+            ->where('sales.branch_id', $branchId);
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $salesQuery->where('sales.official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $salesQuery->where('sales.cash_session_id', $cashSessionId);
@@ -581,8 +631,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
 
         $braceletsQuery = BraceletModel::query()
             ->where('tenant_id', $tenantId)
-            ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId);
+            ->where('branch_id', $branchId);
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $braceletsQuery->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $braceletsQuery->where('cash_session_id', $cashSessionId);
@@ -593,8 +646,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         $roomsQuery = RoomServiceModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
             ->where('status', 'FINISHED');
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $roomsQuery->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $roomsQuery->where('cash_session_id', $cashSessionId);
@@ -604,8 +660,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
 
         $showsQuery = ShowModel::query()
             ->where('tenant_id', $tenantId)
-            ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId);
+            ->where('branch_id', $branchId);
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $showsQuery->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $showsQuery->where('cash_session_id', $cashSessionId);
@@ -616,8 +675,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         $cleaningTasks = CleaningTaskModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
             ->where('status', 'DONE');
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $cleaningTasks->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $cleaningTasks->whereHas(
@@ -637,11 +699,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         ];
     }
 
-    public function countUnsettledShiftSources(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null): int
+    public function countUnsettledShiftSources(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): int
     {
         $count = 0;
 
-        $saleItems = SaleItemModel::query()
+        $saleItemsQuery = SaleItemModel::query()
             ->select([
                 'sale_items.id',
                 'sale_items.waiter_commission_amount_snapshot',
@@ -652,10 +714,16 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             ])
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sales.tenant_id', $tenantId)
-            ->where('sales.branch_id', $branchId)
-            ->where('sales.official_shift_id', $officialShiftId)
-            ->when($cashSessionId !== null, fn ($q) => $q->where('sales.cash_session_id', $cashSessionId))
-            ->get();
+            ->where('sales.branch_id', $branchId);
+
+        if ($cashSessionId !== null) {
+            $saleItemsQuery->where('sales.cash_session_id', $cashSessionId);
+        }
+        elseif ($officialShiftId !== null) {
+            $saleItemsQuery->where('sales.official_shift_id', $officialShiftId);
+        }
+
+        $saleItems = $saleItemsQuery->get();
 
         foreach ($saleItems as $line) {
             if ($line->sale_waiter_user_id) {
@@ -676,15 +744,21 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             }
         }
 
-        $allocationRows = SaleItemAllocationModel::query()
+        $allocationRowsQuery = SaleItemAllocationModel::query()
             ->select('sale_item_allocations.id')
             ->join('sale_items', 'sale_items.id', '=', 'sale_item_allocations.sale_item_id')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
             ->where('sale_item_allocations.tenant_id', $tenantId)
-            ->where('sale_item_allocations.branch_id', $branchId)
-            ->where('sales.official_shift_id', $officialShiftId)
-            ->when($cashSessionId !== null, fn ($q) => $q->where('sales.cash_session_id', $cashSessionId))
-            ->get();
+            ->where('sale_item_allocations.branch_id', $branchId);
+
+        if ($cashSessionId !== null) {
+            $allocationRowsQuery->where('sales.cash_session_id', $cashSessionId);
+        }
+        elseif ($officialShiftId !== null) {
+            $allocationRowsQuery->where('sales.official_shift_id', $officialShiftId);
+        }
+
+        $allocationRows = $allocationRowsQuery->get();
 
         foreach ($allocationRows as $allocation) {
             if (! $this->sourceAlreadySettled((int) $allocation->id, 'GIRL_BRACELET_ALLOCATION')) {
@@ -694,8 +768,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
 
         $braceletsQuery = BraceletModel::query()
             ->where('tenant_id', $tenantId)
-            ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId);
+            ->where('branch_id', $branchId);
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $braceletsQuery->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $braceletsQuery->where('cash_session_id', $cashSessionId);
@@ -710,8 +787,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         $roomsQuery = RoomServiceModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
             ->where('status', 'FINISHED');
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $roomsQuery->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $roomsQuery->where('cash_session_id', $cashSessionId);
@@ -725,8 +805,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
 
         $showsQuery = ShowModel::query()
             ->where('tenant_id', $tenantId)
-            ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId);
+            ->where('branch_id', $branchId);
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $showsQuery->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $showsQuery->where('cash_session_id', $cashSessionId);
@@ -741,8 +824,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         $cleaningTasksQuery = CleaningTaskModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
             ->where('status', 'DONE');
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $cleaningTasksQuery->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $cleaningTasksQuery->whereHas(
@@ -760,11 +846,21 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                 $count++;
             }
 
-            $cleaningUsersWithTasks[(int) $task->cleaning_user_id] = true;
+            $taskShiftId = $task->official_shift_id !== null ? (int) $task->official_shift_id : null;
+            if ($taskShiftId !== null) {
+                $cleaningUsersWithTasks[] = [
+                    'shift_id' => $taskShiftId,
+                    'cleaning_user_id' => (int) $task->cleaning_user_id,
+                ];
+            }
         }
 
-        foreach (array_keys($cleaningUsersWithTasks) as $cleaningUserId) {
-            if (! $this->cleaningBaseAlreadySettled($officialShiftId, (int) $cleaningUserId)) {
+        $cleaningUsersWithTasks = collect($cleaningUsersWithTasks)
+            ->unique(fn (array $row) => $row['shift_id'].'-'.$row['cleaning_user_id'])
+            ->values();
+
+        foreach ($cleaningUsersWithTasks as $row) {
+            if (! $this->cleaningBaseAlreadySettled((int) $row['shift_id'], (int) $row['cleaning_user_id'])) {
                 $count++;
             }
         }
@@ -772,47 +868,63 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         return $count;
     }
 
-    public function cashSessionHasActivity(int $tenantId, int $branchId, int $officialShiftId, int $cashSessionId): bool
+    public function cashSessionHasActivity(int $tenantId, int $branchId, ?int $officialShiftId, int $cashSessionId): bool
     {
-        if (SaleModel::query()
+        $sales = SaleModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
-            ->where('cash_session_id', $cashSessionId)
-            ->exists()) {
+            ->where('cash_session_id', $cashSessionId);
+
+        if ($officialShiftId !== null) {
+            $sales->where('official_shift_id', $officialShiftId);
+        }
+
+        if ($sales->exists()) {
             return true;
         }
 
-        if (RoomServiceModel::query()
+        $rooms = RoomServiceModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
-            ->where('cash_session_id', $cashSessionId)
-            ->exists()) {
+            ->where('cash_session_id', $cashSessionId);
+
+        if ($officialShiftId !== null) {
+            $rooms->where('official_shift_id', $officialShiftId);
+        }
+
+        if ($rooms->exists()) {
             return true;
         }
 
-        if (BraceletModel::query()
+        $bracelets = BraceletModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
-            ->where('cash_session_id', $cashSessionId)
-            ->exists()) {
+            ->where('cash_session_id', $cashSessionId);
+
+        if ($officialShiftId !== null) {
+            $bracelets->where('official_shift_id', $officialShiftId);
+        }
+
+        if ($bracelets->exists()) {
             return true;
         }
 
-        return ShowModel::query()
+        $shows = ShowModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
-            ->where('cash_session_id', $cashSessionId)
-            ->exists();
+            ->where('cash_session_id', $cashSessionId);
+
+        if ($officialShiftId !== null) {
+            $shows->where('official_shift_id', $officialShiftId);
+        }
+
+        return $shows->exists();
     }
 
     public function getCurrentShiftOverview(
         int $tenantId,
         int $branchId,
-        int $officialShiftId,
+        ?int $officialShiftId,
         ?int $onlyStaffUserId,
         ?int $cashSessionId = null,
     ): array
@@ -824,7 +936,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             ->first();
 
         $settlementModels = $this->loadSettlementsQuery($tenantId, $branchId)
-            ->where('official_shift_id', $officialShiftId)
+            ->when($cashSessionId === null && $officialShiftId !== null, fn ($q) => $q->where('official_shift_id', $officialShiftId))
             ->when($onlyStaffUserId !== null, fn ($q) => $q->where('staff_user_id', $onlyStaffUserId))
             ->when($cashSessionId !== null, fn ($q) => $this->applyCashSessionSettlementScope($q, $cashSessionId))
             ->orderBy('settlement_type')
@@ -1183,15 +1295,18 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     public function countPendingSettlements(
         int $tenantId,
         int $branchId,
-        int $officialShiftId,
+        ?int $officialShiftId,
         ?int $cashSessionId = null,
         ?string $staffRole = null,
     ): int {
         $query = StaffSettlementModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
             ->where('status', 'PENDING');
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $query->where('official_shift_id', $officialShiftId);
+        }
 
         if ($staffRole !== null) {
             $query->where('staff_role', $staffRole);
@@ -1207,14 +1322,17 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     public function sumPendingSettlementAmount(
         int $tenantId,
         int $branchId,
-        int $officialShiftId,
+        ?int $officialShiftId,
         ?int $cashSessionId = null,
     ): float {
         $query = StaffSettlementModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId)
             ->where('status', 'PENDING');
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $query->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $this->applyCashSessionSettlementScope($query, $cashSessionId);
@@ -1226,13 +1344,16 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     public function countGeneratedSettlements(
         int $tenantId,
         int $branchId,
-        int $officialShiftId,
+        ?int $officialShiftId,
         ?int $cashSessionId = null,
     ): int {
         $query = StaffSettlementModel::query()
             ->where('tenant_id', $tenantId)
-            ->where('branch_id', $branchId)
-            ->where('official_shift_id', $officialShiftId);
+            ->where('branch_id', $branchId);
+
+        if ($cashSessionId === null && $officialShiftId !== null) {
+            $query->where('official_shift_id', $officialShiftId);
+        }
 
         if ($cashSessionId !== null) {
             $this->applyCashSessionSettlementScope($query, $cashSessionId);
@@ -1244,7 +1365,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     public function settlementScopeSummary(
         int $tenantId,
         int $branchId,
-        int $officialShiftId,
+        ?int $officialShiftId,
         ?int $cashSessionId = null,
     ): array {
         $pendingCount = $this->countPendingSettlements($tenantId, $branchId, $officialShiftId, $cashSessionId);
@@ -1261,7 +1382,8 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     }
 
     /**
-     * Solo liquidaciones explícitamente asociadas a la caja indicada.
+     * Scope de caja: incluye todas las liquidaciones de la sesion, incluso si
+     * pertenecen a distintos official_shift_id.
      */
     private function applyCashSessionSettlementScope($query, int $cashSessionId): void
     {

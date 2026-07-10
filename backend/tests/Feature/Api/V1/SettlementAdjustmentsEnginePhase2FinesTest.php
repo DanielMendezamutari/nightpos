@@ -283,6 +283,24 @@ function sf2MarkPaid(int $settlementId, array $appliedFineIds = [], ?string $tok
 
 }
 
+function sf2SetCleaning(int $settlementId, float $amount, ?string $token = null): void
+
+{
+
+    $token ??= sf2CashierToken();
+
+    nightposResetApiAuth();
+
+
+
+    test()->patchJson("/api/v1/settlements/{$settlementId}/cleaning-deduction", [
+
+        'amount' => $amount,
+
+    ], nightposOperationalHeaders($token))->assertOk();
+
+}
+
 
 
 it('creates a pending staff fine', function () {
@@ -409,9 +427,9 @@ it('recalculates net amount in pay preview when fine is selected', function () {
 
 
 
-    expect($withoutFine['net_amount'])->toBe('90.00')
+    expect($withoutFine['net_amount'])->toBe('100.00')
 
-        ->and($withFine['net_amount'])->toBe('60.00');
+        ->and($withFine['net_amount'])->toBe('70.00');
 
 });
 
@@ -547,15 +565,15 @@ it('uses net amount including fines in cash movement', function () {
 
 
 
-    expect($movement->amount)->toBe('60.00');
+    expect($movement->amount)->toBe('70.00');
 
 
 
     $settlement->refresh();
 
-    expect($settlement->net_amount)->toBe('60.00')
+    expect($settlement->net_amount)->toBe('70.00')
 
-        ->and($settlement->total_amount)->toBe('60.00');
+        ->and($settlement->total_amount)->toBe('70.00');
 
 });
 
@@ -738,6 +756,8 @@ it('calculates net correctly with cleaning and selected fines', function () {
     $fineA = sf2CreateFine(sf2GirlId(), 30, 'Vaso roto');
 
     $fineB = sf2CreateFine(sf2GirlId(), 20, 'Llegada tarde');
+
+    sf2SetCleaning($settlement->id, 10);
 
 
 

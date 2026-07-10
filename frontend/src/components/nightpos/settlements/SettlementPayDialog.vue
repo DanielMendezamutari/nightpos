@@ -1,4 +1,5 @@
 <script setup>
+import SettlementPaymentBreakdown from '@/components/nightpos/settlements/SettlementPaymentBreakdown.vue'
 import SettlementAdjustmentSummary from '@/components/nightpos/settlements/SettlementAdjustmentSummary.vue'
 import SettlementPayFinesSelector from '@/components/nightpos/settlements/SettlementPayFinesSelector.vue'
 import { fetchSettlementPayPreview } from '@/api/settlements'
@@ -44,6 +45,8 @@ const shouldAutoSelectFines = ref(true)
 const settlementId = computed(() => props.settlement?.id ?? null)
 
 const previewAdjustments = computed(() => preview.value?.adjustments ?? [])
+
+const grossAmount = computed(() => preview.value?.gross_amount ?? props.settlement?.gross_amount ?? props.settlement?.total_amount ?? '0.00')
 
 const netAmount = computed(() => preview.value?.net_amount ?? props.settlement?.net_amount ?? props.settlement?.total_amount ?? '0.00')
 
@@ -170,12 +173,23 @@ defineExpose({
           {{ previewError }}
         </VAlert>
 
-        <SettlementAdjustmentSummary
+        <SettlementPaymentBreakdown
           v-if="preview && !previewError"
           class="mb-4"
+          title="Resumen antes de pagar"
           :gross-amount="preview.gross_amount"
           :net-amount="preview.net_amount"
           :adjustments="previewAdjustments"
+        />
+
+        <SettlementAdjustmentSummary
+          v-if="preview && !previewError"
+          class="mb-4"
+          :gross-amount="grossAmount"
+          :net-amount="netAmount"
+          :adjustments="previewAdjustments"
+          title="Detalle de ajustes"
+          :show-net-highlight="false"
         />
 
         <SettlementPayFinesSelector

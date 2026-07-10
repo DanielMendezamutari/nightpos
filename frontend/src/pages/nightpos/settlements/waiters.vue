@@ -21,7 +21,7 @@ const settlementTabs = useFilteredSettlementTabs()
 const router = useRouter()
 const { can, canManageSettlementFines } = useNightPosPermissions()
 const { notify } = useNightPosNotify()
-const { loading, shift, waiters, reload } = useCurrentShiftSettlements()
+const { loading, shift, context, waiters, reload } = useCurrentShiftSettlements()
 const { paySettlement, showOpenCash, refreshCashSession } = useSettlementPayment({ onPaid: reload })
 
 const { on, start: startSse, stop: stopSse } = useOperationalEvents()
@@ -78,6 +78,21 @@ const compensationModeLabel = mode => ({
 const canAssignManual = item => item.compensation_mode === 'MANUAL'
 const requiresManualAmount = item => item.requires_manual_amount === true
 const payDisabledReason = item => requiresManualAmount(item) ? 'Asigne monto manual antes de pagar.' : ''
+
+const scopeLabel = computed(() => {
+  if (context.value?.scope === 'my_cash_session') {
+    const ids = context.value?.settlement_official_shift_ids ?? []
+    const idsLabel = ids.length ? ` (turnos incluidos: ${ids.join(', ')})` : ''
+
+    return `Alcance operativo: mi caja actual${idsLabel}`
+  }
+
+  if (context.value?.scope === 'shift') {
+    return 'Alcance operativo: turno oficial'
+  }
+
+  return null
+})
 
 const openPayDialog = async item => {
   await refreshCashSession()
@@ -183,6 +198,15 @@ const onFineCreated = async () => {
       class="mb-4"
     >
       Use <strong>Multar</strong> en cada fila para registrar una multa antes de pagar.
+    </VAlert>
+
+    <VAlert
+      v-if="scopeLabel"
+      type="info"
+      variant="tonal"
+      class="mb-4"
+    >
+      {{ scopeLabel }}
     </VAlert>
 
     <VAlert

@@ -27,10 +27,6 @@ final class SettlementTotalsCalculator
             ->where('staff_settlement_id', $settlementId)
             ->sum('amount');
 
-        if ($settlement->status === 'PENDING') {
-            $this->adjustments->syncCleaningDeduction($settlement, $gross);
-        }
-
         $adjustmentsTotal = (float) StaffSettlementAdjustmentModel::query()
             ->where('staff_settlement_id', $settlementId)
             ->sum('amount');

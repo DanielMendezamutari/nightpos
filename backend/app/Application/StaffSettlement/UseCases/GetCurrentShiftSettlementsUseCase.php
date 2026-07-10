@@ -134,6 +134,11 @@ final class GetCurrentShiftSettlementsUseCase implements UseCaseInterface
                 ? 'Hay liquidaciones pendientes de pago en su caja.'
                 : 'No tienes liquidaciones pendientes en tu caja.';
 
+            if (($scopeInfo['scope'] ?? null) === SettlementShiftScopeResolver::SCOPE_MY_CASH_SESSION) {
+                $operational['context']['session_official_shift_id'] = $scopeInfo['cash_session_shift_id'];
+                $operational['context']['settlement_official_shift_ids'] = [];
+            }
+
             return OperationResult::ok($message, array_merge([
                 'shift' => $this->resolveShiftMeta($tenant->id, $branch->id, $shiftId ?? $openShiftId),
                 'summary' => $this->emptySummary(),
@@ -155,6 +160,20 @@ final class GetCurrentShiftSettlementsUseCase implements UseCaseInterface
                 ? $scopeInfo['cash_session_id']
                 : null,
         );
+
+        if (($scopeInfo['scope'] ?? null) === SettlementShiftScopeResolver::SCOPE_MY_CASH_SESSION) {
+            $includedShiftIds = collect($overview['settlements'] ?? [])
+                ->pluck('official_shift_id')
+                ->filter(static fn ($id) => $id !== null)
+                ->map(static fn ($id) => (int) $id)
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            $operational['context']['session_official_shift_id'] = $scopeInfo['cash_session_shift_id'];
+            $operational['context']['settlement_official_shift_ids'] = $includedShiftIds;
+        }
 
         $message = ($operational['settlement_summary']['generated_pending_count'] ?? 0) > 0
             ? 'Liquidaciones del turno actual (hay pagos pendientes).'

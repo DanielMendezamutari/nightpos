@@ -124,6 +124,7 @@ declare module 'vue-router/auto-routes' {
     'nightpos-finance-cash-sessions-summary': RouteRecordInfo<'nightpos-finance-cash-sessions-summary', '/nightpos/finance/cash-sessions/summary', Record<never, never>, Record<never, never>>,
     'nightpos-finance-movements': RouteRecordInfo<'nightpos-finance-movements', '/nightpos/finance/movements', Record<never, never>, Record<never, never>>,
     'nightpos-finance-reports': RouteRecordInfo<'nightpos-finance-reports', '/nightpos/finance/reports', Record<never, never>, Record<never, never>>,
+    'nightpos-finance-reports-managerial-daily': RouteRecordInfo<'nightpos-finance-reports-managerial-daily', '/nightpos/finance/reports/managerial-daily', Record<never, never>, Record<never, never>>,
     'nightpos-finance-shift-close': RouteRecordInfo<'nightpos-finance-shift-close', '/nightpos/finance/shift-close', Record<never, never>, Record<never, never>>,
     'nightpos-girl': RouteRecordInfo<'nightpos-girl', '/nightpos/girl', Record<never, never>, Record<never, never>>,
     'nightpos-operation-shifts': RouteRecordInfo<'nightpos-operation-shifts', '/nightpos/operation/shifts', Record<never, never>, Record<never, never>>,

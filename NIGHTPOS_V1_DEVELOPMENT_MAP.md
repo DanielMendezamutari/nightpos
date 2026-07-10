@@ -24,6 +24,40 @@
 
 ### Lectura rápida
 
+Actualizacion 2026-07-03:
+
+- Se implemento Reporte Gerencial Diario Fase 1 (backend + frontend) para owner/admin.
+- Endpoint nuevo: `/api/v1/reports/managerial-daily` con middleware de reportes actual.
+- Vista nueva: `/nightpos/finance/reports/managerial-daily` con KPI, rankings, alertas, formula de neto y CSV simple.
+- Sin cambios en caja operativa, liquidaciones operativas, DocumentSequence, impresion ni PWA.
+- Evidencia: `backend/MANAGERIAL_DAILY_REPORT_IMPLEMENTATION_REPORT.md`, `frontend/MANAGERIAL_DAILY_REPORT_IMPLEMENTATION_REPORT.md`.
+
+Actualizacion 2026-07-08:
+
+- Se implemento el scope hibrido de liquidaciones (Modelo C) para operacion real de caja/turno.
+- Cajera (`my_cash_session`) ahora ve liquidaciones por `cash_session_id` aunque tengan distinto `official_shift_id`.
+- Admin/owner (`shift`) mantienen vista por `official_shift_id`.
+- `current-shift` retorna contexto enriquecido: `cash_session_id`, `session_official_shift_id`, `settlement_official_shift_ids`.
+- Cierre de caja valida pendientes por `cash_session_id`; cierre de turno mantiene validacion por `official_shift_id`.
+- Se agrego cobertura de regresion en `SettlementCashSessionScopeTest` (17 tests PASS).
+- Evidencia: `backend/LIQUIDATION_SCOPE_HYBRID_IMPLEMENTATION_REPORT.md`, `frontend/LIQUIDATION_SCOPE_HYBRID_IMPLEMENTATION_REPORT.md`.
+
+Actualizacion 2026-07-09:
+
+- Se realizo la auditoria completa del cobro de limpieza en liquidaciones de chicas.
+- Hallazgo: el cobro es automatico, config-driven y historizado en `staff_settlement_adjustments` como `CLEANING_DEDUCTION`.
+- No se cambio logica de negocio; solo se documentaron backend, frontend, impacto en caja, reportes e impresion.
+- Evidencia: `backend/AUDITORIA_COBRO_LIMPIEZA_CHICAS.md`, `frontend/AUDITORIA_COBRO_LIMPIEZA_CHICAS.md`.
+
+Actualizacion 2026-07-10:
+
+- Se implemento el cambio funcional: el cobro de limpieza de chicas pasa de automatico a manual dedicado.
+- Se mantiene `CLEANING_DEDUCTION` para compatibilidad en caja, reportes, impresion e historiales.
+- Endpoint implementado: `PATCH /api/v1/settlements/{id}/cleaning-deduction` con permiso `settlements.pay`.
+- Regla automatica eliminada: ya no se aplica/recrea limpieza en recalculate por `syncCleaningDeduction`.
+- Validado en MySQL real `nigtpos` dentro de transaccion con rollback: monto 20 aplica, monto 0 elimina, y recalculate no recrea ajuste.
+- Evidencia: `backend/IMPLEMENTACION_LIMPIEZA_MANUAL_CHICAS.md`, `frontend/IMPLEMENTACION_LIMPIEZA_MANUAL_CHICAS.md`.
+
 NightPOS ya **no es un MVP visual**: es un POS nocturno funcional con SaaS multi-tenant, comandas, precios SOLO/CON_ACOMPANANTE, caja, **venta directa con pago mixto**, liquidaciones, servicios (manillas/piezas/shows), habitaciones, limpieza móvil y modo garzón. Las últimas entregas (venta directa, pago mixto, POS-CAT) cerraron huecos críticos del flujo de cobro y catálogo.
 
 La brecha hacia V1 ya **no es construir el núcleo**, sino:
@@ -541,6 +575,7 @@ V1-99  ██░░░░░░░░  20%  Preproducción
 | Motivos de caja | `backend/CASH_MOVEMENT_REASONS_MANAGEMENT_REPORT.md`, `frontend/CASH_MOVEMENT_REASONS_MANAGEMENT_REPORT.md` |
 | Cierre caja / scope cajera | `backend/CASHIER_CLOSE_CHECK_REPORT.md`, `frontend/CASHIER_CLOSE_CHECK_REPORT.md`, `backend/CASHIER_SHIFT_SCOPE_FIX_REPORT.md`, `frontend/CASHIER_SHIFT_SCOPE_FIX_REPORT.md` |
 | Liquidaciones / scope turno | `backend/SETTLEMENT_SHIFT_SCOPE_FIX_REPORT.md`, `frontend/SETTLEMENT_SHIFT_SCOPE_FIX_REPORT.md` |
+| Liquidaciones / scope cajera vs admin (ARACELY-HUGO) | `backend/ARACELI_HUGO_WAITER_SETTLEMENT_SCOPE_AUDIT.md`, `frontend/ARACELI_HUGO_WAITER_SETTLEMENT_SCOPE_AUDIT.md` |
 | Liquidaciones / permisos cajera (auditoría 2026-06-16) | `backend/SETTLEMENTS_PERMISSION_AUDIT.md`, `frontend/SETTLEMENTS_PERMISSION_AUDIT.md` |
 | Matriz permisos NightPOS (auditoría 2026-06-16) | `backend/NIGHTPOS_PERMISSION_MATRIX_AUDIT.md`, `frontend/NIGHTPOS_PERMISSION_MATRIX_AUDIT.md` |
 | Liquidaciones | `backend/CLEANING_SETTLEMENTS_REPORT.md`, `frontend/SETTLEMENTS_CASH_UI_FIX_REPORT.md` |

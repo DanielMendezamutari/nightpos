@@ -171,6 +171,16 @@ function spaMarkPaid(int $settlementId, array $appliedFineIds = [], string $paym
         ->json('data');
 }
 
+function spaSetCleaning(int $settlementId, float $amount, ?string $token = null): void
+{
+    $token ??= spaCashierToken();
+    nightposResetApiAuth();
+
+    test()->patchJson("/api/v1/settlements/{$settlementId}/cleaning-deduction", [
+        'amount' => $amount,
+    ], nightposOperationalHeaders($token))->assertOk();
+}
+
 it('stores payment_method when paying settlement', function () {
     spaChargeGirl(120);
     spaGenerate();
@@ -222,6 +232,7 @@ it('calculates percent manual discount on gross plus cleaning base', function ()
     spaChargeGirl(100);
     spaGenerate();
     $settlement = spaGirlSettlement();
+    spaSetCleaning($settlement->id, 10);
 
     spaApplyDiscount($settlement->id, 'PERCENT', 5);
 
@@ -250,7 +261,7 @@ it('applies fixed amount manual discount correctly', function () {
 
     $settlement->refresh();
 
-    expect((float) $settlement->net_amount)->toBe(90.0);
+    expect((float) $settlement->net_amount)->toBe(100.0);
 });
 
 it('rejects manual discount greater than available balance', function () {
@@ -328,6 +339,7 @@ it('includes gross cleaning discount fines and net in ticket content', function 
     spaChargeGirl(100);
     spaGenerate();
     $settlement = spaGirlSettlement();
+    spaSetCleaning($settlement->id, 10);
     spaApplyDiscount($settlement->id, 'PERCENT', 5);
     $fineId = spaCreateFine(20, 'Vaso roto');
 

@@ -70,7 +70,10 @@ const {
 
 const scopeLabel = computed(() => {
   if (context.value?.scope === 'my_cash_session') {
-    return 'Mostrando liquidaciones de mi caja actual'
+    const ids = context.value?.settlement_official_shift_ids ?? []
+    const idsLabel = ids.length ? ` (turnos incluidos: ${ids.join(', ')})` : ''
+
+    return `Mostrando liquidaciones de mi caja actual${idsLabel}`
   }
   if (context.value?.scope === 'shift') {
     return 'Mostrando liquidaciones del turno'

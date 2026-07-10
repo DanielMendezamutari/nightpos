@@ -18,6 +18,11 @@ export async function fetchDailyReport(filters = {}) {
   return unwrapNightPosResponse(response)
 }
 
+export async function fetchManagerialDailyReport(filters = {}) {
+  const response = await api.get('/reports/managerial-daily', { params: buildParams(filters) })
+  return unwrapNightPosResponse(response)
+}
+
 export async function fetchSalesReport(filters = {}) {
   const response = await api.get('/reports/sales', { params: buildParams(filters) })
   return unwrapNightPosResponse(response)

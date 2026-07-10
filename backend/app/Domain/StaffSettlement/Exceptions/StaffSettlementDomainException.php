@@ -115,6 +115,31 @@ final class StaffSettlementDomainException extends DomainException
         return new self('Debe asignar un monto manual antes de pagar esta liquidación.');
     }
 
+    public static function cannotModifyPendingOnly(): self
+    {
+        return new self('Solo se puede modificar una liquidación pendiente.');
+    }
+
+    public static function invalidManualCleaningAmount(): self
+    {
+        return new self('El monto de limpieza debe ser mayor o igual a cero.');
+    }
+
+    public static function manualCleaningOnlyForGirls(): self
+    {
+        return new self('El cobro de limpieza manual solo aplica a liquidaciones de chicas.');
+    }
+
+    public static function manualCleaningExceedsGross(): self
+    {
+        return new self('El monto de limpieza no puede superar el bruto de la liquidación.');
+    }
+
+    public static function manualCleaningExceedsAvailable(): self
+    {
+        return new self('El monto de limpieza deja la liquidación en negativo.');
+    }
+
     public static function settlementNotPaid(): self
     {
         return new self('La liquidación debe estar pagada para imprimir el comprobante.');

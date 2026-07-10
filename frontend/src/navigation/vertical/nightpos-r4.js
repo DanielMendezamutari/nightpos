@@ -87,6 +87,7 @@ export default [
         ],
       },
       { title: 'Reportes', to: 'nightpos-finance-reports', action: 'access', subject: 'reports.access' },
+      { title: 'Reporte gerencial diario', to: 'nightpos-finance-reports-managerial-daily', action: 'access', subject: 'reports.access' },
       { title: 'Cierre de turno', to: 'nightpos-shifts-close', action: 'access', subject: 'shifts.close' },
       // Gestión de turnos para admin/senior (historial, apertura)
       {

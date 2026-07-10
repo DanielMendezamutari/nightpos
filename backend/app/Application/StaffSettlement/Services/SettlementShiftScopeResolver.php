@@ -98,7 +98,7 @@ final class SettlementShiftScopeResolver
         $hasActivity = $this->settlements->cashSessionHasActivity(
             $tenantId,
             $branchId,
-            $sessionShiftId,
+            null,
             $cashSession->id,
         );
 

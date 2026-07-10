@@ -1,0 +1,50 @@
+﻿SHIFTS
+{"id":22,"name":"Turno Día","shift_type":"DAY","business_date":"2026-07-04","status":"OPEN","starts_at":"2026-07-04 09:00:00","ends_at":"2026-07-04 21:00:00","notes":"Turno creado automáticamente para clasificación de reportes"}
+{"id":21,"name":"Turno Día","shift_type":"DAY","business_date":"2026-07-04","status":"OPEN","starts_at":"2026-07-04 09:00:00","ends_at":"2026-07-04 21:00:00","notes":"Turno creado automáticamente para clasificación de reportes"}
+{"id":20,"name":"Turno Día","shift_type":"DAY","business_date":"2026-07-04","status":"OPEN","starts_at":"2026-07-04 09:00:00","ends_at":"2026-07-04 21:00:00","notes":"Turno creado automáticamente para clasificación de reportes"}
+{"id":19,"name":"Turno Día","shift_type":"DAY","business_date":"2026-07-04","status":"OPEN","starts_at":"2026-07-04 09:00:00","ends_at":"2026-07-04 21:00:00","notes":"Turno creado automáticamente para clasificación de reportes"}
+{"id":18,"name":"Turno Noche","shift_type":"NIGHT","business_date":"2026-07-03","status":"CLOSED","starts_at":"2026-07-03 21:00:00","ends_at":"2026-07-04 09:00:00","notes":"Turno creado automáticamente para clasificación de reportes\nCerrado automáticamente por rotación de turno"}
+{"id":17,"name":"Turno Noche","shift_type":"NIGHT","business_date":"2026-07-03","status":"CLOSED","starts_at":"2026-07-03 21:00:00","ends_at":"2026-07-04 09:00:00","notes":"Turno creado automáticamente para clasificación de reportes\nCerrado automáticamente por rotación de turno"}
+{"id":16,"name":"Turno Noche","shift_type":"NIGHT","business_date":"2026-07-03","status":"CLOSED","starts_at":"2026-07-03 21:00:00","ends_at":"2026-07-04 09:00:00","notes":"Turno creado automáticamente para clasificación de reportes\nCerrado automáticamente por rotación de turno"}
+{"id":15,"name":"Turno Noche","shift_type":"NIGHT","business_date":"2026-07-03","status":"CLOSED","starts_at":"2026-07-03 21:00:00","ends_at":"2026-07-04 09:00:00","notes":"Turno creado automáticamente para clasificación de reportes\nCerrado automáticamente por rotación de turno"}
+HUGO SALES
+{"id":66,"sale_number":"V-0063","official_shift_id":19,"cash_session_id":11,"waiter_user_id":18,"paid_at":"2026-07-04 20:03:57","total":"120.00"}
+{"id":65,"sale_number":"V-0062","official_shift_id":19,"cash_session_id":11,"waiter_user_id":18,"paid_at":"2026-07-04 18:50:31","total":"240.00"}
+{"id":64,"sale_number":"V-0061","official_shift_id":19,"cash_session_id":11,"waiter_user_id":18,"paid_at":"2026-07-04 17:57:55","total":"200.00"}
+{"id":63,"sale_number":"V-0060","official_shift_id":19,"cash_session_id":11,"waiter_user_id":18,"paid_at":"2026-07-04 15:02:56","total":"160.00"}
+{"id":62,"sale_number":"V-0059","official_shift_id":19,"cash_session_id":11,"waiter_user_id":18,"paid_at":"2026-07-04 13:36:04","total":"160.00"}
+{"id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"waiter_user_id":18,"paid_at":"2026-06-29 20:34:06","total":"2060.00"}
+{"id":6,"sale_number":"V-0003","official_shift_id":4,"cash_session_id":3,"waiter_user_id":18,"paid_at":"2026-06-29 18:56:29","total":"40.00"}
+{"id":5,"sale_number":"V-0002","official_shift_id":4,"cash_session_id":3,"waiter_user_id":18,"paid_at":"2026-06-29 15:02:26","total":"20.00"}
+{"id":4,"sale_number":"V-0001","official_shift_id":4,"cash_session_id":3,"waiter_user_id":18,"paid_at":"2026-06-29 15:01:45","total":"50.00"}
+HUGO ITEM SHIFTS
+{"sale_item_id":145,"sale_id":66,"sale_number":"V-0063","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 20:03:57","product_name_snapshot":"RON","line_total":"40.00"}
+{"sale_item_id":144,"sale_id":66,"sale_number":"V-0063","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 20:03:57","product_name_snapshot":"RON","line_total":"80.00"}
+{"sale_item_id":143,"sale_id":65,"sale_number":"V-0062","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 18:50:31","product_name_snapshot":"CORONA","line_total":"80.00"}
+{"sale_item_id":142,"sale_id":65,"sale_number":"V-0062","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 18:50:31","product_name_snapshot":"ICE 51","line_total":"80.00"}
+{"sale_item_id":141,"sale_id":65,"sale_number":"V-0062","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 18:50:31","product_name_snapshot":"CORONA","line_total":"80.00"}
+{"sale_item_id":140,"sale_id":64,"sale_number":"V-0061","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 17:57:55","product_name_snapshot":"ICE 51","line_total":"80.00"}
+{"sale_item_id":139,"sale_id":64,"sale_number":"V-0061","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 17:57:55","product_name_snapshot":"RON","line_total":"40.00"}
+{"sale_item_id":138,"sale_id":64,"sale_number":"V-0061","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 17:57:55","product_name_snapshot":"ICE 51","line_total":"80.00"}
+{"sale_item_id":137,"sale_id":63,"sale_number":"V-0060","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 15:02:56","product_name_snapshot":"RON","line_total":"80.00"}
+{"sale_item_id":136,"sale_id":63,"sale_number":"V-0060","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 15:02:56","product_name_snapshot":"RON","line_total":"80.00"}
+{"sale_item_id":135,"sale_id":62,"sale_number":"V-0059","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 13:36:04","product_name_snapshot":"RON","line_total":"80.00"}
+{"sale_item_id":134,"sale_id":62,"sale_number":"V-0059","official_shift_id":19,"cash_session_id":11,"paid_at":"2026-07-04 13:36:04","product_name_snapshot":"RON","line_total":"80.00"}
+{"sale_item_id":25,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"VALDE DE 4 PACEÑA","line_total":"160.00"}
+{"sale_item_id":24,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"Paceña","line_total":"80.00"}
+{"sale_item_id":23,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"Paceña","line_total":"80.00"}
+{"sale_item_id":22,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"Paceña","line_total":"80.00"}
+{"sale_item_id":21,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"Paceña","line_total":"80.00"}
+{"sale_item_id":20,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"SODA CHICA","line_total":"80.00"}
+{"sale_item_id":19,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"VALDE DE 4 PACEÑA","line_total":"320.00"}
+{"sale_item_id":18,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"VALDE DE 4 PACEÑA","line_total":"320.00"}
+{"sale_item_id":17,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"VALDE DE 4 PACEÑA","line_total":"160.00"}
+{"sale_item_id":16,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"ALICAL","line_total":"20.00"}
+{"sale_item_id":15,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"SODA PERSONAL","line_total":"20.00"}
+{"sale_item_id":14,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"VALDE DE 4 PACEÑA","line_total":"160.00"}
+{"sale_item_id":13,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"VALDE DE 4 PACEÑA","line_total":"160.00"}
+{"sale_item_id":12,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"SODA PERSONAL","line_total":"20.00"}
+{"sale_item_id":11,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"VALDE DE 4 PACEÑA","line_total":"160.00"}
+{"sale_item_id":10,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"Paceña","line_total":"40.00"}
+{"sale_item_id":9,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"Paceña","line_total":"40.00"}
+{"sale_item_id":8,"sale_id":7,"sale_number":"V-0004","official_shift_id":4,"cash_session_id":3,"paid_at":"2026-06-29 20:34:06","product_name_snapshot":"Paceña","line_total":"40.00"}

@@ -131,6 +131,22 @@ async function exportCsv(rows, filename) {
       ]"
     />
 
+    <VCard class="mb-4" variant="tonal">
+      <VCardText class="d-flex flex-wrap align-center gap-3">
+        <div class="text-body-2">
+          Necesitas una lectura ejecutiva para dueño/admin?
+        </div>
+        <VBtn
+          size="small"
+          color="primary"
+          prepend-icon="ri-line-chart-line"
+          :to="{ name: 'nightpos-finance-reports-managerial-daily' }"
+        >
+          Abrir Reporte Gerencial Diario
+        </VBtn>
+      </VCardText>
+    </VCard>
+
     <!-- Filtros globales -->
     <VCard class="mb-4">
       <VCardText>

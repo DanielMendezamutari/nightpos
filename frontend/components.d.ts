@@ -438,6 +438,7 @@ declare module 'vue' {
     SettlementManualDiscountDialog: typeof import('./src/components/nightpos/settlements/SettlementManualDiscountDialog.vue')['default']
     SettlementPayDialog: typeof import('./src/components/nightpos/settlements/SettlementPayDialog.vue')['default']
     SettlementPayFinesSelector: typeof import('./src/components/nightpos/settlements/SettlementPayFinesSelector.vue')['default']
+    SettlementPaymentBreakdown: typeof import('./src/components/nightpos/settlements/SettlementPaymentBreakdown.vue')['default']
     SettlementsCashBanner: typeof import('./src/components/nightpos/settlements/SettlementsCashBanner.vue')['default']
     ShareProjectDialog: typeof import('./src/components/dialogs/ShareProjectDialog.vue')['default']
     Shortcuts: typeof import('./src/@core/components/Shortcuts.vue')['default']

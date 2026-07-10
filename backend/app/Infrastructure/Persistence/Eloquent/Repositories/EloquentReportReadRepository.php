@@ -172,7 +172,7 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
         $shiftIds = $this->resolveShiftIds($tenantId, $branchId, $filters);
 
         $query = SaleModel::query()
-            ->with(['payments', 'items.allocations.girl', 'cashier'])
+            ->with(['payments', 'items.allocations.girl', 'cashier', 'waiter'])
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
             ->when(!empty($shiftIds), fn ($q) => $q->whereIn('official_shift_id', $shiftIds))
@@ -192,6 +192,8 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
                 'sale_number'    => $sale->sale_number,
                 'type'           => $sale->order_id ? 'order' : 'direct',
                 'order_id'       => $sale->order_id,
+                'waiter_user_id' => $sale->waiter_user_id,
+                'waiter_name'    => $sale->waiter?->name ?? '-',
                 'cashier'        => $sale->cashier?->name ?? '-',
                 'payment_mode'   => $sale->payment_mode,
                 'total'          => $sale->total,
@@ -404,10 +406,14 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
 
         $rows = $settlements->map(fn ($s) => [
             'id'             => $s->id,
+            'staff_user_id'  => $s->staff_user_id,
             'staff'          => $s->staffUser?->name ?? '-',
             'staff_role'     => $s->staff_role,
             'settlement_type'=> $s->settlement_type,
             'total_amount'   => $s->total_amount,
+            'net_amount'     => $s->net_amount,
+            'compensation_mode' => $s->compensation_mode,
+            'manual_amount_input' => $s->manual_amount_input,
             'status'         => $s->status,
             'paid_by'        => $s->paidBy?->name ?? '-',
             'paid_at'        => $s->paid_at,
@@ -441,6 +447,65 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
                 'paid_count'      => $paidRows->count(),
                 'pending_count'   => $pendingRows->count(),
             ],
+        ];
+    }
+
+    public function getManagerialScopeShiftIds(int $tenantId, int $branchId, array $filters): array
+    {
+        return $this->resolveShiftIds($tenantId, $branchId, $filters);
+    }
+
+    public function getManagerialHourlyPerformance(int $tenantId, int $branchId, array $filters): array
+    {
+        $shiftIds = $this->resolveShiftIds($tenantId, $branchId, $filters);
+        $granularity = strtoupper((string) ($filters['include_hours_granularity'] ?? 'HOUR_24'));
+
+        $sales = SaleModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->whereNotNull('paid_at')
+            ->when(! empty($shiftIds), fn ($q) => $q->whereIn('official_shift_id', $shiftIds))
+            ->get(['paid_at', 'total']);
+
+        $buckets = [];
+
+        foreach ($sales as $sale) {
+            $hour = (int) $sale->paid_at?->format('H');
+            if ($granularity === 'HOUR_BLOCK') {
+                $from = str_pad((string) (int) (floor($hour / 3) * 3), 2, '0', STR_PAD_LEFT);
+                $to = str_pad((string) (int) (floor($hour / 3) * 3 + 2), 2, '0', STR_PAD_LEFT);
+                $bucketKey = "{$from}:00-{$to}:59";
+            }
+            else {
+                $bucketKey = str_pad((string) $hour, 2, '0', STR_PAD_LEFT).':00';
+            }
+
+            if (! isset($buckets[$bucketKey])) {
+                $buckets[$bucketKey] = ['bucket' => $bucketKey, 'sales_count' => 0, 'revenue_total' => 0.0];
+            }
+
+            $buckets[$bucketKey]['sales_count']++;
+            $buckets[$bucketKey]['revenue_total'] += (float) $sale->total;
+        }
+
+        $rows = collect($buckets)
+            ->map(fn (array $row): array => [
+                'bucket' => $row['bucket'],
+                'sales_count' => $row['sales_count'],
+                'revenue_total' => $this->fmt($row['revenue_total']),
+            ])
+            ->sortBy('bucket')
+            ->values();
+
+        $best = $rows
+            ->sortByDesc(fn (array $row): float => (float) $row['revenue_total'])
+            ->values()
+            ->first();
+
+        return [
+            'granularity' => $granularity === 'HOUR_BLOCK' ? 'hour_block' : 'hour_24',
+            'best_hour_by_revenue' => $best ?? null,
+            'hourly_buckets' => $rows->all(),
         ];
     }
 

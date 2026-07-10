@@ -239,6 +239,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:reports.access'])->group(function () {
             Route::prefix('reports')->group(function () {
                 Route::get('daily', [ReportController::class, 'daily']);
+                Route::get('managerial-daily', [ReportController::class, 'managerialDaily']);
                 Route::get('sales', [ReportController::class, 'sales']);
                 Route::get('cash', [ReportController::class, 'cash']);
                 Route::get('services', [ReportController::class, 'services']);
@@ -400,6 +401,7 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:settlements.pay'])->group(function () {
             Route::get('settlements/{id}/pay-preview', [SettlementController::class, 'payPreview'])->whereNumber('id');
             Route::post('settlements/{id}/mark-paid', [SettlementController::class, 'markPaid'])->whereNumber('id');
+            Route::patch('settlements/{id}/cleaning-deduction', [SettlementController::class, 'updateCleaningDeduction'])->whereNumber('id');
             Route::patch('settlements/{id}/manual-compensation', [SettlementController::class, 'updateManualCompensation'])->whereNumber('id');
             Route::post('settlements/{id}/print', [SettlementController::class, 'print'])->whereNumber('id');
         });

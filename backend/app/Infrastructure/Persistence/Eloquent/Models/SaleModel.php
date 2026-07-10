@@ -52,4 +52,9 @@ final class SaleModel extends Model
     {
         return $this->belongsTo(UserModel::class, 'cashier_user_id');
     }
+
+    public function waiter(): BelongsTo
+    {
+        return $this->belongsTo(UserModel::class, 'waiter_user_id');
+    }
 }

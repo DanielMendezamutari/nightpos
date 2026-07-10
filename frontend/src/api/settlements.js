@@ -44,6 +44,14 @@ export async function markSettlementPaid(id, payload = {}) {
   return unwrapNightPosResponse(response)
 }
 
+export async function updateSettlementCleaningDeduction(id, payload = {}) {
+  const response = await api.patch(`/settlements/${id}/cleaning-deduction`, {
+    amount: payload.amount,
+  })
+
+  return unwrapNightPosResponse(response)
+}
+
 export async function updateSettlementManualCompensation(id, payload = {}) {
   const response = await api.patch(`/settlements/${id}/manual-compensation`, {
     amount: payload.amount,

@@ -21,12 +21,12 @@ interface StaffSettlementRepositoryInterface
     public function getCurrentShiftOverview(
         int $tenantId,
         int $branchId,
-        int $officialShiftId,
+        ?int $officialShiftId,
         ?int $onlyStaffUserId,
         ?int $cashSessionId = null,
     ): array;
 
-    public function cashSessionHasActivity(int $tenantId, int $branchId, int $officialShiftId, int $cashSessionId): bool;
+    public function cashSessionHasActivity(int $tenantId, int $branchId, ?int $officialShiftId, int $cashSessionId): bool;
 
     /**
      * @return array<string, mixed>|null
@@ -66,6 +66,11 @@ interface StaffSettlementRepositoryInterface
     public function resolveOpenShiftId(int $tenantId, int $branchId): ?int;
 
     /**
+     * @return list<int>
+     */
+    public function resolveCashSessionShiftIdsWithActivity(int $tenantId, int $branchId, int $cashSessionId): array;
+
+    /**
      * @return array{
      *     sales: int,
      *     bracelets: int,
@@ -74,15 +79,15 @@ interface StaffSettlementRepositoryInterface
      *     cleaning_tasks: int
      * }
      */
-    public function countShiftSources(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null): array;
+    public function countShiftSources(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): array;
 
-    public function countUnsettledShiftSources(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null): int;
+    public function countUnsettledShiftSources(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): int;
 
-    public function countPendingSettlements(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null, ?string $staffRole = null): int;
+    public function countPendingSettlements(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null, ?string $staffRole = null): int;
 
-    public function sumPendingSettlementAmount(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null): float;
+    public function sumPendingSettlementAmount(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): float;
 
-    public function countGeneratedSettlements(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null): int;
+    public function countGeneratedSettlements(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): int;
 
     /**
      * @return array{
@@ -93,5 +98,5 @@ interface StaffSettlementRepositoryInterface
      *     already_generated_pending_count: int
      * }
      */
-    public function settlementScopeSummary(int $tenantId, int $branchId, int $officialShiftId, ?int $cashSessionId = null): array;
+    public function settlementScopeSummary(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): array;
 }

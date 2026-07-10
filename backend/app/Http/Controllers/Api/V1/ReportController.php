@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Application\Reports\UseCases\GetCashReportUseCase;
 use App\Application\Reports\UseCases\GetDailyReportUseCase;
+use App\Application\Reports\UseCases\GetManagerialDailyReportUseCase;
 use App\Application\Reports\UseCases\GetProductReconciliationReportUseCase;
 use App\Application\Reports\UseCases\GetRoomsReportUseCase;
 use App\Application\Reports\UseCases\GetSalesReportUseCase;
@@ -22,6 +23,7 @@ final class ReportController extends Controller
     public function __construct(
         private readonly ApiResponsePresenterInterface $presenter,
         private readonly GetDailyReportUseCase $daily,
+        private readonly GetManagerialDailyReportUseCase $managerialDaily,
         private readonly GetSalesReportUseCase $sales,
         private readonly GetCashReportUseCase $cash,
         private readonly GetServicesReportUseCase $services,
@@ -35,6 +37,15 @@ final class ReportController extends Controller
     {
         return $this->presenter->present(
             $this->daily->execute($this->filtersFromRequest($request))
+        );
+    }
+
+    public function managerialDaily(Request $request): JsonResponse
+    {
+        return $this->presenter->present(
+            $this->managerialDaily->execute(
+                $this->filtersFromRequest($request, ['include_rankings_limit', 'include_hours_granularity'])
+            )
         );
     }
 

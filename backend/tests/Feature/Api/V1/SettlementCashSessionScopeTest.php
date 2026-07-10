@@ -439,3 +439,285 @@ it('admin can pay null cash_session settlements', function () {
     ], nightposOperationalHeaders(cashScopeAdminToken()))
         ->assertOk();
 });
+
+it('cashier sees same-session settlements even when they belong to another official shift', function () {
+    nightposEnsureShiftOpen();
+    $cashier = cashScopeRefreshCashierAToken();
+    nightposOpenCashSession($cashier, 100, false);
+
+    $sessionId = (int) test()->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($cashier))
+        ->json('data.session.id');
+    $sessionShiftId = (int) CashSessionModel::query()->whereKey($sessionId)->value('official_shift_id');
+
+    $tenantId = (int) \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()->where('slug', 'casa-demo')->value('id');
+    $branchId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->where('code', 'CENTRO')->value('id');
+    $adminId = (int) UserModel::query()->where('username', 'admin.demo')->value('id');
+
+    $otherShift = OfficialShiftModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'name' => 'Turno alterno scope',
+        'shift_type' => 'NIGHT',
+        'business_date' => now()->toDateString(),
+        'starts_at' => now()->subHours(8),
+        'ends_at' => now()->subHours(1),
+        'status' => 'CLOSED',
+        'opened_by_user_id' => $adminId,
+        'opened_at' => now()->subHours(8),
+        'closed_at' => now()->subHours(1),
+    ]);
+
+    expect((int) $otherShift->id)->not->toBe($sessionShiftId);
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'official_shift_id' => (int) $otherShift->id,
+        'cash_session_id' => $sessionId,
+        'staff_user_id' => nightposDemoWaiterUserId(),
+        'staff_role' => 'WAITER',
+        'settlement_type' => 'WAITER',
+        'total_amount' => 12.50,
+        'status' => 'PENDING',
+    ]);
+
+    $response = test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders($cashier))
+        ->assertOk();
+
+    expect($response->json('data.context.scope'))->toBe('my_cash_session')
+        ->and($response->json('data.context.cash_session_id'))->toBe($sessionId)
+        ->and($response->json('data.context.session_official_shift_id'))->toBe($sessionShiftId)
+        ->and($response->json('data.context.settlement_official_shift_ids'))->toContain((int) $otherShift->id)
+        ->and(collect($response->json('data.waiters'))->pluck('official_shift_id')->all())->toContain((int) $otherShift->id);
+});
+
+it('admin current-shift overview remains filtered by official shift', function () {
+    $admin = cashScopeAdminToken();
+    nightposEnsureShiftOpen();
+
+    $openShiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+    $tenantId = (int) \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()->where('slug', 'casa-demo')->value('id');
+    $branchId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->where('code', 'CENTRO')->value('id');
+    $adminId = (int) UserModel::query()->where('username', 'admin.demo')->value('id');
+
+    $otherShift = OfficialShiftModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'name' => 'Turno previo admin scope',
+        'shift_type' => 'NIGHT',
+        'business_date' => now()->subDay()->toDateString(),
+        'starts_at' => now()->subDay()->startOfDay(),
+        'ends_at' => now()->subDay()->endOfDay(),
+        'status' => 'CLOSED',
+        'opened_by_user_id' => $adminId,
+        'opened_at' => now()->subDay()->startOfDay(),
+        'closed_at' => now()->subDay()->endOfDay(),
+    ]);
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'official_shift_id' => $openShiftId,
+        'cash_session_id' => null,
+        'staff_user_id' => nightposDemoWaiterUserId(),
+        'staff_role' => 'WAITER',
+        'settlement_type' => 'WAITER',
+        'total_amount' => 10.00,
+        'status' => 'PENDING',
+    ]);
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'official_shift_id' => (int) $otherShift->id,
+        'cash_session_id' => null,
+        'staff_user_id' => nightposDemoWaiterUserId(),
+        'staff_role' => 'WAITER',
+        'settlement_type' => 'WAITER',
+        'total_amount' => 15.00,
+        'status' => 'PENDING',
+    ]);
+
+    $response = test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders($admin))
+        ->assertOk();
+
+    $visibleShiftIds = collect($response->json('data.settlements'))->pluck('official_shift_id')->unique()->all();
+
+    expect($response->json('data.context.scope'))->toBe('shift')
+        ->and($visibleShiftIds)->toContain($openShiftId)
+        ->and($visibleShiftIds)->not->toContain((int) $otherShift->id);
+});
+
+it('cashier still does not see settlements from another cash session', function () {
+    nightposEnsureShiftOpen();
+    $cashierA = cashScopeRefreshCashierAToken();
+    nightposOpenCashSession($cashierA, 100, false);
+    cashScopeChargeOrder($cashierA);
+
+    test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders($cashierA))
+        ->assertCreated();
+
+    nightposResetApiAuth();
+    $cashierB = cashScopeRefreshCashierBToken();
+    nightposOpenCashSession($cashierB, 50, false);
+
+    $viewB = test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders($cashierB))
+        ->assertOk();
+
+    expect($viewB->json('data.context.scope'))->toBe('my_cash_session')
+        ->and($viewB->json('data.waiters'))->toBeEmpty()
+        ->and($viewB->json('data.girls'))->toBeEmpty();
+});
+
+it('girls settlements remain visible and stable in my cash-session scope', function () {
+    nightposEnsureShiftOpen();
+    $cashier = cashScopeRefreshCashierAToken();
+    nightposOpenCashSession($cashier, 100, false);
+
+    $sessionId = (int) test()->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($cashier))
+        ->json('data.session.id');
+    $shiftId = (int) CashSessionModel::query()->whereKey($sessionId)->value('official_shift_id');
+    $tenantId = (int) \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()->where('slug', 'casa-demo')->value('id');
+    $branchId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->where('code', 'CENTRO')->value('id');
+    $girlId = (int) UserModel::query()->where('username', 'chica.centro')->value('id');
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'official_shift_id' => $shiftId,
+        'cash_session_id' => $sessionId,
+        'staff_user_id' => $girlId,
+        'staff_role' => 'GIRL',
+        'settlement_type' => 'GIRL',
+        'total_amount' => 30.00,
+        'status' => 'PENDING',
+    ]);
+
+    $response = test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders($cashier))
+        ->assertOk();
+
+    expect($response->json('data.girls'))->not->toBeEmpty();
+});
+
+it('waiters with zero commission still appear for cashier current-shift list', function () {
+    nightposEnsureShiftOpen();
+    $cashier = cashScopeRefreshCashierAToken();
+    nightposOpenCashSession($cashier, 100, false);
+
+    $sessionId = (int) test()->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($cashier))
+        ->json('data.session.id');
+    $shiftId = (int) CashSessionModel::query()->whereKey($sessionId)->value('official_shift_id');
+    $tenantId = (int) \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()->where('slug', 'casa-demo')->value('id');
+    $branchId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->where('code', 'CENTRO')->value('id');
+
+    StaffProfileModel::query()
+        ->where('user_id', nightposDemoWaiterUserId())
+        ->update(['waiter_commission_percent' => 0]);
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'official_shift_id' => $shiftId,
+        'cash_session_id' => $sessionId,
+        'staff_user_id' => nightposDemoWaiterUserId(),
+        'staff_role' => 'WAITER',
+        'settlement_type' => 'WAITER',
+        'compensation_mode' => 'MANUAL',
+        'compensation_source' => 'REQUIRES_MANUAL_INPUT',
+        'total_amount' => 0.00,
+        'status' => 'PENDING',
+    ]);
+
+    $response = test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders($cashier))
+        ->assertOk();
+
+    expect($response->json('data.waiters'))->not->toBeEmpty()
+        ->and($response->json('data.waiters.0.compensation_mode'))->toBe('MANUAL');
+});
+
+it('cash close-check detects pending settlements by cash session', function () {
+    nightposEnsureShiftOpen();
+    $cashier = cashScopeRefreshCashierAToken();
+    nightposOpenCashSession($cashier, 100, false);
+
+    $sessionId = (int) test()->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($cashier))
+        ->json('data.session.id');
+    $tenantId = (int) \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()->where('slug', 'casa-demo')->value('id');
+    $branchId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->where('code', 'CENTRO')->value('id');
+    $adminId = (int) UserModel::query()->where('username', 'admin.demo')->value('id');
+
+    $otherShift = OfficialShiftModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'name' => 'Turno alterno cash close-check',
+        'shift_type' => 'NIGHT',
+        'business_date' => now()->toDateString(),
+        'starts_at' => now()->subHours(6),
+        'ends_at' => now()->subHour(),
+        'status' => 'CLOSED',
+        'opened_by_user_id' => $adminId,
+        'opened_at' => now()->subHours(6),
+        'closed_at' => now()->subHour(),
+    ]);
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'official_shift_id' => (int) $otherShift->id,
+        'cash_session_id' => $sessionId,
+        'staff_user_id' => nightposDemoWaiterUserId(),
+        'staff_role' => 'WAITER',
+        'settlement_type' => 'WAITER',
+        'total_amount' => 20.00,
+        'status' => 'PENDING',
+    ]);
+
+    $check = test()->getJson('/api/v1/cash/session/current/close-check', nightposOperationalHeaders($cashier))
+        ->assertOk();
+
+    expect($check->json('data.can_close'))->toBeFalse()
+        ->and(collect($check->json('data.blockers'))->pluck('code')->all())->toContain('settlements_pending_payment');
+});
+
+it('shift close-check keeps settlement validation by official shift', function () {
+    $admin = cashScopeAdminToken();
+    nightposEnsureShiftOpen();
+
+    $shiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+    StaffSettlementModel::query()->where('official_shift_id', $shiftId)->update(['status' => 'PAID']);
+
+    $tenantId = (int) \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::query()->where('slug', 'casa-demo')->value('id');
+    $branchId = (int) \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()->where('code', 'CENTRO')->value('id');
+    $adminId = (int) UserModel::query()->where('username', 'admin.demo')->value('id');
+
+    $otherShift = OfficialShiftModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'name' => 'Turno externo shift close-check',
+        'shift_type' => 'NIGHT',
+        'business_date' => now()->subDay()->toDateString(),
+        'starts_at' => now()->subDay()->startOfDay(),
+        'ends_at' => now()->subDay()->endOfDay(),
+        'status' => 'CLOSED',
+        'opened_by_user_id' => $adminId,
+        'opened_at' => now()->subDay()->startOfDay(),
+        'closed_at' => now()->subDay()->endOfDay(),
+    ]);
+
+    StaffSettlementModel::query()->create([
+        'tenant_id' => $tenantId,
+        'branch_id' => $branchId,
+        'official_shift_id' => (int) $otherShift->id,
+        'cash_session_id' => null,
+        'staff_user_id' => nightposDemoWaiterUserId(),
+        'staff_role' => 'WAITER',
+        'settlement_type' => 'WAITER',
+        'total_amount' => 40.00,
+        'status' => 'PENDING',
+    ]);
+
+    $check = test()->getJson('/api/v1/shifts/current/close-check', nightposOperationalHeaders($admin))
+        ->assertOk();
+
+    expect((int) $check->json('data.summary.pending_settlements'))->toBe(0);
+});

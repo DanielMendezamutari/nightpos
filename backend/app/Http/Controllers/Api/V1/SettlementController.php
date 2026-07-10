@@ -16,12 +16,14 @@ use App\Application\StaffSettlement\UseCases\GetSettlementUseCase;
 use App\Application\StaffSettlement\UseCases\ListSettlementHistoryUseCase;
 use App\Application\StaffSettlement\UseCases\MarkSettlementPaidUseCase;
 use App\Application\StaffSettlement\UseCases\PreviewManualDiscountUseCase;
+use App\Application\StaffSettlement\UseCases\UpdateSettlementCleaningDeductionUseCase;
 use App\Application\StaffSettlement\UseCases\UpdateManualCompensationUseCase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Settlement\ApplyManualDiscountRequest;
 use App\Http\Requests\Api\V1\Settlement\MarkSettlementPaidRequest;
 use App\Http\Requests\Api\V1\Settlement\PreviewManualDiscountRequest;
 use App\Http\Requests\Api\V1\Settlement\PrintSettlementRequest;
+use App\Http\Requests\Api\V1\Settlement\UpdateSettlementCleaningDeductionRequest;
 use App\Http\Requests\Api\V1\Settlement\UpdateManualCompensationRequest;
 use App\Infrastructure\Presentation\Http\Contracts\ApiResponsePresenterInterface;
 use Illuminate\Http\JsonResponse;
@@ -41,6 +43,7 @@ final class SettlementController extends Controller
         private readonly ApplyManualDiscountUseCase $applyManualDiscount,
         private readonly CancelManualDiscountUseCase $cancelManualDiscount,
         private readonly PreviewManualDiscountUseCase $previewManualDiscount,
+        private readonly UpdateSettlementCleaningDeductionUseCase $updateSettlementCleaningDeduction,
         private readonly UpdateManualCompensationUseCase $updateManualCompensation,
         private readonly PrintSettlementPaymentUseCase $printSettlement,
     ) {
@@ -134,6 +137,16 @@ final class SettlementController extends Controller
             'settlementId' => $id,
             'amount' => (float) $validated['amount'],
             'notes' => $validated['notes'] ?? null,
+        ]));
+    }
+
+    public function updateCleaningDeduction(int $id, UpdateSettlementCleaningDeductionRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+
+        return $this->presenter->present($this->updateSettlementCleaningDeduction->execute((object) [
+            'settlementId' => $id,
+            'amount' => (float) $validated['amount'],
         ]));
     }
 
