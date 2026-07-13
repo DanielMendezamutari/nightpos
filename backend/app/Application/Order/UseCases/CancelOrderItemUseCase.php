@@ -8,7 +8,6 @@ use App\Application\Order\DTOs\CancelOrderItemInput;
 use App\Application\Order\Services\OrderAccessGuard;
 use App\Application\Order\Services\OrderPresentationService;
 use App\Application\Order\Support\OrderOperationalEventPayload;
-use App\Application\Printing\UseCases\DispatchBarCorrectionPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Domain\Order\Exceptions\OrderDomainException;
 use App\Domain\Order\Repositories\OrderRepositoryInterface;
@@ -31,7 +30,6 @@ final class CancelOrderItemUseCase implements UseCaseInterface
         private readonly AuditLogRecorder $audit,
         private readonly OperationalEventEmitter $eventEmitter,
         private readonly OrderPresentationService $presentation,
-        private readonly DispatchBarCorrectionPrintJobUseCase $dispatchBarCorrectionPrint,
     ) {
     }
 
@@ -103,15 +101,6 @@ final class CancelOrderItemUseCase implements UseCaseInterface
                 summary: 'Línea cancelada',
             )
         );
-
-        if ($updated !== null) {
-            $this->dispatchBarCorrectionPrint->execute(
-                $updated,
-                $tenant->id,
-                $branch->id,
-                $userId,
-            );
-        }
 
         return OperationResult::ok('Línea cancelada.', [
             'order' => $this->presentation->presentOrder($updated, $tenant->id),

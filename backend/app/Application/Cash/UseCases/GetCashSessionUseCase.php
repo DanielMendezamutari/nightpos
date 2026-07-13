@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace App\Application\Cash\UseCases;
 
-use App\Application\Cash\Services\CashSessionFinancialSummaryBuilder;
 use App\Application\Reports\Services\CashCloseReportSectionsBuilder;
 use App\Application\Cash\Support\CashMapper;
+use App\Domain\Cash\Contracts\FinancialDashboardAssembler;
 use App\Domain\Cash\Exceptions\CashDomainException;
 use App\Domain\Cash\Exceptions\CashSessionNotFoundException;
 use App\Domain\Cash\Repositories\CashSessionRepositoryInterface;
+use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Shared\Application\DTOs\OperationResult;
 use App\Shared\Contracts\AuthenticatedStaffContextInterface;
 use App\Shared\Contracts\BranchContextInterface;
@@ -23,7 +24,7 @@ final class GetCashSessionUseCase implements UseCaseInterface
         private readonly BranchContextInterface $branchContext,
         private readonly AuthenticatedStaffContextInterface $staffContext,
         private readonly CashSessionRepositoryInterface $sessions,
-        private readonly CashSessionFinancialSummaryBuilder $financials,
+        private readonly FinancialDashboardAssembler $financialDashboardAssembler,
         private readonly CashCloseReportSectionsBuilder $closeSections,
     ) {
     }
@@ -49,24 +50,28 @@ final class GetCashSessionUseCase implements UseCaseInterface
             throw new CashSessionNotFoundException();
         }
 
-        $summary = $this->financials->build(
-            sessionId: $session->id,
+        $dashboard = $this->financialDashboardAssembler->assemble(
+            tenantId: $tenant->id,
+            branchId: $branch->id,
+            cashSessionId: new CashSessionId($session->id),
             openingAmount: $session->openingAmount,
             storedExpectedAmount: $session->expectedAmount,
             declaredClosingAmount: $session->declaredClosingAmount,
             differenceAmount: $session->differenceAmount,
             status: $session->status,
+            officialShiftId: $session->officialShiftId,
         );
 
         return OperationResult::ok('Sesión encontrada.', [
             'session' => CashMapper::session($session),
-            'summary' => $summary,
+            'summary' => $dashboard->financial_summary,
+            'financial_dashboard' => $dashboard->toArray(),
             'operational' => $this->closeSections->forSession(
                 $tenant->id,
                 $branch->id,
                 $session->id,
                 $session->officialShiftId,
-                (string) ($summary['total_sales'] ?? '0.00'),
+                (string) ($dashboard->financial_summary['total_sales'] ?? '0.00'),
             ),
         ]);
     }

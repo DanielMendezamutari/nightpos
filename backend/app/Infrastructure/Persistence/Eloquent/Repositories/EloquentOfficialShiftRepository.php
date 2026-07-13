@@ -41,6 +41,50 @@ final class EloquentOfficialShiftRepository implements OfficialShiftRepositoryIn
         return $model ? $this->mapShift($model) : null;
     }
 
+    public function listOpenForBranch(int $tenantId, int $branchId): array
+    {
+        return OfficialShiftModel::query()
+            ->with(['openedBy', 'branch'])
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('status', OfficialShiftStatus::OPEN)
+            ->orderByDesc('opened_at')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn (OfficialShiftModel $model) => $this->mapShift($model))
+            ->all();
+    }
+
+    public function openShiftIdsWithOpenCashSessions(int $tenantId, int $branchId): array
+    {
+        return CashSessionModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('status', 'OPEN')
+            ->whereNotNull('official_shift_id')
+            ->distinct()
+            ->pluck('official_shift_id')
+            ->map(fn (mixed $id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
+    public function listOpenCashSessionsForBranch(int $tenantId, int $branchId): array
+    {
+        return CashSessionModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('status', 'OPEN')
+            ->whereNotNull('official_shift_id')
+            ->orderBy('id')
+            ->get(['id', 'official_shift_id'])
+            ->map(static fn (CashSessionModel $session): array => [
+                'cash_session_id' => (int) $session->id,
+                'official_shift_id' => (int) $session->official_shift_id,
+            ])
+            ->all();
+    }
+
     public function listForBranch(int $tenantId, int $branchId, int $limit = 50): array
     {
         return OfficialShiftModel::query()

@@ -15,6 +15,8 @@ final class CashMovementReasonModel extends Model
         'tenant_id',
         'branch_id',
         'type',
+        'default_movement_family',
+        'default_movement_category',
         'name',
         'status',
     ];

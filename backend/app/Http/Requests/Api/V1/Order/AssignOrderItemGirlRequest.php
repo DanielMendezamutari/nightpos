@@ -17,6 +17,7 @@ final class AssignOrderItemGirlRequest extends FormRequest
     {
         return [
             'girl_user_id' => ['required', 'integer', 'exists:users,id'],
+            'reason' => ['nullable', 'string', 'max:500'],
         ];
     }
 }

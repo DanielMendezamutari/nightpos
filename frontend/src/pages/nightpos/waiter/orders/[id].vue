@@ -129,6 +129,13 @@ const submitAddItem = async (addForm) => {
   }
   actionLoading.value = true
   try {
+    const previousItems = [...(order.value?.items ?? [])]
+    const previousItemIds = new Set(
+      previousItems
+        .map(item => Number(item?.id))
+        .filter(Number.isFinite),
+    )
+
     order.value = await addOrderItem(orderId.value, {
       product_id: addForm.product_id,
       sale_mode: addForm.sale_mode,
@@ -138,21 +145,25 @@ const submitAddItem = async (addForm) => {
     })
     recordRecent(addForm.product_id)
 
-    if (addForm.allocations?.length) {
-      const added = [...(order.value?.items ?? [])]
-        .reverse()
-        .find(i => i.product_id === addForm.product_id && i.requires_allocation)
+    const currentItems = [...(order.value?.items ?? [])]
+    const addedItemId = Number(order.value?.added_item_id)
+    const addedById = Number.isFinite(addedItemId)
+      ? currentItems.find(item => Number(item?.id) === addedItemId)
+      : currentItems.find(item => !previousItemIds.has(Number(item?.id)))
+    const addedAllocationTarget = addedById?.requires_allocation ? addedById : null
 
-      if (added) {
-        order.value = await syncOrderItemAllocations(orderId.value, added.id, addForm.allocations)
-      }
+    if (addForm.allocations?.length) {
+      if (!addedAllocationTarget)
+        throw new Error('No se pudo identificar la linea de combo recien agregada para sincronizar reparto.')
+
+      order.value = await syncOrderItemAllocations(orderId.value, addedAllocationTarget.id, addForm.allocations)
     }
 
     showAddItem.value = false
 
-    const pending = order.value?.items?.find(i =>
-      i.product_id === addForm.product_id && i.requires_allocation && !i.allocation_complete,
-    )
+    const pending = addedAllocationTarget
+      ? (order.value?.items ?? []).find(i => Number(i?.id) === Number(addedAllocationTarget?.id) && i.requires_allocation && !i.allocation_complete)
+      : null
 
     if (pending) {
       allocationTarget.value = pending

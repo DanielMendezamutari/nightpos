@@ -49,10 +49,14 @@ final class CashCloseReportSectionsBuilder
             ->get()
             ->map(static fn ($m) => [
                 'movement_type' => (string) $m->movement_type,
+                'movement_family' => $m->movement_family,
+                'movement_category' => $m->movement_category,
                 'amount' => number_format((float) $m->amount, 2, '.', ''),
                 'payment_method' => (string) $m->payment_method,
                 'reason' => $m->reason?->name ?? $m->description,
                 'notes' => $m->notes,
+                'source_type' => $m->source_type,
+                'source_id' => $m->source_id,
                 'created_at' => $m->created_at?->format('Y-m-d H:i:s'),
             ])
             ->all();

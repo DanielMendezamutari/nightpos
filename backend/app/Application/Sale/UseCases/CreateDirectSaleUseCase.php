@@ -206,7 +206,7 @@ final class CreateDirectSaleUseCase implements UseCaseInterface
                     description: sprintf('Venta directa %s', $sale->saleNumber),
                     paymentMethod: $payment['payment_method'],
                     createdByUserId: $cashierId,
-                    sourceType: 'sale',
+                    sourceType: 'SALE',
                     sourceId: $sale->id,
                 );
             }

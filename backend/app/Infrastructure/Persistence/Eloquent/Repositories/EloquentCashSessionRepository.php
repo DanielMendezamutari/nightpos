@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
+use App\Application\Cash\Services\CashMovementTaxonomyResolver;
 use App\Domain\Cash\Entities\CashMovement;
 use App\Domain\Cash\Entities\CashSession;
 use App\Domain\Cash\Exceptions\CashSessionNotFoundException;
 use App\Domain\Cash\Repositories\CashSessionRepositoryInterface;
+use App\Domain\Cash\ValueObjects\CashMovementCategory;
+use App\Domain\Cash\ValueObjects\CashMovementFamily;
 use App\Domain\Cash\ValueObjects\CashMovementType;
+use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Domain\Cash\ValueObjects\CashSessionStatus;
 use App\Application\Cash\Support\CashSessionTimestampsResolver;
 use App\Infrastructure\Persistence\Eloquent\Models\CashMovementModel;
@@ -17,6 +21,11 @@ use Illuminate\Support\Carbon;
 
 final class EloquentCashSessionRepository implements CashSessionRepositoryInterface
 {
+    public function __construct(
+        private readonly CashMovementTaxonomyResolver $taxonomyResolver,
+    ) {
+    }
+
     public function findById(int $id, int $tenantId, bool $withMovements = true): ?CashSession
     {
         $query = CashSessionModel::query()
@@ -100,6 +109,14 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
         ?string $sourceType = null,
         ?int $sourceId = null,
     ): CashMovement {
+        $taxonomy = $this->taxonomyResolver->resolveForNew(
+            movementType: $movementType,
+            cashMovementReasonId: $cashMovementReasonId,
+            sourceType: $sourceType,
+            sourceId: $sourceId,
+            description: $description,
+        );
+
         $model = CashMovementModel::query()->create([
             'tenant_id' => $tenantId,
             'branch_id' => $branchId,
@@ -112,6 +129,8 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
             'notes' => $notes,
             'source_type' => $sourceType,
             'source_id' => $sourceId,
+            'movement_family' => $taxonomy['family'],
+            'movement_category' => $taxonomy['category'],
             'created_by_user_id' => $createdByUserId,
             'created_at' => Carbon::now(),
         ]);
@@ -261,6 +280,114 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
         return $result;
     }
 
+    public function getStructuredCashSummary(CashSessionId $cashSessionId): array
+    {
+        $session = CashSessionModel::query()
+            ->where('id', $cashSessionId->value)
+            ->first();
+
+        if ($session === null) {
+            throw new CashSessionNotFoundException();
+        }
+
+        $rows = CashMovementModel::query()
+            ->where('cash_session_id', $cashSessionId->value)
+            ->whereRaw("UPPER(payment_method) = 'CASH'")
+            ->whereIn('movement_type', [CashMovementType::INCOME, CashMovementType::EXPENSE])
+            ->selectRaw('movement_type, movement_family, movement_category, SUM(amount) as total')
+            ->groupBy('movement_type', 'movement_family', 'movement_category')
+            ->get();
+
+        $totals = [];
+        foreach ($rows as $row) {
+            $movementType = (string) $row->movement_type;
+            $movementFamily = (string) $row->movement_family;
+            $movementCategory = (string) $row->movement_category;
+            $key = $movementType.'|'.$movementFamily.'|'.$movementCategory;
+            $totals[$key] = (float) $row->total;
+        }
+
+        $sum = static function (string $movementType, string $movementFamily, array $movementCategories) use ($totals): float {
+            $acc = 0.0;
+            foreach ($movementCategories as $movementCategory) {
+                $key = $movementType.'|'.$movementFamily.'|'.$movementCategory;
+                $acc += $totals[$key] ?? 0.0;
+            }
+
+            return $acc;
+        };
+
+        $cashIncomeSales = $sum(
+            CashMovementType::INCOME,
+            CashMovementFamily::SALE,
+            [
+                CashMovementCategory::SALE_COLLECTION,
+                CashMovementCategory::DIRECT_SALE_COLLECTION,
+                CashMovementCategory::BRACELET_COLLECTION,
+                CashMovementCategory::ROOM_SERVICE_COLLECTION,
+                CashMovementCategory::SHOW_COLLECTION,
+            ],
+        );
+
+        $cashIncomeManual = $sum(
+            CashMovementType::INCOME,
+            CashMovementFamily::MANUAL,
+            [
+                CashMovementCategory::MANUAL_INCOME,
+                CashMovementCategory::OTHER_INCOME,
+            ],
+        );
+
+        $cashExpenseSettlements = $sum(
+            CashMovementType::EXPENSE,
+            CashMovementFamily::SETTLEMENT,
+            [
+                CashMovementCategory::SETTLEMENT_GIRL_PAYMENT,
+                CashMovementCategory::SETTLEMENT_WAITER_PAYMENT,
+                CashMovementCategory::SETTLEMENT_CLEANING_PAYMENT,
+            ],
+        );
+
+        $cashExpenseOperational = $sum(
+            CashMovementType::EXPENSE,
+            CashMovementFamily::EXPENSE,
+            [CashMovementCategory::OPERATING_EXPENSE],
+        );
+
+        $cashExpensePurchases = $sum(
+            CashMovementType::EXPENSE,
+            CashMovementFamily::EXPENSE,
+            [CashMovementCategory::PURCHASE],
+        );
+
+        $cashExpenseOther = $sum(
+            CashMovementType::EXPENSE,
+            CashMovementFamily::EXPENSE,
+            [CashMovementCategory::OTHER_EXPENSE],
+        );
+
+        $isClosed = $session->status === CashSessionStatus::CLOSED;
+        $hasDeclaredCount = $session->declared_closing_amount !== null;
+
+        return [
+            'opening_cash' => number_format((float) $session->opening_amount, 2, '.', ''),
+            'cash_income_sales' => number_format($cashIncomeSales, 2, '.', ''),
+            'cash_income_manual' => number_format($cashIncomeManual, 2, '.', ''),
+            'cash_expense_settlements' => number_format($cashExpenseSettlements, 2, '.', ''),
+            'cash_expense_operational' => number_format($cashExpenseOperational, 2, '.', ''),
+            'cash_expense_purchases' => number_format($cashExpensePurchases, 2, '.', ''),
+            'cash_expense_other' => number_format($cashExpenseOther, 2, '.', ''),
+            'counted_cash' => $session->declared_closing_amount !== null
+                ? number_format((float) $session->declared_closing_amount, 2, '.', '')
+                : null,
+            'cash_difference' => $session->difference_amount !== null
+                ? number_format((float) $session->difference_amount, 2, '.', '')
+                : null,
+            'is_closed' => $isClosed,
+            'has_declared_count' => $hasDeclaredCount,
+        ];
+    }
+
     public function listForAdmin(
         int $tenantId,
         ?int $branchId,
@@ -367,6 +494,10 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
             cashMovementReasonId: $model->cash_movement_reason_id !== null ? (int) $model->cash_movement_reason_id : null,
             notes: $model->notes,
             reasonName: $reasonName,
+            movementFamily: $model->movement_family,
+            movementCategory: $model->movement_category,
+            sourceType: $model->source_type,
+            sourceId: $model->source_id !== null ? (int) $model->source_id : null,
         );
     }
 }

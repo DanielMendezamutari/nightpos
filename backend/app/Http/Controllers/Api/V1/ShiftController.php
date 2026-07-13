@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Application\Shift\DTOs\CloseOfficialShiftInput;
 use App\Application\Shift\DTOs\OpenOfficialShiftInput;
+use App\Application\Shift\DTOs\ResolveOpenShiftConflictsInput;
 use App\Application\Reports\UseCases\GetShiftClosureCheckUseCase;
 use App\Application\Shift\UseCases\CloseOfficialShiftUseCase;
 use App\Application\Shift\UseCases\GetCurrentOfficialShiftUseCase;
@@ -13,10 +14,12 @@ use App\Application\Shift\UseCases\GetOfficialShiftSummaryUseCase;
 use App\Application\Shift\UseCases\GetOfficialShiftUseCase;
 use App\Application\Shift\UseCases\ListOfficialShiftsUseCase;
 use App\Application\Shift\UseCases\OpenOfficialShiftUseCase;
+use App\Application\Shift\UseCases\ResolveOpenShiftConflictsUseCase;
 use App\Application\Printing\UseCases\PrintShiftCloseUseCase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\Shift\CloseOfficialShiftRequest;
 use App\Http\Requests\Api\V1\Shift\OpenOfficialShiftRequest;
+use App\Http\Requests\Api\V1\Shift\ResolveOpenShiftConflictsRequest;
 use App\Infrastructure\Presentation\Http\Contracts\ApiResponsePresenterInterface;
 use Illuminate\Http\JsonResponse;
 
@@ -32,6 +35,7 @@ final class ShiftController extends Controller
         private readonly GetOfficialShiftSummaryUseCase $getSummary,
         private readonly GetShiftClosureCheckUseCase $getCloseCheck,
         private readonly PrintShiftCloseUseCase $printClosure,
+        private readonly ResolveOpenShiftConflictsUseCase $resolveOpenConflicts,
     ) {
     }
 
@@ -94,5 +98,12 @@ final class ShiftController extends Controller
             'shiftId' => $id,
             'reprint' => $reprint,
         ]));
+    }
+
+    public function resolveOpenConflicts(ResolveOpenShiftConflictsRequest $request): JsonResponse
+    {
+        return $this->presenter->present($this->resolveOpenConflicts->execute(new ResolveOpenShiftConflictsInput(
+            keepShiftId: $request->filled('keep_shift_id') ? (int) $request->validated('keep_shift_id') : null,
+        )));
     }
 }

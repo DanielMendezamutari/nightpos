@@ -7,6 +7,7 @@ import { useNightPosNotify } from '@/composables/useNightPosNotify'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { formatMoney } from '@/composables/useOrderHelpers'
+import { cashMovementCategoryLabel, cashMovementFamilyLabel } from '@/constants/cashMovements'
 import { getApiErrorMessage } from '@/services/http'
 
 definePage({ meta: { permission: 'admin.cash_sessions.view' } })
@@ -29,6 +30,8 @@ const settlementsPaid = ref([])
 
 const movementHeaders = [
   { title: 'Tipo', key: 'movement_type' },
+  { title: 'Familia', key: 'movement_family' },
+  { title: 'Categoría', key: 'movement_category' },
   { title: 'Descripción', key: 'description' },
   { title: 'Método', key: 'payment_method' },
   { title: 'Monto', key: 'amount' },
@@ -223,6 +226,14 @@ onMounted(load)
             </template>
             <template #item.amount="{ item }">
               {{ formatMoney(item.amount) }}
+            </template>
+            <template #item.movement_family="{ item }">
+              <VChip size="x-small" variant="tonal">
+                {{ cashMovementFamilyLabel(item.movement_family) }}
+              </VChip>
+            </template>
+            <template #item.movement_category="{ item }">
+              {{ cashMovementCategoryLabel(item.movement_category, item.movement_type) }}
             </template>
             <template #item.created_at="{ item }">
               {{ formatDate(item.created_at) }}

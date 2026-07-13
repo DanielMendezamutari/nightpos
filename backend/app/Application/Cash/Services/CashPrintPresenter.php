@@ -111,6 +111,10 @@ final class CashPrintPresenter
             cashMovementReasonId: $model->cash_movement_reason_id !== null ? (int) $model->cash_movement_reason_id : null,
             notes: $model->notes,
             reasonName: $model->reason?->name,
+            movementFamily: $model->movement_family,
+            movementCategory: $model->movement_category,
+            sourceType: $model->source_type,
+            sourceId: $model->source_id !== null ? (int) $model->source_id : null,
         );
     }
 }

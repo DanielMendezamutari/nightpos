@@ -51,6 +51,56 @@ Actualizacion implementacion 2026-07-08 (Scope hibrido de liquidaciones):
   - `backend/LIQUIDATION_SCOPE_HYBRID_IMPLEMENTATION_REPORT.md`
   - `frontend/LIQUIDATION_SCOPE_HYBRID_IMPLEMENTATION_REPORT.md`
 
+Actualizacion implementacion 2026-07-10 (Sprint 1 taxonomia financiera):
+
+- `cash_movements` ahora tiene taxonomia estructurada con `movement_family` y `movement_category`.
+- La clasificacion ya no depende del texto libre en movimientos nuevos; se centraliza en backend mediante resolver y backfill historico.
+- Se preserva compatibilidad de payloads y no se rediseña aun el dashboard de Caja.
+- Validado en MySQL real `nigtpos`: mismo conteo de movimientos y cero filas sin categoria.
+
+Actualizacion auditoria 2026-07-10 (Integracion Sprint 1):
+
+- La taxonomia nueva ya esta adoptada en persistencia, repositorio central y payloads operativos de movimientos.
+- `financial_summary`, varios reportes, cierres y templates de impresion siguen usando arquitectura legacy (`movement_type`, `reason_name`, `description`, heuristicas por texto).
+- Antes de cualquier rediseño visual de Caja o reportes, el siguiente paso correcto es migrar builders y summaries backend por dominio.
+
+Actualizacion diseno 2026-07-10 (Arquitectura Sprint 2):
+
+- Se diseño la arquitectura de Summary Builders de Sprint 2: `SalesSummaryBuilder`, `CashSummaryBuilder`, `MovementSummaryBuilder`, `SettlementSummaryBuilder`, `ScopeSummaryBuilder`, `FinancialDashboardAssembler`.
+- El `FinancialDashboardAssembler` reemplaza `CashSessionFinancialSummaryBuilder` con compatibilidad transitoria del campo legacy `financial_summary`.
+- Referencia oficial: `backend/SPRINT_2_SUMMARY_BUILDERS_ARCHITECTURE.md`.
+
+Actualizacion implementacion 2026-07-12 (Sprint 3A FinancialDashboardAssembler):
+
+- Se implemento el assembler backend `FinancialDashboardAssembler` con implementacion default `EloquentFinancialDashboardAssembler`.
+- El assembler orquesta unicamente builders canonicos (`Sales`, `Cash`, `Movement`, `Settlement`, `Scope`) y genera `financial_summary` legacy por mapeo derivado.
+- `CashSessionFinancialSummaryBuilder` queda en modo legacy/deprecado y delega al assembler.
+- Integrado en:
+  - `GetCurrentCashSessionUseCase`
+  - `GetCashSessionUseCase`
+  - `GetCashSessionAdminUseCase`
+- Los endpoints ahora exponen `financial_dashboard` adicional manteniendo campos legacy existentes para compatibilidad operativa.
+
+Actualizacion implementacion 2026-07-12 (Sprint 4A rediseño dashboard caja frontend):
+
+- Se implemento rediseño de `frontend/src/pages/nightpos/cash/index.vue` usando `financial_dashboard` como fuente principal y `financial_summary` solo como fallback temporal.
+- La pantalla prioriza lectura operativa para cajera con 5 bloques en orden fijo:
+  1. Caja fisica
+  2. Pendientes operativos
+  3. Ventas
+  4. Movimientos
+  5. Contexto caja/turno
+- Se introdujeron componentes dedicados:
+  - `CashPhysicalSummaryCard`
+  - `CashPendingOperationsPanel`
+  - `CashSalesSummaryPanel`
+  - `CashMovementSummaryPanel`
+  - `CashScopeContextAlert`
+- Se preservaron acciones ya existentes (abrir/cerrar caja, movimiento manual, venta directa, impresion) sin cambios backend.
+- Se agrego prueba de comportamiento frontend con 10 escenarios en Vitest:
+  - `frontend/src/pages/nightpos/cash/__tests__/index.dashboard4a.spec.js`
+- Evidencia de implementacion: `frontend/SPRINT_4A_REDISENO_DASHBOARD_CAJA_IMPLEMENTATION_REPORT.md`.
+
 ---
 
 ## 2. Arquitectura backend

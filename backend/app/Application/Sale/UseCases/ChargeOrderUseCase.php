@@ -458,6 +458,10 @@ final class ChargeOrderUseCase implements UseCaseInterface
 
                     createdByUserId: $cashierId,
 
+                    sourceType: 'SALE',
+
+                    sourceId: $sale->id,
+
                 );
 
             }

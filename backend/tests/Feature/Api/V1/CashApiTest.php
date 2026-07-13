@@ -79,3 +79,47 @@ it('allows admin to open cash session with pin', function () {
         ->assertCreated()
         ->assertJsonPath('data.session.opening_amount', '50.00');
 });
+
+it('current cash session exposes financial dashboard with legacy compatibility block', function () {
+    $token = nightposLoginPin('1234');
+    nightposEnsureShiftOpen();
+
+    $this->postJson('/api/v1/cash/session/open', [
+        'opening_amount' => 100,
+    ], nightposOperationalHeaders($token))->assertCreated();
+
+    $response = $this->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($token))
+        ->assertOk()
+        ->json('data.session');
+
+    expect($response)->toHaveKey('financial_dashboard')
+        ->and($response['financial_dashboard'])->toHaveKey('sales_summary')
+        ->and($response['financial_dashboard'])->toHaveKey('cash_summary')
+        ->and($response['financial_dashboard'])->toHaveKey('movement_summary')
+        ->and($response['financial_dashboard'])->toHaveKey('settlement_summary')
+        ->and($response['financial_dashboard'])->toHaveKey('scope_summary')
+        ->and($response['financial_dashboard'])->toHaveKey('financial_summary')
+        ->and($response['financial_summary']['expected_cash'])
+        ->toBe($response['financial_dashboard']['financial_summary']['expected_cash']);
+});
+
+it('cash session detail endpoint includes financial dashboard and keeps summary compatible', function () {
+    $token = nightposLoginPin('1234');
+    nightposEnsureShiftOpen();
+
+    $this->postJson('/api/v1/cash/session/open', [
+        'opening_amount' => 120,
+    ], nightposOperationalHeaders($token))->assertCreated();
+
+    $sessionId = (int) $this->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($token))
+        ->assertOk()
+        ->json('data.session.id');
+
+    $data = $this->getJson("/api/v1/cash/sessions/{$sessionId}", nightposOperationalHeaders($token))
+        ->assertOk()
+        ->json('data');
+
+    expect($data)->toHaveKey('financial_dashboard')
+        ->and($data['financial_dashboard']['financial_summary']['expected_cash'])
+        ->toBe($data['summary']['expected_cash']);
+});

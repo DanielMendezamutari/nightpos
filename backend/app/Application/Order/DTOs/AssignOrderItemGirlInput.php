@@ -10,6 +10,7 @@ final readonly class AssignOrderItemGirlInput extends OrderDto
         public int $orderId,
         public int $itemId,
         public int $girlUserId,
+        public ?string $reason = null,
     ) {
     }
 }

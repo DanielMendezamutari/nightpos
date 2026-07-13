@@ -58,6 +58,70 @@ Actualizacion 2026-07-10:
 - Validado en MySQL real `nigtpos` dentro de transaccion con rollback: monto 20 aplica, monto 0 elimina, y recalculate no recrea ajuste.
 - Evidencia: `backend/IMPLEMENTACION_LIMPIEZA_MANUAL_CHICAS.md`, `frontend/IMPLEMENTACION_LIMPIEZA_MANUAL_CHICAS.md`.
 
+Actualizacion 2026-07-10 (Auditoria Caja):
+
+- Se realizo auditoria completa del modulo de Caja en backend, frontend y MySQL real `nigtpos`.
+- Hallazgo principal: Caja es operable, pero mezcla conceptos de ventas, ingresos y egresos, y una misma `cash_session` puede arrastrar actividad de multiples `official_shift_id` sin que la UI lo explique con suficiente claridad.
+- Riesgos detectados: etiqueta ambigua de egresos manuales, verificacion QR/Tarjeta no persistida estructuralmente, duplicacion conceptual entre ventas e ingresos, y lectura insuficiente para dueños/supervision.
+- Evidencia: `backend/AUDITORIA_MODULO_CAJA.md`, `frontend/AUDITORIA_MODULO_CAJA.md`.
+
+Actualizacion 2026-07-10 (Rediseño Caja planificado):
+
+- Se definio arquitectura conceptual futura para convertir Caja en el centro financiero de NightPOS sin cambiar todavia la logica operativa existente.
+- Separacion objetivo: `Ventas`, `Caja fisica`, `Movimientos`, `Liquidaciones`.
+- Recomendacion estratégica: converger a modelo `1 turno = 1 caja` como estado objetivo; mientras tanto, la UI debe declarar visiblemente cuando una `cash_session` arrastra actividad de multiples `official_shift_id`.
+- Rediseño propuesto: dashboard con pocos bloques grandes para cajera/supervisor/dueño y payloads backend separados por dominio (`sales_summary`, `cash_summary`, `movement_summary`, `settlement_summary`, `scope_summary`).
+- Evidencia: `backend/REDISENO_MODULO_CAJA.md`, `frontend/REDISENO_MODULO_CAJA.md`.
+
+Actualizacion 2026-07-10 (Arquitectura financiera maestra):
+
+- Se completo la auditoria transversal de todos los modulos que generan, transforman, mueven o consumen dinero en NightPOS.
+- Se formalizo el documento `FINANCIAL_ARCHITECTURE_MASTER.md` como referencia oficial del sistema financiero antes de cualquier implementación de refactor o rediseño.
+- El modelo maestro fija dominios oficiales: `Ventas`, `Caja fisica`, `Movimientos`, `Liquidaciones`, `Control/Reportes` y define flujo del dinero, KPIs, formulas, diccionario y orden exacto de implementación.
+
+Actualizacion 2026-07-10 (Sprint 1 — Taxonomía financiera):
+
+- Se implemento la taxonomía financiera estructurada de `cash_movements` sin rediseñar todavía el dashboard de Caja.
+- Nuevos ejes oficiales en movimiento: `movement_family` y `movement_category`.
+- Se agrego migración compatible con producción y backfill histórico usando prioridad: `source_type` → `source_id` → `cash_movement_reason_id` → `settlement_type` relacionado → descripción como último fallback.
+- Validación en MySQL real `nigtpos`: mismo conteo total de movimientos, cero movimientos sin categoría y pagos de liquidaciones clasificados por rol.
+- Evidencia: `backend/SPRINT_1_TAXONOMIA_FINANCIERA_IMPLEMENTATION_REPORT.md`, `frontend/SPRINT_1_TAXONOMIA_FINANCIERA_IMPLEMENTATION_REPORT.md`.
+
+Actualizacion 2026-07-10 (Auditoria integración Sprint 1):
+
+- Se realizó auditoría técnica completa del estado post Sprint 1 para medir adopción real de `movement_family` y `movement_category`.
+- Veredicto: persistencia y creación de movimientos ya migraron; reportes, summaries, impresión y dashboard siguen mayormente en arquitectura legacy.
+- Estimación de adopción: backend global ~35-40%; frontend global ~20%.
+- Riesgo principal: no iniciar rediseño visual ni reportes de Sprint 2 antes de migrar primero los summaries y builders financieros legacy.
+- Evidencia: `backend/SPRINT_1_INTEGRATION_AUDIT.md`, `frontend/SPRINT_1_INTEGRATION_AUDIT.md`.
+
+Actualizacion 2026-07-10 (Diseño arquitectura Sprint 2 — Summary Builders):
+
+- Se cerró el contrato oficial de arquitectura backend para Sprint 2 antes de cualquier implementación.
+- Se diseñaron 6 componentes con responsabilidad única: `SalesSummaryBuilder`, `CashSummaryBuilder`, `MovementSummaryBuilder`, `SettlementSummaryBuilder`, `ScopeSummaryBuilder` y `FinancialDashboardAssembler`.
+- El assembler reemplaza `CashSessionFinancialSummaryBuilder` como punto monolítico y mantiene campo `financial_summary` transitorio para compatibilidad frontend.
+- Evidencia: `backend/SPRINT_2_SUMMARY_BUILDERS_ARCHITECTURE.md`.
+
+Actualizacion 2026-07-12 (Sprint 3A — FinancialDashboardAssembler):
+
+- Se implemento `FinancialDashboardAssembler` como punto unico de ensamblaje de `sales_summary`, `cash_summary`, `movement_summary`, `settlement_summary`, `scope_summary` y `financial_summary` legacy.
+- `CashSessionFinancialSummaryBuilder` pasa a modo legado delegando al assembler para evitar calculos divergentes.
+- Integracion activa en endpoints:
+  - `GET /api/v1/cash/session/current`
+  - `GET /api/v1/cash/sessions/{id}`
+  - `GET /api/v1/admin/cash-sessions/{id}`
+- Compatibilidad preservada: `financial_summary.expected_cash` y estructura historica se mantienen, con nuevo bloque adicional `financial_dashboard`.
+- Evidencia: `backend/SPRINT_3A_FINANCIAL_DASHBOARD_ASSEMBLER_IMPLEMENTATION_REPORT.md`, `frontend/SPRINT_3A_FINANCIAL_DASHBOARD_ASSEMBLER_IMPLEMENTATION_REPORT.md`.
+
+Actualizacion 2026-07-12 (Sprint 4A — Rediseño Dashboard Caja Frontend):
+
+- Se implemento rediseño de la vista de caja (`/nightpos/cash`) con prioridad operativa de cajera y consumo `financial_dashboard` como fuente canonica.
+- Nuevo orden funcional en UI: `Caja fisica` -> `Pendientes operativos` -> `Ventas` -> `Movimientos` -> `Contexto caja/turno`.
+- `financial_summary` queda solo como fallback temporal con alerta visible cuando no exista `financial_dashboard`.
+- Se preservaron acciones operativas existentes (abrir caja, movimiento manual, cerrar caja, venta directa, impresión) sin cambiar reglas de negocio backend.
+- Se agrego cobertura frontend de 10 escenarios en Vitest para blindar comportamiento del rediseño.
+- Evidencia: `frontend/SPRINT_4A_REDISENO_DASHBOARD_CAJA_IMPLEMENTATION_REPORT.md`.
+
 NightPOS ya **no es un MVP visual**: es un POS nocturno funcional con SaaS multi-tenant, comandas, precios SOLO/CON_ACOMPANANTE, caja, **venta directa con pago mixto**, liquidaciones, servicios (manillas/piezas/shows), habitaciones, limpieza móvil y modo garzón. Las últimas entregas (venta directa, pago mixto, POS-CAT) cerraron huecos críticos del flujo de cobro y catálogo.
 
 La brecha hacia V1 ya **no es construir el núcleo**, sino:

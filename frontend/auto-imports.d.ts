@@ -49,6 +49,7 @@ declare global {
   const buildWaiterCreateOrderPayload: typeof import('./src/utils/waiterOrderPayload.js')['buildWaiterCreateOrderPayload']
   const canModifyOrder: typeof import('./src/composables/useOrderHelpers.js')['canModifyOrder']
   const cashierOrderOperationalChips: typeof import('./src/composables/useCashierOrderQueue.js')['cashierOrderOperationalChips']
+  const classifyCloseCheckError: typeof import('./src/utils/closeCheckError.js')['classifyCloseCheckError']
   const clearAuthCookies: typeof import('./src/utils/authSession.js')['clearAuthCookies']
   const comboRequiredUnits: typeof import('./src/composables/useComboAllocation.js')['comboRequiredUnits']
   const computed: typeof import('vue')['computed']
@@ -563,6 +564,7 @@ declare module 'vue' {
     readonly buildWaiterCreateOrderPayload: UnwrapRef<typeof import('./src/utils/waiterOrderPayload.js')['buildWaiterCreateOrderPayload']>
     readonly canModifyOrder: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['canModifyOrder']>
     readonly cashierOrderOperationalChips: UnwrapRef<typeof import('./src/composables/useCashierOrderQueue.js')['cashierOrderOperationalChips']>
+    readonly classifyCloseCheckError: UnwrapRef<typeof import('./src/utils/closeCheckError.js')['classifyCloseCheckError']>
     readonly clearAuthCookies: UnwrapRef<typeof import('./src/utils/authSession.js')['clearAuthCookies']>
     readonly comboRequiredUnits: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['comboRequiredUnits']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
@@ -1074,6 +1076,7 @@ declare module '@vue/runtime-core' {
     readonly buildWaiterCreateOrderPayload: UnwrapRef<typeof import('./src/utils/waiterOrderPayload.js')['buildWaiterCreateOrderPayload']>
     readonly canModifyOrder: UnwrapRef<typeof import('./src/composables/useOrderHelpers.js')['canModifyOrder']>
     readonly cashierOrderOperationalChips: UnwrapRef<typeof import('./src/composables/useCashierOrderQueue.js')['cashierOrderOperationalChips']>
+    readonly classifyCloseCheckError: UnwrapRef<typeof import('./src/utils/closeCheckError.js')['classifyCloseCheckError']>
     readonly clearAuthCookies: UnwrapRef<typeof import('./src/utils/authSession.js')['clearAuthCookies']>
     readonly comboRequiredUnits: UnwrapRef<typeof import('./src/composables/useComboAllocation.js')['comboRequiredUnits']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>

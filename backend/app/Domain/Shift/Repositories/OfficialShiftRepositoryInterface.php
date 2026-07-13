@@ -17,6 +17,21 @@ interface OfficialShiftRepositoryInterface extends RepositoryInterface
     /**
      * @return list<OfficialShift>
      */
+    public function listOpenForBranch(int $tenantId, int $branchId): array;
+
+    /**
+     * @return list<int>
+     */
+    public function openShiftIdsWithOpenCashSessions(int $tenantId, int $branchId): array;
+
+    /**
+     * @return list<array{cash_session_id:int, official_shift_id:int}>
+     */
+    public function listOpenCashSessionsForBranch(int $tenantId, int $branchId): array;
+
+    /**
+     * @return list<OfficialShift>
+     */
     public function listForBranch(int $tenantId, int $branchId, int $limit = 50): array;
 
     public function open(

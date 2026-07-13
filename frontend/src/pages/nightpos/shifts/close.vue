@@ -2,7 +2,7 @@
 import NightPosFormActions from '@/components/nightpos/layout/NightPosFormActions.vue'
 import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.vue'
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
-import { closeShift, downloadShiftCsv, fetchCurrentShift, fetchShiftCloseCheck, fetchShiftSummary, printShiftClosure } from '@/api/shifts'
+import { closeShift, downloadShiftCsv, fetchCurrentShift, fetchShiftCloseCheck, fetchShiftSummary, fetchShifts, printShiftClosure, resolveOpenShiftConflicts } from '@/api/shifts'
 import { fetchCurrentShiftSettlements } from '@/api/settlements'
 import { fetchProductReconciliation } from '@/api/reports'
 import ProductReconciliationPanel from '@/components/nightpos/reports/ProductReconciliationPanel.vue'
@@ -11,6 +11,7 @@ import { useNightPosPrint } from '@/composables/useNightPosPrint'
 import { useFilteredShiftTabs } from '@/composables/useShiftSectionTabs'
 import { useNightPosNotify } from '@/composables/useNightPosNotify'
 import { getApiErrorMessage } from '@/services/http'
+import { classifyCloseCheckError } from '@/utils/closeCheckError'
 
 definePage({ meta: { permission: 'shifts.close' } })
 
@@ -23,11 +24,18 @@ const shift = ref(null)
 const summary = ref(null)
 const settlements = ref(null)
 const closureCheck = ref(null)
+const closureCheckError = ref(null)
+const closureCheckErrorType = ref(null)
+const closureCheckLoading = ref(false)
 const reconciliation = ref(null)
 const loading = ref(true)
 const saving = ref(false)
 const shiftPrintLoading = ref(false)
 const shiftReprintLoading = ref(false)
+const resolvingShiftConflicts = ref(false)
+const showResolveConflictsDialog = ref(false)
+const resolveKeepShiftId = ref(null)
+const openShiftCandidates = ref([])
 const closedShiftId = ref(null)
 const showPendingConfirm = ref(false)
 const form = ref({ counted_cash: '', notes: '' })
@@ -100,23 +108,72 @@ const settlementsGenerated = computed(() => {
   return total > 0
 })
 
+const closureCheckErrorTitle = computed(() => {
+  const status = closureCheckError.value?.status
+  const message = closureCheckError.value?.message
+
+  return classifyCloseCheckError(status, message).title
+})
+
+const closureCheckErrorDetail = computed(() => {
+  if (!closureCheckError.value)
+    return ''
+
+  return closureCheckError.value.message || 'No se pudo verificar el estado de cierre.'
+})
+
+const loadClosureCheck = async () => {
+  if (!shift.value?.id) {
+    closureCheck.value = null
+    closureCheckError.value = null
+    closureCheckErrorType.value = null
+
+    return
+  }
+
+  closureCheckLoading.value = true
+  try {
+    const data = await fetchShiftCloseCheck()
+
+    closureCheck.value = data
+    closureCheckError.value = null
+    closureCheckErrorType.value = null
+  }
+  catch (error) {
+    const status = error?.response?.status
+    const message = getApiErrorMessage(error)
+    const classified = classifyCloseCheckError(status, message)
+
+    closureCheck.value = null
+    closureCheckError.value = { status, message }
+    closureCheckErrorType.value = classified.type
+  }
+  finally {
+    closureCheckLoading.value = false
+  }
+}
+
 const load = async () => {
   loading.value = true
   try {
     shift.value = await fetchCurrentShift()
+    closureCheck.value = null
+    closureCheckError.value = null
+    closureCheckErrorType.value = null
+
     if (shift.value?.id) {
-      const [data, settlData, checkData, reconData] = await Promise.all([
+      const [data, settlData, reconData] = await Promise.all([
         fetchShiftSummary(shift.value.id),
         fetchCurrentShiftSettlements().catch(() => null),
-        fetchShiftCloseCheck().catch(() => null),
         fetchProductReconciliation({ officialShiftId: shift.value.id }).catch(() => null),
       ])
 
       summary.value = data
       settlements.value = settlData
-      closureCheck.value = checkData
       reconciliation.value = reconData
       form.value.counted_cash = data.summary?.expected_cash ?? ''
+
+      await loadClosureCheck()
     }
   }
   catch (error) {
@@ -196,6 +253,75 @@ const goToHistory = async () => {
 }
 
 const save = attemptClose
+
+const loadOpenShiftCandidates = async () => {
+  const shifts = await fetchShifts()
+
+  openShiftCandidates.value = shifts
+    .filter(shift => shift.status === 'OPEN')
+    .map(shift => ({
+      title: `${shift.name} · ${shift.shift_type_label} · ${shift.business_date} (ID ${shift.id})`,
+      value: shift.id,
+    }))
+}
+
+const submitResolveShiftConflictsWithKeeper = async () => {
+  if (!resolveKeepShiftId.value) {
+    notify('Selecciona el turno que deseas conservar.', 'warning')
+
+    return
+  }
+
+  resolvingShiftConflicts.value = true
+  try {
+    const result = await resolveOpenShiftConflicts({ keep_shift_id: resolveKeepShiftId.value })
+
+    if (result?.closed_count > 0)
+      notify(`Se cerraron ${result.closed_count} turnos duplicados.`)
+    else
+      notify('No habia turnos duplicados para cerrar.', 'info')
+
+    showResolveConflictsDialog.value = false
+    resolveKeepShiftId.value = null
+    await load()
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error), 'error')
+  }
+  finally {
+    resolvingShiftConflicts.value = false
+  }
+}
+
+const resolveShiftConflicts = async () => {
+  resolvingShiftConflicts.value = true
+  try {
+    const result = await resolveOpenShiftConflicts()
+
+    if (result?.closed_count > 0)
+      notify(`Se cerraron ${result.closed_count} turnos duplicados.`)
+    else
+      notify('No habia turnos duplicados para cerrar.', 'info')
+
+    await load()
+  }
+  catch (error) {
+    const message = getApiErrorMessage(error)
+
+    if (message.includes('mas de un turno abierto con caja activa')) {
+      await loadOpenShiftCandidates()
+      resolveKeepShiftId.value = null
+      showResolveConflictsDialog.value = true
+      notify('Selecciona el turno correcto y confirma la resolucion.', 'warning')
+    }
+    else {
+      notify(message, 'error')
+    }
+  }
+  finally {
+    resolvingShiftConflicts.value = false
+  }
+}
 
 onMounted(load)
 </script>
@@ -315,9 +441,50 @@ onMounted(load)
     </VAlert>
 
     <template v-else>
+      <VAlert
+        v-if="closureCheckError"
+        type="error"
+        variant="tonal"
+        class="mb-4"
+        :title="closureCheckErrorTitle"
+      >
+        <div class="mb-3">
+          {{ closureCheckErrorDetail }}
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <VBtn
+            size="small"
+            variant="tonal"
+            prepend-icon="ri-refresh-line"
+            :loading="closureCheckLoading"
+            @click="loadClosureCheck"
+          >
+            Reintentar verificacion
+          </VBtn>
+          <VChip
+            size="small"
+            variant="tonal"
+            color="error"
+          >
+            Tipo: {{ closureCheckErrorType }}
+          </VChip>
+        </div>
+      </VAlert>
 
       <!-- ─── Verificación de cierre ─── -->
       <template v-if="closureCheck">
+        <div class="d-flex justify-end mb-3">
+          <VBtn
+            size="small"
+            variant="tonal"
+            color="warning"
+            prepend-icon="ri-shield-check-line"
+            :loading="resolvingShiftConflicts"
+            @click="resolveShiftConflicts"
+          >
+            Resolver turnos abiertos duplicados
+          </VBtn>
+        </div>
         <!-- Bloqueantes -->
         <VAlert
           v-for="blocker in closureCheck.blockers"
@@ -562,6 +729,44 @@ onMounted(load)
             @click="doClose"
           >
             Cerrar de todas formas
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <VDialog
+      v-model="showResolveConflictsDialog"
+      max-width="560"
+    >
+      <VCard title="Resolver turnos abiertos duplicados">
+        <VCardText>
+          <p class="text-body-2 mb-4">
+            Hay mas de un turno abierto con caja activa. Selecciona cual turno debe quedar abierto y el sistema cerrara los demas.
+          </p>
+
+          <VSelect
+            v-model="resolveKeepShiftId"
+            :items="openShiftCandidates"
+            label="Turno a conservar"
+            placeholder="Selecciona turno"
+            clearable
+          />
+        </VCardText>
+
+        <VCardActions>
+          <VBtn
+            variant="text"
+            @click="showResolveConflictsDialog = false"
+          >
+            Cancelar
+          </VBtn>
+          <VSpacer />
+          <VBtn
+            color="warning"
+            :loading="resolvingShiftConflicts"
+            @click="submitResolveShiftConflictsWithKeeper"
+          >
+            Confirmar resolucion
           </VBtn>
         </VCardActions>
       </VCard>

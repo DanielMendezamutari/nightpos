@@ -266,6 +266,7 @@ Route::prefix('v1')->group(function () {
             Route::get('shifts/current/close-check', [ShiftController::class, 'closeCheck']);
             Route::post('shifts/{id}/close', [ShiftController::class, 'close'])->whereNumber('id');
             Route::post('shifts/{id}/print-closure', [ShiftController::class, 'printClosure'])->whereNumber('id');
+            Route::post('shifts/resolve-open-conflicts', [ShiftController::class, 'resolveOpenConflicts']);
         });
 
         Route::middleware(['nightpos.branch:required', 'nightpos.branch.access', 'nightpos.permission:waiter.dashboard'])->group(function () {

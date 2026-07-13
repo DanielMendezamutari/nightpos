@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Printing\Services;
 
 use App\Application\Cash\Support\CashSessionTimestampsResolver;
+use App\Domain\Cash\Contracts\FinancialDashboardAssembler;
+use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Application\Reports\Services\CashCloseReportSectionsBuilder;
 use App\Domain\Reports\Repositories\ReportReadRepositoryInterface;
 use App\Domain\Shift\ValueObjects\ShiftType;
@@ -16,6 +18,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 final class CashClosePrintPayloadEnricher
 {
     public function __construct(
+        private readonly FinancialDashboardAssembler $dashboardAssembler,
         private readonly ReportReadRepositoryInterface $reports,
         private readonly CashCloseReportSectionsBuilder $sections,
     ) {
@@ -63,6 +66,32 @@ final class CashClosePrintPayloadEnricher
             $payload['session']['closed_at'] = CashSessionTimestampsResolver::closedAtIso($sessionModel);
         }
 
+        $dashboard = $this->dashboardAssembler->assemble(
+            tenantId: $tenantId,
+            branchId: $branchId,
+            cashSessionId: new CashSessionId($sessionId),
+            openingAmount: (string) ($payload['session']['opening_amount'] ?? '0.00'),
+            storedExpectedAmount: isset($payload['session']['expected_amount']) ? (string) $payload['session']['expected_amount'] : null,
+            declaredClosingAmount: isset($payload['session']['declared_closing_amount']) ? (string) $payload['session']['declared_closing_amount'] : null,
+            differenceAmount: isset($payload['session']['difference_amount']) ? (string) $payload['session']['difference_amount'] : null,
+            status: (string) ($payload['session']['status'] ?? 'OPEN'),
+            officialShiftId: $shiftId,
+        );
+
+        $payload['financial_dashboard'] = $dashboard->toArray();
+        $payload['scope_summary'] = $dashboard->scope_summary;
+
+        if (($dashboard->scope_summary['current_official_shift_id'] ?? null) !== null) {
+            $currentShift = OfficialShiftModel::query()->find((int) $dashboard->scope_summary['current_official_shift_id']);
+            if ($currentShift !== null) {
+                $type = ShiftType::fromString((string) $currentShift->shift_type);
+                $name = trim((string) ($currentShift->name ?? ''));
+                $payload['current_shift_label'] = $name !== ''
+                    ? $name
+                    : $type->label().' · '.(string) $currentShift->business_date;
+            }
+        }
+
         $totalSales = (string) ($summary['total_sales'] ?? '0.00');
         $operational = $this->sections->forSession(
             $tenantId,
@@ -95,8 +124,14 @@ final class CashClosePrintPayloadEnricher
                 'quantity_sold' => (int) ($row['quantity_sold'] ?? 0),
                 'total_amount' => (string) ($row['total_amount'] ?? '0.00'),
             ],
-            array_slice($sold, 0, 5),
+            array_slice($sold, 0, 10),
         );
+
+        $payload['products_sold'] = $payload['top_products'];
+        $payload['products_sold_total_units'] = (int) array_sum(array_map(
+            static fn (array $row): int => (int) ($row['quantity_sold'] ?? 0),
+            $sold,
+        ));
 
         $payload['reconciliation_mismatch_count'] = (int) ($recon['summary']['mismatch_count'] ?? 0);
 

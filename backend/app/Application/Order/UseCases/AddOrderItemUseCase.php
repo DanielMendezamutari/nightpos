@@ -17,7 +17,6 @@ use App\Application\Order\Services\OrderItemPricing;
 use App\Application\Order\Services\OrderPresentationService;
 
 use App\Application\Order\Support\OrderOperationalEventPayload;
-use App\Application\Printing\UseCases\DispatchBarCorrectionPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 
 use App\Application\Waiter\Services\WaiterOrderAccessPolicy;
@@ -70,8 +69,6 @@ final class AddOrderItemUseCase implements UseCaseInterface
         private readonly OrderPresentationService $presentation,
 
         private readonly OperationalEventEmitter $eventEmitter,
-
-        private readonly DispatchBarCorrectionPrintJobUseCase $dispatchBarCorrectionPrint,
 
     ) {
 
@@ -131,8 +128,6 @@ final class AddOrderItemUseCase implements UseCaseInterface
 
         $status = OrderStatus::fromString($order->status);
 
-        $notifyBarOnSave = $status->value === OrderStatus::SENT_TO_BAR;
-
 
 
         if (! $status->allowsItemChanges()) {
@@ -174,7 +169,6 @@ final class AddOrderItemUseCase implements UseCaseInterface
 
 
             $girlUserId = null;
-
         }
 
 
@@ -195,7 +189,7 @@ final class AddOrderItemUseCase implements UseCaseInterface
 
 
 
-        $this->orders->addItem(
+        $addedItem = $this->orders->addItem(
 
             tenantId: $tenant->id,
 
@@ -245,22 +239,11 @@ final class AddOrderItemUseCase implements UseCaseInterface
             )
         );
 
-
-
-        if ($notifyBarOnSave && $updated !== null) {
-            $this->dispatchBarCorrectionPrint->execute(
-                $updated,
-                $tenant->id,
-                $branch->id,
-                $this->staffContext->userId(),
-            );
-        }
-
-
-
         return OperationResult::ok('Producto agregado a la comanda.', [
 
             'order' => $this->presentation->presentOrder($updated ?? $order, $tenant->id),
+
+            'added_item_id' => $addedItem->id,
 
         ]);
 

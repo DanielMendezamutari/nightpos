@@ -7,6 +7,7 @@ namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 use App\Domain\Sale\Entities\Sale;
 use App\Domain\Sale\Entities\SaleItem;
 use App\Domain\Sale\Entities\SalePayment;
+use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Domain\Sale\Exceptions\SaleNotFoundException;
 use App\Domain\Sale\Repositories\SaleRepositoryInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\SaleItemModel;
@@ -153,6 +154,46 @@ final class EloquentSaleRepository implements SaleRepositoryInterface
         }
 
         return $result;
+    }
+
+    public function getSalesSummary(CashSessionId $cashSessionId): array
+    {
+        $salesQuery = SaleModel::query()->where('cash_session_id', $cashSessionId->value);
+
+        $totalSales = (clone $salesQuery)->sum('total');
+        $salesCount = (clone $salesQuery)->count();
+
+        $salesByMethod = SalePaymentModel::query()
+            ->whereIn('sale_id', (clone $salesQuery)->select('id'))
+            ->selectRaw('payment_method, SUM(amount) as total')
+            ->groupBy('payment_method')
+            ->get()
+            ->pluck('total', 'payment_method')
+            ->toArray();
+
+        $salesMixedCount = SaleModel::query()
+            ->where('cash_session_id', $cashSessionId->value)
+            ->where('payment_mode', 'MIXED')
+            ->count();
+
+        $itemCounts = SaleItemModel::query()
+            ->whereIn('sale_id', (clone $salesQuery)->select('id'))
+            ->selectRaw("SUM(CASE WHEN sale_mode = 'PRODUCT' THEN quantity ELSE 0 END) as products_sold_count")
+            ->selectRaw("SUM(CASE WHEN sale_mode = 'SERVICE' THEN quantity ELSE 0 END) as services_sold_count")
+            ->first();
+
+        return [
+            'total_sales' => number_format((float) $totalSales, 2, '.', ''),
+            'sales_count' => $salesCount,
+            'sales_by_method' => [
+                'cash' => number_format((float) ($salesByMethod['CASH'] ?? 0), 2, '.', ''),
+                'qr' => number_format((float) ($salesByMethod['QR'] ?? 0), 2, '.', ''),
+                'card' => number_format((float) ($salesByMethod['CARD'] ?? 0), 2, '.', ''),
+            ],
+            'sales_mixed_count' => $salesMixedCount,
+            'products_sold_count' => $itemCounts->products_sold_count ?? 0,
+            'services_sold_count' => $itemCounts->services_sold_count ?? 0,
+        ];
     }
 
     private function mapSale(SaleModel $model): Sale

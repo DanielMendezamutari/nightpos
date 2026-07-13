@@ -6,6 +6,7 @@ namespace App\Domain\Cash\Repositories;
 
 use App\Domain\Cash\Entities\CashMovement;
 use App\Domain\Cash\Entities\CashSession;
+use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Shared\Contracts\RepositoryInterface;
 
 interface CashSessionRepositoryInterface extends RepositoryInterface
@@ -78,6 +79,23 @@ interface CashSessionRepositoryInterface extends RepositoryInterface
      * @return array<string, array{income: string, expense: string}>
      */
     public function sumMovementsByMethod(int $cashSessionId): array;
+
+    /**
+     * @return array{
+     *   opening_cash: string,
+     *   cash_income_sales: string,
+     *   cash_income_manual: string,
+     *   cash_expense_settlements: string,
+     *   cash_expense_operational: string,
+     *   cash_expense_purchases: string,
+     *   cash_expense_other: string,
+     *   counted_cash: string|null,
+     *   cash_difference: string|null,
+     *   is_closed: bool,
+     *   has_declared_count: bool
+     * }
+     */
+    public function getStructuredCashSummary(CashSessionId $cashSessionId): array;
 
     /**
      * @return list<\App\Infrastructure\Persistence\Eloquent\Models\CashSessionModel>

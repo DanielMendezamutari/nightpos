@@ -49,6 +49,8 @@ final class EloquentCashMovementReasonRepository implements CashMovementReasonRe
             'tenant_id' => $tenantId,
             'branch_id' => $branchId,
             'type' => strtoupper($type),
+            'default_movement_family' => null,
+            'default_movement_category' => null,
             'name' => trim($name),
             'status' => $status,
         ]);
@@ -91,6 +93,8 @@ final class EloquentCashMovementReasonRepository implements CashMovementReasonRe
             'tenant_id' => (int) $model->tenant_id,
             'branch_id' => $model->branch_id !== null ? (int) $model->branch_id : null,
             'type' => $model->type,
+            'default_movement_family' => $model->default_movement_family,
+            'default_movement_category' => $model->default_movement_category,
             'name' => $model->name,
             'status' => $model->status,
         ];

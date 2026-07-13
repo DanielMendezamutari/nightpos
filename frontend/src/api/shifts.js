@@ -59,3 +59,9 @@ export async function printShiftClosure(id, { reprint = false } = {}) {
 
   return unwrapNightPosResponse(response)
 }
+
+export async function resolveOpenShiftConflicts(payload = {}) {
+  const response = await api.post('/shifts/resolve-open-conflicts', payload)
+
+  return unwrapNightPosResponse(response)
+}

@@ -1,6 +1,7 @@
 <script setup>
 import { fetchProducts } from '@/api/products'
 import {
+  assignOrderItemGirl,
   cancelOrderItem,
   removeOrderItem,
   syncOrderItemAllocations,
@@ -55,6 +56,24 @@ const form = ref({
   girl_user_id: null,
   reason: '',
 })
+
+const currentGirlLabel = computed(() => {
+  if (!activeItem.value)
+    return 'Sin asignar'
+
+  return activeItem.value.girl_name
+    ?? girls.value.find(item => item.value === activeItem.value.girl_user_id)?.title
+    ?? 'Sin asignar'
+})
+
+const selectedGirlLabel = computed(() => {
+  if (!form.value.girl_user_id)
+    return 'Sin seleccionar'
+
+  return girls.value.find(item => item.value === form.value.girl_user_id)?.title ?? 'Sin seleccionar'
+})
+
+const girlChangeNeedsReason = computed(() => Boolean(activeItem.value?.girl_user_id))
 
 const isOpen = computed(() => props.order.status === 'OPEN')
 const isSentToBar = computed(() => props.order.status === 'SENT_TO_BAR')
@@ -186,6 +205,49 @@ const saveAllocation = async allocations => {
 
     await emitOrderUpdate(order)
     notify('Reparto de manillas guardado')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error), 'error')
+  }
+  finally {
+    localLoading.value = false
+  }
+}
+
+const saveGirlChange = async () => {
+  if (!activeItem.value || !guardPermission())
+    return
+
+  if (!form.value.girl_user_id) {
+    notify('Seleccione una chica.', 'warning')
+
+    return
+  }
+
+  if (Number(form.value.girl_user_id) === Number(activeItem.value.girl_user_id)) {
+    notify('La chica nueva debe ser distinta de la actual.', 'warning')
+
+    return
+  }
+
+  if (girlChangeNeedsReason.value && !form.value.reason?.trim()) {
+    notify('Indique el motivo del cambio de chica.', 'warning')
+
+    return
+  }
+
+  localLoading.value = true
+
+  try {
+    const order = await assignOrderItemGirl(
+      props.order.id,
+      activeItem.value.id,
+      Number(form.value.girl_user_id),
+      form.value.reason?.trim() || null,
+    )
+
+    await emitOrderUpdate(order)
+    notify(girlChangeNeedsReason.value ? 'Chica cambiada correctamente' : 'Chica asignada correctamente')
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -649,16 +711,35 @@ defineExpose({ closeAllDialogs, openAllocationForItem })
     <VDialog
       v-if="dialog.girl && activeItem"
       :model-value="true"
-      max-width="360"
+      max-width="460"
       @update:model-value="val => { if (!val) closeDialog('girl') }"
     >
       <VCard title="Cambiar chica">
         <VCardText>
+          <p class="text-body-2 mb-3">
+            <strong>{{ activeItem.product_name }}</strong>
+          </p>
+          <div class="text-body-2 mb-2">
+            Chica anterior: <strong>{{ currentGirlLabel }}</strong>
+          </div>
           <VSelect
             v-model="form.girl_user_id"
             :items="girls"
-            label="Chica"
+            label="Chica nueva"
             clearable
+          />
+          <div class="text-body-2 mt-2">
+            Chica nueva: <strong>{{ selectedGirlLabel }}</strong>
+          </div>
+          <VTextarea
+            v-if="girlChangeNeedsReason"
+            v-model="form.reason"
+            class="mt-3"
+            label="Motivo del cambio"
+            rows="2"
+            auto-grow
+            hint="Obligatorio cuando reemplaza una asignación existente"
+            persistent-hint
           />
         </VCardText>
         <VCardActions>
@@ -672,9 +753,9 @@ defineExpose({ closeAllDialogs, openAllocationForItem })
           <VBtn
             color="primary"
             :loading="busy"
-            @click="applyUpdate({ girl_user_id: form.girl_user_id })"
+            @click="saveGirlChange"
           >
-            Guardar
+            Guardar cambio
           </VBtn>
         </VCardActions>
       </VCard>

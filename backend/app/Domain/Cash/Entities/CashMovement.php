@@ -18,6 +18,10 @@ final readonly class CashMovement
         public ?int $cashMovementReasonId = null,
         public ?string $notes = null,
         public ?string $reasonName = null,
+        public ?string $movementFamily = null,
+        public ?string $movementCategory = null,
+        public ?string $sourceType = null,
+        public ?int $sourceId = null,
     ) {
     }
 }

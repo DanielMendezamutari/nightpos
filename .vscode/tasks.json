@@ -1,0 +1,11 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Regression Settlement Sprint2C",
+			"type": "shell",
+			"command": "cd backend && php artisan test tests/Feature/Api/V1/SettlementPaymentAuditTest.php tests/Feature/Api/V1/SettlementPaymentCashSessionTest.php tests/Feature/Api/V1/SettlementPaymentMethodTest.php tests/Feature/Api/V1/SettlementsPhase14Test.php tests/Feature/Api/V1/SettlementCashSessionScopeTest.php tests/Feature/Api/V1/CleaningSettlementsTest.php tests/Feature/Api/V1/RoomServiceCleaningDeductionTest.php tests/Feature/Application/Cash/Services/SummaryBuilders/CashSummaryBuilderTest.php tests/Feature/Application/Cash/Services/SummaryBuilders/MovementSummaryBuilderTest.php",
+			"problemMatcher": []
+		}
+	]
+}

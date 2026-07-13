@@ -171,15 +171,23 @@ it('assigning girl to order item emits order.updated', function () {
 
     $itemId = sseP0OrderItemId($orderId, $waiter);
     $before = sseP0CountEvents('order.updated');
+    $assignedBefore = sseP0CountEvents('order.item_girl_assigned');
 
     test()->patchJson("/api/v1/orders/{$orderId}/items/{$itemId}", [
         'girl_user_id' => $girlId,
     ], nightposOperationalHeaders($waiter))->assertOk();
 
     expect(sseP0CountEvents('order.updated'))->toBe($before + 1);
+    expect(sseP0CountEvents('order.item_girl_assigned'))->toBe($assignedBefore + 1);
 
     $event = sseP0LastEvent('order.updated');
     sseP0AssertOrderPayload($event['payload'], $orderId, 'OPEN', 'assign_order_item_girl');
+
+    $girlEvent = sseP0LastEvent('order.item_girl_assigned');
+    expect($girlEvent['payload']['order_id'])->toBe($orderId)
+        ->and($girlEvent['payload']['order_item_id'])->toBe($itemId)
+        ->and($girlEvent['payload']['new_girl_user_id'])->toBe($girlId)
+        ->and($girlEvent['payload']['source'])->toBe('assign_order_item_girl');
 });
 
 // ─── 6. editar cabecera emite order.updated ──────────────────────────────────

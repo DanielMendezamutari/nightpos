@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Sale\Repositories;
 
+use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Domain\Sale\Entities\Sale;
 use App\Shared\Contracts\RepositoryInterface;
 
@@ -58,4 +59,6 @@ interface SaleRepositoryInterface extends RepositoryInterface
      * @return array{cash: string, qr: string, card: string}
      */
     public function sumPaymentsByMethodForSession(int $cashSessionId): array;
+
+    public function getSalesSummary(CashSessionId $cashSessionId): array;
 }

@@ -58,7 +58,7 @@ function p2PrintJobsForOrder(int $orderId): \Illuminate\Support\Collection
         ->get();
 }
 
-it('creates correction reprint after cancel on SENT_TO_BAR order', function () {
+it('does not create automatic reprint after cancel on SENT_TO_BAR order', function () {
     ['orderId' => $orderId, 'itemId' => $itemId] = p2SentOrderWithItem();
     $cashier = nightposLoginPin('1234');
 
@@ -69,9 +69,9 @@ it('creates correction reprint after cancel on SENT_TO_BAR order', function () {
     ], nightposOperationalHeaders($cashier))->assertOk();
 
     $jobs = p2PrintJobsForOrder($orderId);
-    expect($jobs)->toHaveCount(2)
+    expect($jobs)->toHaveCount(1)
         ->and($jobs->last()->type)->toBe('ORDER_COMMAND')
-        ->and($jobs->last()->content_text)->toContain('REIMPRESION');
+        ->and($jobs->last()->content_text)->not->toContain('REIMPRESION');
 });
 
 it('does not create correction reprint when correcting OPEN order', function () {
@@ -106,7 +106,7 @@ it('does not create correction reprint when correcting OPEN order', function () 
     expect(p2PrintJobsForOrder($orderId))->toHaveCount(0);
 });
 
-it('correction reprint contains REIMPRESION label', function () {
+it('cancel on SENT_TO_BAR keeps only initial ORDER_COMMAND content', function () {
     ['orderId' => $orderId, 'itemId' => $itemId] = p2SentOrderWithItem();
     $cashier = nightposLoginPin('1234');
 
@@ -115,10 +115,11 @@ it('correction reprint contains REIMPRESION label', function () {
     ], nightposOperationalHeaders($cashier))->assertOk();
 
     $content = (string) p2PrintJobsForOrder($orderId)->last()->content_text;
-    expect($content)->toContain('REIMPRESION');
+    expect($content)->toContain('COMANDA #')
+        ->and($content)->not->toContain('REIMPRESION');
 });
 
-it('correction reprint contains correction number', function () {
+it('cancel on SENT_TO_BAR does not increment correction counter automatically', function () {
     ['orderId' => $orderId, 'itemId' => $itemId] = p2SentOrderWithItem();
     $cashier = nightposLoginPin('1234');
 
@@ -126,9 +127,8 @@ it('correction reprint contains correction number', function () {
         'reason' => 'Primera correccion',
     ], nightposOperationalHeaders($cashier))->assertOk();
 
-    $content = (string) p2PrintJobsForOrder($orderId)->last()->content_text;
-    expect($content)->toContain('Correccion #1')
-        ->and((int) OrderModel::query()->find($orderId)?->bar_correction_count)->toBe(1);
+    expect((int) OrderModel::query()->find($orderId)?->bar_correction_count)->toBe(0)
+        ->and(p2PrintJobsForOrder($orderId))->toHaveCount(1);
 });
 
 it('precheck content has no fiscal identifiers', function () {

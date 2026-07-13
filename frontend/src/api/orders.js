@@ -53,8 +53,13 @@ export async function createOrder(payload) {
 
 export async function addOrderItem(orderId, payload) {
   const response = await api.post(`/orders/${orderId}/items`, payload)
+  const data = unwrapNightPosResponse(response)
+  const order = data.order
 
-  return unwrapNightPosResponse(response).order
+  if (order && data.added_item_id != null)
+    order.added_item_id = Number(data.added_item_id)
+
+  return order
 }
 
 export async function syncOrderItemAllocations(orderId, itemId, allocations) {
@@ -65,10 +70,15 @@ export async function syncOrderItemAllocations(orderId, itemId, allocations) {
   return unwrapNightPosResponse(response).order
 }
 
-export async function assignOrderItemGirl(orderId, itemId, girlUserId) {
-  const response = await api.patch(`/orders/${orderId}/items/${itemId}`, {
+export async function assignOrderItemGirl(orderId, itemId, girlUserId, reason = null) {
+  const payload = {
     girl_user_id: girlUserId,
-  })
+  }
+
+  if (reason != null && String(reason).trim() !== '')
+    payload.reason = reason
+
+  const response = await api.patch(`/orders/${orderId}/items/${itemId}`, payload)
 
   return unwrapNightPosResponse(response).order
 }

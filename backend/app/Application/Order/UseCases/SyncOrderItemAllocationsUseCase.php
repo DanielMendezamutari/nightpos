@@ -9,7 +9,6 @@ use App\Application\Order\Services\BraceletAllocationValidator;
 use App\Application\Order\Services\OrderItemPricing;
 use App\Application\Order\Services\OrderPresentationService;
 use App\Application\Order\Support\OrderOperationalEventPayload;
-use App\Application\Printing\UseCases\DispatchBarCorrectionPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 use App\Application\Waiter\Services\WaiterOrderAccessPolicy;
 use App\Domain\Order\Exceptions\OrderDomainException;
@@ -39,7 +38,6 @@ final class SyncOrderItemAllocationsUseCase implements UseCaseInterface
         private readonly WaiterOrderAccessPolicy $waiterAccess,
         private readonly OrderPresentationService $presentation,
         private readonly OperationalEventEmitter $eventEmitter,
-        private readonly DispatchBarCorrectionPrintJobUseCase $dispatchBarCorrectionPrint,
     ) {
     }
 
@@ -123,15 +121,6 @@ final class SyncOrderItemAllocationsUseCase implements UseCaseInterface
                 summary: 'Reparto de manillas actualizado',
             )
         );
-
-        if ($status->value === OrderStatus::SENT_TO_BAR && $updated !== null) {
-            $this->dispatchBarCorrectionPrint->execute(
-                $updated,
-                $tenant->id,
-                $branch->id,
-                $this->staffContext->userId(),
-            );
-        }
 
         return OperationResult::ok('Reparto de manillas guardado.', [
             'order' => $this->presentation->presentOrder($updated ?? $order, $tenant->id),

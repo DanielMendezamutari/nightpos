@@ -22,8 +22,6 @@ const users = ref([])
 const loading = ref(false)
 const confirmDeactivate = ref(null)
 
-defineExpose({ reload: load })
-
 const headers = [
   { title: 'Nombre', key: 'name' },
   { title: 'Usuario', key: 'username' },
@@ -54,6 +52,8 @@ const load = async () => {
     loading.value = false
   }
 }
+
+defineExpose({ reload: load })
 
 onMounted(load)
 </script>

@@ -25,6 +25,8 @@ final class CashMovementModel extends Model
         'notes',
         'source_type',
         'source_id',
+        'movement_family',
+        'movement_category',
         'created_by_user_id',
         'created_at',
     ];

@@ -140,6 +140,7 @@ final class OrderController extends Controller
             orderId: $id,
             itemId: $itemId,
             girlUserId: (int) $validated['girl_user_id'],
+            reason: $validated['reason'] ?? null,
         ));
 
         return $this->presenter->present($result);

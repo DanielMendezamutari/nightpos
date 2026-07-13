@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace App\Application\Cash\UseCases;
 
-use App\Application\Cash\Services\CashSessionFinancialSummaryBuilder;
 use App\Application\Reports\Services\CashCloseReportSectionsBuilder;
 use App\Application\Cash\Support\AdminCashSessionMapper;
 use App\Application\Cash\Support\CashMapper;
 use App\Application\Sale\Support\SaleMapper;
 use App\Domain\Auth\Exceptions\PermissionDeniedException;
+use App\Domain\Cash\Contracts\FinancialDashboardAssembler;
 use App\Domain\Cash\Exceptions\CashSessionNotFoundException;
 use App\Domain\Cash\Repositories\CashSessionRepositoryInterface;
+use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Domain\Sale\Repositories\SaleRepositoryInterface;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel;
 use App\Shared\Application\DTOs\OperationResult;
@@ -26,7 +27,7 @@ final class GetCashSessionAdminUseCase implements UseCaseInterface
         private readonly AuthenticatedStaffContextInterface $staffContext,
         private readonly CashSessionRepositoryInterface $cashSessions,
         private readonly SaleRepositoryInterface $sales,
-        private readonly CashSessionFinancialSummaryBuilder $financials,
+        private readonly FinancialDashboardAssembler $financialDashboardAssembler,
         private readonly CashCloseReportSectionsBuilder $closeSections,
     ) {
     }
@@ -56,14 +57,19 @@ final class GetCashSessionAdminUseCase implements UseCaseInterface
             throw new CashSessionNotFoundException();
         }
 
-        $summary = $this->financials->build(
-            sessionId: $sessionId,
+        $dashboard = $this->financialDashboardAssembler->assemble(
+            tenantId: $tenant->id,
+            branchId: (int) $model->branch_id,
+            cashSessionId: new CashSessionId($sessionId),
             openingAmount: (string) $model->opening_amount,
             storedExpectedAmount: $model->expected_amount !== null ? (string) $model->expected_amount : null,
             declaredClosingAmount: $model->declared_closing_amount !== null ? (string) $model->declared_closing_amount : null,
             differenceAmount: $model->difference_amount !== null ? (string) $model->difference_amount : null,
             status: $model->status,
+            officialShiftId: $model->official_shift_id !== null ? (int) $model->official_shift_id : null,
         );
+
+        $summary = $dashboard->financial_summary;
 
         $saleEntities = $this->sales->listForBranch($tenant->id, (int) $model->branch_id, $sessionId);
         $sales = array_map(static fn ($sale) => SaleMapper::saleSummary($sale), $saleEntities);
@@ -109,8 +115,9 @@ final class GetCashSessionAdminUseCase implements UseCaseInterface
                 ],
             ),
             'summary' => array_merge($summary, [
-                'sales_by_method' => $this->financials->salesByMethod($sessionId),
+                'sales_by_method' => $summary['sales_by_method'] ?? ['cash' => '0.00', 'qr' => '0.00', 'card' => '0.00'],
             ]),
+            'financial_dashboard' => $dashboard->toArray(),
             'movements' => $movements,
             'income_movements' => $incomeMovements,
             'expense_movements' => $expenseMovements,

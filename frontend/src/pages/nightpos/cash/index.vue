@@ -18,7 +18,11 @@ import { fetchCurrentShiftSettlements } from '@/api/settlements'
 import ProductReconciliationPanel from '@/components/nightpos/reports/ProductReconciliationPanel.vue'
 import ComboBraceletSummaryPanel from '@/components/nightpos/reports/ComboBraceletSummaryPanel.vue'
 import CashMovementDialog from '@/components/nightpos/cash/CashMovementDialog.vue'
-import { paymentMethodLabel } from '@/constants/paymentMethods'
+import CashPhysicalSummaryCard from '@/components/nightpos/cash/CashPhysicalSummaryCard.vue'
+import CashPendingOperationsPanel from '@/components/nightpos/cash/CashPendingOperationsPanel.vue'
+import CashSalesSummaryPanel from '@/components/nightpos/cash/CashSalesSummaryPanel.vue'
+import CashMovementSummaryPanel from '@/components/nightpos/cash/CashMovementSummaryPanel.vue'
+import CashScopeContextAlert from '@/components/nightpos/cash/CashScopeContextAlert.vue'
 
 import { useOnContextChange } from '@/composables/useOnContextChange'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
@@ -47,7 +51,7 @@ definePage({
 
 
 
-const { canAccessCash, canDirectSale, can } = useNightPosPermissions()
+const { canAccessCash, canDirectSale } = useNightPosPermissions()
 
 const { notify } = useNightPosNotify()
 const { openPrintRoute } = useNightPosPrint()
@@ -59,6 +63,7 @@ const route = useRoute()
 const session = ref(null)
 
 const loading = ref(true)
+const apiError = ref(null)
 
 const actionLoading = ref(false)
 
@@ -69,6 +74,11 @@ const showOpen = ref(false)
 const showMovement = ref(false)
 
 const showClose = ref(false)
+const pendingSettlementsTotal = ref(0)
+const pendingSettlementsLoading = ref(false)
+const closeCheck = ref(null)
+const closeCheckLoading = ref(false)
+const showCloseBlockers = ref(false)
 
 const lastClosedSession = ref(null)
 
@@ -87,75 +97,165 @@ const closeForm = ref({
 
 const fmtBob = amount => formatMoney(amount, 'BOB')
 
+const toNumber = value => {
+  const number = Number(value)
+
+  return Number.isFinite(number) ? number : 0
+}
+
+const sumKeys = (map, keys) => keys.reduce((acc, key) => acc + toNumber(map?.[key]), 0)
+
+const financialDashboard = computed(() => session.value?.financial_dashboard ?? null)
+const legacySummary = computed(() => session.value?.financial_summary ?? null)
+const usingLegacyFallback = computed(() => Boolean(session.value) && !financialDashboard.value)
+
+const cashSummaryData = computed(() => {
+  const dashboardCash = financialDashboard.value?.cash_summary
+  if (dashboardCash)
+    return dashboardCash
+
+  const legacy = legacySummary.value ?? {}
+
+  return {
+    opening_cash: legacy.opening_cash ?? session.value?.opening_amount ?? 0,
+    cash_income_sales: legacy.total_cash ?? 0,
+    cash_income_manual: legacy.total_manual_income ?? 0,
+    cash_expense_total: legacy.expense_by_method?.cash ?? legacy.total_manual_expense ?? 0,
+    expected_cash: legacy.expected_cash ?? session.value?.expected_amount ?? session.value?.opening_amount ?? 0,
+    counted_cash: legacy.counted_cash ?? null,
+    cash_difference: legacy.cash_difference ?? null,
+  }
+})
+
+const salesSummaryData = computed(() => {
+  const dashboardSales = financialDashboard.value?.sales_summary
+  if (dashboardSales)
+    return dashboardSales
+
+  const legacy = legacySummary.value ?? {}
+  const byMethod = legacy.sales_by_method ?? {}
+
+  return {
+    total_sales: legacy.total_sales ?? 0,
+    sales_count: legacy.sales_count ?? 0,
+    average_ticket: legacy.average_ticket ?? 0,
+    sales_cash: byMethod.cash ?? legacy.total_cash ?? 0,
+    sales_qr: byMethod.qr ?? legacy.total_qr ?? 0,
+    sales_card: byMethod.card ?? legacy.total_card ?? 0,
+    mixed_sales_count: legacy.mixed_sales_count ?? 0,
+  }
+})
+
+const movementSummaryData = computed(() => {
+  const dashboardMovement = financialDashboard.value?.movement_summary
+  if (dashboardMovement) {
+    const expenseByCategory = dashboardMovement.expense_by_category ?? {}
+    const incomeByCategory = dashboardMovement.income_by_category ?? {}
+
+    return {
+      manual_income: toNumber(incomeByCategory.MANUAL_INCOME) + toNumber(incomeByCategory.OTHER_INCOME),
+      settlement_payments: sumKeys(expenseByCategory, [
+        'SETTLEMENT_GIRL_PAYMENT',
+        'SETTLEMENT_WAITER_PAYMENT',
+        'SETTLEMENT_CLEANING_PAYMENT',
+      ]),
+      operating_expenses: toNumber(expenseByCategory.OPERATING_EXPENSE),
+      purchases: toNumber(expenseByCategory.PURCHASE),
+      other_expenses: toNumber(expenseByCategory.OTHER_EXPENSE),
+    }
+  }
+
+  const legacy = legacySummary.value ?? {}
+  const expenseByCategory = legacy.expense_by_category ?? {}
+  const incomeByCategory = legacy.income_by_category ?? {}
+
+  return {
+    manual_income: toNumber(incomeByCategory.MANUAL_INCOME) + toNumber(incomeByCategory.OTHER_INCOME),
+    settlement_payments: sumKeys(expenseByCategory, [
+      'SETTLEMENT_GIRL_PAYMENT',
+      'SETTLEMENT_WAITER_PAYMENT',
+      'SETTLEMENT_CLEANING_PAYMENT',
+    ]),
+    operating_expenses: toNumber(expenseByCategory.OPERATING_EXPENSE),
+    purchases: toNumber(expenseByCategory.PURCHASE),
+    other_expenses: toNumber(expenseByCategory.OTHER_EXPENSE) || toNumber(legacy.total_manual_expense),
+  }
+})
+
+const scopeSummaryData = computed(() => {
+  const dashboardScope = financialDashboard.value?.scope_summary
+  if (dashboardScope)
+    return dashboardScope
+
+  return {
+    cash_session_id: session.value?.id ?? null,
+    session_official_shift_id: session.value?.official_shift_id ?? null,
+    current_official_shift_id: null,
+    official_shift_ids_included: [],
+    crosses_multiple_shifts: false,
+    has_open_shift_conflict: false,
+    open_cash_sessions_on_historical_shifts: [],
+    warnings: [],
+  }
+})
+
+const pendingSummaryData = computed(() => {
+  const settlement = financialDashboard.value?.settlement_summary
+  const blockers = closeCheck.value?.blockers ?? []
+  const pendingOrdersCount = Number(
+    closeCheck.value?.pending_orders_count
+    ?? closeCheck.value?.summary?.pending_orders_count
+    ?? 0,
+  )
+
+  if (settlement) {
+    return {
+      waiters: toNumber(settlement.waiters?.pending_net_amount),
+      girls: toNumber(settlement.girls?.pending_net_amount),
+      cleaning: toNumber(settlement.cleaning?.pending_net_amount),
+      total: toNumber(settlement.totals?.pending_total_net),
+      pending_orders_count: pendingOrdersCount,
+      critical_alerts: blockers.map(item => item.message),
+    }
+  }
+
+  const legacy = legacySummary.value ?? {}
+
+  return {
+    waiters: toNumber(legacy.pending_waiters),
+    girls: toNumber(legacy.pending_girls),
+    cleaning: toNumber(legacy.pending_cleaning),
+    total: toNumber(legacy.pending_total),
+    pending_orders_count: pendingOrdersCount,
+    critical_alerts: blockers.map(item => item.message),
+  }
+})
+
+const recentMovements = computed(() => {
+  const list = session.value?.movements ?? []
+
+  return [...list]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 8)
+})
+
 
 
 const expectedClosing = computed(() => {
-
   if (!session.value)
-
     return 0
 
-
-
-  const fin = session.value.financial_summary
-
-  if (fin?.expected_cash != null && fin.expected_cash !== '')
-
-    return Number(fin.expected_cash)
-
-
-
-  const fromApi = session.value.expected_amount
-
-  if (fromApi != null && fromApi !== '')
-
-    return Number(fromApi)
-
-
-
-  // Fallback using manual movements only (not cobros)
-  const fin2 = session.value.financial_summary
-  if (fin2) {
-    return Number(session.value.opening_amount)
-      + Number(fin2.total_cash ?? 0)
-      + Number(fin2.total_manual_income ?? 0)
-      - Number(fin2.total_manual_expense ?? 0)
-  }
-
-  return Number(session.value.opening_amount)
-
-    + Number(session.value.income_total)
-
-    - Number(session.value.expense_total)
+  return toNumber(cashSummaryData.value.expected_cash)
 
 })
-
-
-
-const closeDifferencePreview = computed(() => {
-
-  const declared = closeForm.value.declared_closing_amount
-
-
-
-  if (declared == null || declared === '')
-
-    return null
-
-
-
-  return Number(declared) - expectedClosing.value
-
-})
-
 const expectedByMethod = computed(() => {
-  const fin = session.value?.financial_summary
+  const fin = legacySummary.value
   const expected = fin?.expected_by_method ?? {}
 
   return {
-    cash: Number(expected.cash ?? fin?.expected_cash ?? expectedClosing.value),
-    qr: Number(expected.qr ?? fin?.expected_qr ?? 0),
-    card: Number(expected.card ?? fin?.expected_card ?? 0),
+    cash: toNumber(cashSummaryData.value.expected_cash ?? expected.cash ?? fin?.expected_cash),
+    qr: expected.qr != null ? toNumber(expected.qr) : null,
+    card: expected.card != null ? toNumber(expected.card) : null,
   }
 })
 
@@ -164,7 +264,7 @@ const closeDifferenceByMethod = computed(() => {
   const expected = expectedByMethod.value
 
   const diff = (declared, methodExpected) => {
-    if (declared == null || declared === '')
+    if (declared == null || declared === '' || methodExpected == null)
       return null
 
     return Number(declared) - methodExpected
@@ -179,201 +279,10 @@ const closeDifferenceByMethod = computed(() => {
 
 
 
-const kpiCards = computed(() => {
-
-  if (!session.value)
-
-    return []
-
-
-
-  const s = session.value
-
-  const sales = s.sales_by_method ?? {}
-
-
-
-  return [
-
-    {
-
-      title: 'Estado de caja',
-
-      color: s.status === 'OPEN' ? 'success' : 'secondary',
-
-      icon: 'ri-safe-2-line',
-
-      stats: s.status === 'OPEN' ? 'Abierta' : 'Cerrada',
-
-      change: 0,
-
-      subtitle: `Sesión #${s.id}`,
-
-    },
-
-    {
-
-      title: 'Fondo inicial',
-
-      color: 'primary',
-
-      icon: 'ri-wallet-3-line',
-
-      stats: fmtBob(s.opening_amount),
-
-      change: 0,
-
-      subtitle: 'Apertura',
-
-    },
-
-    {
-
-      title: 'Efectivo (ventas)',
-
-      color: 'success',
-
-      icon: 'ri-money-dollar-box-line',
-
-      stats: fmtBob(sales.cash ?? 0),
-
-      change: 0,
-
-      subtitle: 'Cobros en efectivo',
-
-    },
-
-    {
-
-      title: 'QR (ventas)',
-
-      color: 'info',
-
-      icon: 'ri-qr-code-line',
-
-      stats: fmtBob(sales.qr ?? 0),
-
-      change: 0,
-
-      subtitle: 'Cobros QR',
-
-    },
-
-    {
-
-      title: 'Tarjeta (ventas)',
-
-      color: 'warning',
-
-      icon: 'ri-bank-card-line',
-
-      stats: fmtBob(sales.card ?? 0),
-
-      change: 0,
-
-      subtitle: 'Cobros tarjeta',
-
-    },
-
-    {
-
-      title: 'Ingresos manuales',
-
-      color: 'success',
-
-      icon: 'ri-add-circle-line',
-
-      stats: fmtBob(s.financial_summary?.total_manual_income ?? s.income_total),
-
-      change: 0,
-
-      subtitle: 'Entradas manuales de caja',
-
-    },
-
-    {
-
-      title: 'Egresos manuales',
-
-      color: 'error',
-
-      icon: 'ri-indeterminate-circle-line',
-
-      stats: fmtBob(s.financial_summary?.total_manual_expense ?? s.expense_total),
-
-      change: 0,
-
-      subtitle: 'Salidas manuales de caja',
-
-    },
-
-    {
-
-      title: 'Total esperado',
-
-      color: 'secondary',
-
-      icon: 'ri-calculator-line',
-
-      stats: fmtBob(expectedClosing.value),
-
-      change: 0,
-
-      subtitle: 'En caja según sistema',
-
-    },
-
-  ]
-
-})
-
-const methodBalanceRows = computed(() => {
-  if (!session.value?.financial_summary)
-    return []
-
-  const fin = session.value.financial_summary
-  const income = fin.income_by_method ?? {}
-  const expense = fin.expense_by_method ?? {}
-  const expected = fin.expected_by_method ?? {}
-  const sales = fin.sales_by_method ?? {
-    cash: fin.sales_cash ?? fin.total_cash ?? '0.00',
-    qr: fin.sales_qr ?? fin.total_qr ?? '0.00',
-    card: fin.sales_card ?? fin.total_card ?? '0.00',
-  }
-  const openingCash = fin.opening_cash ?? session.value.opening_amount ?? '0.00'
-
-  return [
-    { key: 'cash', label: 'Efectivo', color: 'success' },
-    { key: 'qr', label: 'QR', color: 'info' },
-    { key: 'card', label: 'Tarjeta', color: 'warning' },
-  ].map(row => ({
-    ...row,
-    opening: row.key === 'cash' ? openingCash : null,
-    sales: sales[row.key] ?? '0.00',
-    income: income[row.key] ?? fin[`income_${row.key}`] ?? '0.00',
-    expense: expense[row.key] ?? fin[`expense_${row.key}`] ?? '0.00',
-    expected: expected[row.key] ?? fin[`expected_${row.key}`] ?? '0.00',
-  }))
-})
-
 const onMovementRegistered = result => {
   if (result?.session)
     session.value = result.session
 }
-
-const movementHeaders = [
-
-  { title: 'Tipo', key: 'movement_type' },
-
-  { title: 'Monto', key: 'amount' },
-
-  { title: 'Método', key: 'payment_method' },
-
-  { title: 'Descripción', key: 'description' },
-
-  { title: 'Fecha', key: 'created_at' },
-
-]
 
 
 
@@ -405,13 +314,15 @@ const loadSession = async () => {
   try {
 
     session.value = await fetchCurrentCashSession()
+    apiError.value = null
     await loadReconciliation()
 
   }
 
   catch (error) {
-
+    apiError.value = getApiErrorMessage(error)
     notify(getApiErrorMessage(error), 'error')
+    session.value = null
 
   }
 
@@ -566,14 +477,6 @@ const reprintCloseReceipt = async () => {
   }
 }
 
-
-
-const pendingSettlementsTotal = ref(0)
-const pendingSettlementsLoading = ref(false)
-const closeCheck = ref(null)
-const closeCheckLoading = ref(false)
-const showCloseBlockers = ref(false)
-
 const openCloseDialog = async () => {
   closeCheckLoading.value = true
   closeCheck.value = null
@@ -601,7 +504,7 @@ const openCloseDialog = async () => {
       pendingSettlementsTotal.value = pending
     }
     catch {
-      pendingSettlementsTotal.value = 0
+      pendingSettlementsTotal.value = pendingSummaryData.value.total
     }
     finally {
       pendingSettlementsLoading.value = false
@@ -613,36 +516,6 @@ const openCloseDialog = async () => {
   finally {
     closeCheckLoading.value = false
   }
-}
-
-
-
-const formatMovementDate = value => {
-
-  if (!value)
-
-    return '—'
-
-
-
-  try {
-
-    return new Date(value).toLocaleString('es-BO', {
-
-      dateStyle: 'short',
-
-      timeStyle: 'short',
-
-    })
-
-  }
-
-  catch {
-
-    return value
-
-  }
-
 }
 
 
@@ -680,6 +553,19 @@ const maybeOpenCashFromQuery = () => {
 
   showOpen.value = true
   clearOpenCashQuery()
+}
+
+const goToSettlements = () => {
+  router.push({ name: 'nightpos-settlements' })
+}
+
+const goToCharge = async () => {
+  try {
+    await router.push({ name: 'nightpos-orders' })
+  }
+  catch {
+    await router.push({ name: 'nightpos-cash-direct-sale' })
+  }
 }
 
 useDialogKeyboardShortcuts({
@@ -736,11 +622,19 @@ useOnContextChange(async () => {
           Caja
         </h4>
         <p class="mb-0 text-body-2">
-          Apertura, movimientos manuales, cobros por método y cierre de sesión.
+          Dashboard operativo para cajera basado en financial_dashboard.
         </p>
       </div>
 
       <div class="d-flex flex-wrap gap-2">
+        <VBtn
+          variant="tonal"
+          prepend-icon="ri-time-line"
+          :to="{ name: 'nightpos-finance-cash-sessions-by-cashier' }"
+        >
+          Historial
+        </VBtn>
+
         <VBtn
           v-if="canDirectSale"
           color="primary"
@@ -780,6 +674,23 @@ useOnContextChange(async () => {
 
 
     <template v-else-if="!session">
+
+      <VAlert
+        v-if="apiError"
+        type="error"
+        variant="tonal"
+        class="mb-4"
+      >
+        {{ apiError }}
+        <VBtn
+          size="small"
+          variant="text"
+          class="ms-2"
+          @click="loadSession"
+        >
+          Reintentar
+        </VBtn>
+      </VAlert>
 
       <VAlert
         v-if="lastClosedSession?.id"
@@ -870,175 +781,55 @@ useOnContextChange(async () => {
 
     <template v-else>
 
-      <VRow class="match-height mb-4">
+      <VAlert
+        v-if="usingLegacyFallback"
+        type="warning"
+        variant="tonal"
+        class="mb-4"
+      >
+        financial_dashboard ausente. Se activo fallback legacy temporal (financial_summary).
+      </VAlert>
 
-        <VCol
-
-          v-for="card in kpiCards"
-
-          :key="card.title"
-
-          cols="12"
-
-          sm="6"
-
-          lg="3"
-
-        >
-
-          <CardStatisticsVertical v-bind="card" />
-
+      <VRow class="mb-4">
+        <VCol cols="12">
+          <CashPhysicalSummaryCard
+            :summary="cashSummaryData"
+            :session-status="session.status"
+            :opened-at="session.opened_at"
+          />
         </VCol>
-
       </VRow>
 
+      <VRow class="mb-4">
+        <VCol cols="12">
+          <CashPendingOperationsPanel
+            :pending="pendingSummaryData"
+            @go-settlements="goToSettlements"
+            @go-charge="goToCharge"
+          />
+        </VCol>
+      </VRow>
 
+      <VRow class="mb-4">
+        <VCol cols="12">
+          <CashSalesSummaryPanel :sales="salesSummaryData" />
+        </VCol>
+      </VRow>
 
-      <VCard
-        v-if="methodBalanceRows.length"
-        class="mb-4"
-        title="Resumen por método de pago"
-      >
-        <VCardText>
-          <VTable density="compact">
-            <thead>
-              <tr>
-                <th>Método</th>
-                <th>Inicial</th>
-                <th>Ingresos</th>
-                <th>Ventas</th>
-                <th>Egresos</th>
-                <th>Esperado / neto</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="row in methodBalanceRows"
-                :key="row.key"
-              >
-                <td>
-                  <VChip
-                    size="small"
-                    :color="row.color"
-                    variant="tonal"
-                  >
-                    {{ row.label }}
-                  </VChip>
-                </td>
-                <td>{{ row.opening != null ? fmtBob(row.opening) : '—' }}</td>
-                <td>{{ fmtBob(row.income) }}</td>
-                <td>{{ fmtBob(row.sales) }}</td>
-                <td>{{ fmtBob(row.expense) }}</td>
-                <td><strong>{{ fmtBob(row.expected) }}</strong></td>
-              </tr>
-            </tbody>
-          </VTable>
-        </VCardText>
-      </VCard>
+      <VRow class="mb-4">
+        <VCol cols="12">
+          <CashMovementSummaryPanel
+            :movement="movementSummaryData"
+            :recent-movements="recentMovements"
+          />
+        </VCol>
+      </VRow>
 
-
-
-      <VCard class="mb-4">
-
-        <VCardTitle class="d-flex flex-wrap align-center gap-2">
-
-          Movimientos de caja
-
-          <VChip
-
-            v-if="session.status === 'OPEN'"
-
-            color="success"
-
-            label
-
-            size="small"
-
-          >
-
-            Sesión activa
-
-          </VChip>
-
-        </VCardTitle>
-
-        <VCardText>
-
-          <VDataTable
-
-            :items="session.movements ?? []"
-
-            :headers="movementHeaders"
-
-            density="comfortable"
-
-            :items-per-page="10"
-
-            class="text-no-wrap"
-
-          >
-
-            <template #item.movement_type="{ item }">
-
-              <VChip
-
-                size="small"
-
-                label
-
-                :color="item.movement_type === 'INCOME' ? 'success' : 'warning'"
-
-              >
-
-                {{ item.movement_type === 'INCOME' ? 'Ingreso' : 'Egreso' }}
-
-              </VChip>
-
-            </template>
-
-            <template #item.amount="{ item }">
-
-              {{ fmtBob(item.amount) }}
-
-            </template>
-
-            <template #item.payment_method="{ item }">
-
-              <VChip
-
-                v-if="item.payment_method"
-
-                size="x-small"
-
-                variant="tonal"
-
-              >
-
-                {{ paymentMethodLabel(item.payment_method) }}
-
-              </VChip>
-
-              <span v-else>—</span>
-
-            </template>
-
-            <template #item.created_at="{ item }">
-
-              {{ formatMovementDate(item.created_at) }}
-
-            </template>
-
-            <template #no-data>
-
-              Sin movimientos registrados.
-
-            </template>
-
-          </VDataTable>
-
-        </VCardText>
-
-      </VCard>
+      <VRow class="mb-4">
+        <VCol cols="12">
+          <CashScopeContextAlert :scope="scopeSummaryData" />
+        </VCol>
+      </VRow>
 
 
 
@@ -1311,36 +1102,33 @@ useOnContextChange(async () => {
             </VBtn>
           </VAlert>
 
-          <p class="text-subtitle-2 mb-2">
-            Resumen por método
-          </p>
-
-          <VTable
-            v-if="methodBalanceRows.length"
-            density="compact"
-            class="mb-4"
-          >
+          <VTable density="compact" class="mb-4">
             <thead>
               <tr>
                 <th>Método</th>
-                <th>Inicial</th>
-                <th>Ingresos</th>
-                <th>Ventas</th>
-                <th>Egresos</th>
                 <th>Esperado</th>
+                <th>Declarado</th>
+                <th>Diferencia</th>
               </tr>
             </thead>
             <tbody>
-              <tr
-                v-for="row in methodBalanceRows"
-                :key="`close-${row.key}`"
-              >
-                <td>{{ row.label }}</td>
-                <td>{{ row.opening != null ? fmtBob(row.opening) : '—' }}</td>
-                <td>{{ fmtBob(row.income) }}</td>
-                <td>{{ fmtBob(row.sales) }}</td>
-                <td>{{ fmtBob(row.expense) }}</td>
-                <td><strong>{{ fmtBob(row.expected) }}</strong></td>
+              <tr>
+                <td>Efectivo</td>
+                <td>{{ fmtBob(expectedByMethod.cash) }}</td>
+                <td>{{ closeForm.declared_closing_amount == null ? '—' : fmtBob(closeForm.declared_closing_amount) }}</td>
+                <td>{{ closeDifferenceByMethod.cash == null ? '—' : fmtBob(closeDifferenceByMethod.cash) }}</td>
+              </tr>
+              <tr>
+                <td>QR</td>
+                <td>{{ expectedByMethod.qr == null ? 'No disponible' : fmtBob(expectedByMethod.qr) }}</td>
+                <td>{{ closeForm.declared_qr_amount == null ? '—' : fmtBob(closeForm.declared_qr_amount) }}</td>
+                <td>{{ closeDifferenceByMethod.qr == null ? '—' : fmtBob(closeDifferenceByMethod.qr) }}</td>
+              </tr>
+              <tr>
+                <td>Tarjeta</td>
+                <td>{{ expectedByMethod.card == null ? 'No disponible' : fmtBob(expectedByMethod.card) }}</td>
+                <td>{{ closeForm.declared_card_amount == null ? '—' : fmtBob(closeForm.declared_card_amount) }}</td>
+                <td>{{ closeDifferenceByMethod.card == null ? '—' : fmtBob(closeDifferenceByMethod.card) }}</td>
               </tr>
             </tbody>
           </VTable>

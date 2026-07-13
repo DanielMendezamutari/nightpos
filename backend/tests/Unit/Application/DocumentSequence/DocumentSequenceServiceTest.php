@@ -3,29 +3,71 @@
 declare(strict_types=1);
 
 use App\Application\DocumentSequence\Services\DocumentSequenceService;
+use App\Infrastructure\Persistence\Eloquent\Models\BranchModel;
 use App\Infrastructure\Persistence\Eloquent\Models\DocumentSequenceModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel;
+use App\Infrastructure\Persistence\Eloquent\Models\TenantModel;
+use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 use App\Shared\Domain\Enums\DocumentSequenceType;
-use Database\Seeders\NightPosSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 
-uses(Tests\TestCase::class, RefreshDatabase::class);
+uses(Tests\TestCase::class, DatabaseTransactions::class);
 
-beforeEach(function () {
-    $this->seed(NightPosSeeder::class);
-});
+/**
+ * @return array{branch: BranchModel, shift: OfficialShiftModel, girl: UserModel}
+ */
+function makeDocumentSequenceContext(): array
+{
+    $suffix = uniqid();
+    $tenant = TenantModel::query()->create([
+        'name' => 'Test Tenant '.$suffix,
+        'slug' => 'test-tenant-'.$suffix,
+        'status' => 'active',
+    ]);
+
+    $branch = BranchModel::query()->create([
+        'tenant_id' => $tenant->id,
+        'name' => 'Centro Test '.$suffix,
+        'code' => 'CENTRO_'.$suffix,
+        'status' => 'active',
+    ]);
+
+    $girl = UserModel::query()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'name' => 'Chica Test '.$suffix,
+        'username' => 'chica_'.$suffix,
+        'status' => 'active',
+    ]);
+
+    $shift = OfficialShiftModel::query()->create([
+        'tenant_id' => $tenant->id,
+        'branch_id' => $branch->id,
+        'name' => 'Turno Test '.$suffix,
+        'shift_type' => 'NIGHT',
+        'business_date' => now()->toDateString(),
+        'starts_at' => now()->subHours(2),
+        'ends_at' => now()->addHours(6),
+        'status' => 'OPEN',
+        'opened_by_user_id' => $girl->id,
+        'opened_at' => now()->subHours(2),
+    ]);
+
+    return [
+        'branch' => $branch,
+        'shift' => $shift,
+        'girl' => $girl,
+    ];
+}
 
 it('syncs lagged last_value to max existing ticket before incrementing', function () {
-    $branch = \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()
-        ->where('code', 'CENTRO')
-        ->firstOrFail();
-    $shift = OfficialShiftModel::query()->where('status', 'OPEN')->firstOrFail();
+    $ctx = makeDocumentSequenceContext();
+    $branch = $ctx['branch'];
+    $shift = $ctx['shift'];
+    $girlId = (int) $ctx['girl']->id;
     $year = now()->format('Y');
-    $girlId = (int) \App\Infrastructure\Persistence\Eloquent\Models\UserModel::query()
-        ->where('username', 'chica.centro')
-        ->value('id');
 
     StaffSettlementModel::query()->create([
         'tenant_id' => $branch->tenant_id,
@@ -73,9 +115,8 @@ it('syncs lagged last_value to max existing ticket before incrementing', functio
 });
 
 it('starts new sequence rows at zero and returns one on first reservation', function () {
-    $branch = \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::query()
-        ->where('code', 'CENTRO')
-        ->firstOrFail();
+    $ctx = makeDocumentSequenceContext();
+    $branch = $ctx['branch'];
     $year = now()->format('Y');
     $service = app(DocumentSequenceService::class);
 

@@ -165,6 +165,26 @@ it('detail includes movements', function () {
         ->assertJsonStructure(['data' => ['session', 'movements', 'summary', 'sales', 'settlements_paid']]);
 });
 
+it('admin detail includes financial dashboard with legacy summary consistency', function () {
+    nightposOpenCashSession(adminCashSessionsCashierToken());
+
+    $sessionId = (int) CashSessionModel::query()->where('status', 'OPEN')->value('id');
+
+    $data = test()->getJson("/api/v1/admin/cash-sessions/{$sessionId}", nightposOperationalHeaders(adminCashSessionsAdminToken()))
+        ->assertOk()
+        ->json('data');
+
+    expect($data)->toHaveKey('financial_dashboard')
+        ->and($data['financial_dashboard'])->toHaveKey('sales_summary')
+        ->and($data['financial_dashboard'])->toHaveKey('cash_summary')
+        ->and($data['financial_dashboard'])->toHaveKey('movement_summary')
+        ->and($data['financial_dashboard'])->toHaveKey('settlement_summary')
+        ->and($data['financial_dashboard'])->toHaveKey('scope_summary')
+        ->and($data['financial_dashboard'])->toHaveKey('financial_summary')
+        ->and($data['summary']['expected_cash'])
+        ->toBe($data['financial_dashboard']['financial_summary']['expected_cash']);
+});
+
 it('detail includes sales when order charged', function () {
     $cashier = adminCashSessionsCashierToken();
     $waiter = adminCashSessionsWaiterToken();

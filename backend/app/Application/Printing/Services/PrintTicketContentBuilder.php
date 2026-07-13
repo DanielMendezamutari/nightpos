@@ -597,7 +597,12 @@ final class PrintTicketContentBuilder
     {
         $width = $paperWidthMm <= 58 ? 32 : 48;
         $session = $payload['session'] ?? [];
-        $summary = $payload['summary'] ?? [];
+        $dashboard = $payload['financial_dashboard'] ?? [];
+        $salesSummary = $dashboard['sales_summary'] ?? [];
+        $cashSummary = $dashboard['cash_summary'] ?? [];
+        $settlementSummary = $dashboard['settlement_summary'] ?? [];
+        $scopeSummary = $dashboard['scope_summary'] ?? ($payload['scope_summary'] ?? []);
+        $productsSold = $payload['products_sold'] ?? $payload['top_products'] ?? [];
         $lines = [];
 
         $branchName = (string) ($payload['branch_name'] ?? 'NIGHTPOS');
@@ -611,135 +616,107 @@ final class PrintTicketContentBuilder
         }
 
         $lines = array_merge($lines, $this->sectionLines('INFORMACION GENERAL', $width, array_filter([
-            ['Empresa', (string) ($payload['tenant_name'] ?? '—')],
+            ['Empresa', (string) ($payload['tenant_name'] ?? 'NIGHTPOS')],
             ['Sucursal', $branchName],
             ['Caja', '#'.(string) ($session['id'] ?? '—')],
-            ['Turno', (string) ($payload['shift_label'] ?? '—')],
             ['Cajera', (string) ($payload['cashier_name'] ?? '—')],
-            ($payload['admin_name'] ?? '') !== '' ? ['Administrador', (string) $payload['admin_name']] : null,
             ['Apertura', $this->formatDateTime((string) ($session['opened_at'] ?? ''))],
             ['Cierre', $this->formatDateTime((string) ($session['closed_at'] ?? ''))],
-            ($payload['duration_minutes'] ?? null) !== null ? ['Duracion', (string) $payload['duration_minutes'].' min'] : null,
+            ['Turno apertura', (string) ($payload['shift_label'] ?? '—')],
+            ['Turno operativo', (string) ($payload['current_shift_label'] ?? $scopeSummary['scope_label'] ?? '—')],
+            ! empty($scopeSummary['crosses_multiple_shifts']) ? ['Aviso', 'Cruza turnos'] : null,
         ])));
 
-        $operational = $payload['operational'] ?? [];
-        $salesInfo = $operational['sales'] ?? [];
-        $totalSales = (string) ($summary['total_sales'] ?? '0.00');
-        $lines = array_merge($lines, $this->sectionLines('RESUMEN DE VENTAS', $width, [
-            ['Total vendido', ((string) ($salesInfo['total'] ?? $totalSales)).' BOB'],
-            ['Cantidad ventas', (string) ($salesInfo['count'] ?? '0')],
-            ['Ticket promedio', ((string) ($salesInfo['average_ticket'] ?? '0.00')).' BOB'],
+        $lines = array_merge($lines, $this->sectionLines('VENTAS', $width, [
+            ['Total vendido', ((string) ($salesSummary['total_sales'] ?? '0.00')).' BOB'],
+            ['Cantidad ventas', (string) ($salesSummary['sales_count'] ?? 0)],
+            ['Ticket promedio', ((string) ($salesSummary['average_ticket'] ?? '0.00')).' BOB'],
+            ['Ventas CASH', ((string) ($salesSummary['sales_cash'] ?? '0.00')).' BOB'],
+            ['Ventas QR', ((string) ($salesSummary['sales_qr'] ?? '0.00')).' BOB'],
+            ['Ventas CARD', ((string) ($salesSummary['sales_card'] ?? '0.00')).' BOB'],
+            ['Ventas MIXED', (string) ($salesSummary['mixed_sales_count'] ?? 0)],
         ]));
 
-        $difference = (string) ($summary['cash_difference'] ?? $session['difference_amount'] ?? '0.00');
+        $cashExpenseCash = (float) ($cashSummary['cash_expense_operational'] ?? 0)
+            + (float) ($cashSummary['cash_expense_purchases'] ?? 0)
+            + (float) ($cashSummary['cash_expense_other'] ?? 0);
+        $lines = array_merge($lines, $this->sectionLines('CAJA FISICA', $width, [
+            ['Fondo inicial', ((string) ($cashSummary['opening_cash'] ?? '0.00')).' BOB'],
+            ['Ingresos manuales CASH', ((string) ($cashSummary['cash_income_manual'] ?? '0.00')).' BOB'],
+            ['Egresos CASH', number_format($cashExpenseCash, 2, '.', '').' BOB'],
+            ['Liquidaciones pagadas CASH', ((string) ($cashSummary['cash_expense_settlements'] ?? '0.00')).' BOB'],
+            ['Efectivo esperado', ((string) ($cashSummary['expected_cash'] ?? '0.00')).' BOB'],
+            ['Efectivo contado', (string) ($cashSummary['counted_cash'] !== null ? ((string) $cashSummary['counted_cash']).' BOB' : 'Sin arqueo')],
+            ['Diferencia', (string) ($cashSummary['cash_difference'] !== null ? ((string) $cashSummary['cash_difference']).' BOB' : 'Sin arqueo')],
+        ]));
 
-        $paymentStats = $operational['payment_stats'] ?? [];
-        $paymentRows = [];
-        foreach (['CASH' => 'Efectivo', 'QR' => 'QR', 'CARD' => 'Tarjeta', 'MIXED' => 'Mixto'] as $key => $label) {
-            $row = $paymentStats[$key] ?? ['count' => 0, 'amount' => '0.00'];
-            $paymentRows[] = [$label.' ('.(string) ($row['count'] ?? 0).')', ((string) ($row['amount'] ?? '0.00')).' BOB'];
-        }
-        $lines = array_merge($lines, $this->sectionLines('METODOS DE PAGO', $width, $paymentRows));
+        $paidWaiters = $settlementSummary['waiters']['paid_count'] ?? 0;
+        $paidGirls = $settlementSummary['girls']['paid_count'] ?? 0;
+        $paidCleaning = $settlementSummary['cleaning']['paid_count'] ?? 0;
+        $pendingCritical = (string) ($settlementSummary['totals']['pending_total_net'] ?? '0.00');
+        $lines = array_merge($lines, $this->sectionLines('LIQUIDACIONES', $width, [
+            ['Chicas pagadas', (string) $paidGirls.' / '.((string) ($settlementSummary['girls']['paid_net_amount'] ?? '0.00')).' BOB'],
+            ['Garzones pagados', (string) $paidWaiters.' / '.((string) ($settlementSummary['waiters']['paid_net_amount'] ?? '0.00')).' BOB'],
+            ['Limpieza pagada', (string) $paidCleaning.' / '.((string) ($settlementSummary['cleaning']['paid_net_amount'] ?? '0.00')).' BOB'],
+            ['Total liquidaciones pagadas', ((string) ($settlementSummary['totals']['paid_total_net'] ?? '0.00')).' BOB'],
+            ['Total pendiente critico', $pendingCritical.' BOB'],
+        ]));
 
-        $cashRows = [
-            ['Monto inicial', ((string) ($summary['opening_cash'] ?? $session['opening_amount'] ?? '0.00')).' BOB'],
-            ['Efectivo esperado', ((string) ($summary['expected_cash'] ?? $session['expected_amount'] ?? '0.00')).' BOB'],
-        ];
-
-        if (! ($payload['is_forced_close'] ?? false)) {
-            $cashRows[] = ['Efectivo declarado', ((string) ($summary['counted_cash'] ?? $session['declared_closing_amount'] ?? '0.00')).' BOB'];
-        } else {
-            $cashRows[] = ['Efectivo declarado', 'Sin arqueo'];
-        }
-
-        $cashRows[] = ['Diferencia', ($payload['is_forced_close'] ?? false) && ($summary['counted_cash'] ?? null) === null
-            ? 'Sin arqueo'
-            : $difference.' BOB'];
-        $cashRows[] = ['QR esperado', ((string) ($summary['expected_qr'] ?? '0.00')).' BOB'];
-        $cashRows[] = ['Tarjeta esperada', ((string) ($summary['expected_card'] ?? '0.00')).' BOB'];
-        $lines = array_merge($lines, $this->sectionLines('ARQUEO', $width, $cashRows));
-
-        $movementsSummary = $operational['movements_summary'] ?? [];
-        $movementDetailRows = [
-            ['Ingresos', ((string) ($movementsSummary['income_total'] ?? '0.00')).' BOB'],
-            ['Egresos', ((string) ($movementsSummary['expense_total'] ?? '0.00')).' BOB'],
-        ];
-        foreach ($operational['movements'] ?? [] as $movement) {
-            $label = ((string) ($movement['movement_type'] ?? '')) === 'INCOME' ? 'Ing.' : 'Egr.';
-            $reason = (string) ($movement['reason'] ?? '');
-            $movementDetailRows[] = [
-                $label.' '.$this->truncate($reason !== '' ? $reason : 'Movimiento', $width - 12),
-                ((string) ($movement['amount'] ?? '0.00')).' BOB',
-            ];
-        }
-        if (($operational['movements'] ?? []) !== []) {
-            $lines = array_merge($lines, $this->sectionLines('MOVIMIENTOS DE CAJA', $width, $movementDetailRows));
-        }
-
-        $settlementsPaid = $operational['settlements_paid'] ?? [];
-        if (($settlementsPaid['grand_total'] ?? '0.00') !== '0.00') {
-            $settlementRows = [
-                ['Garzones', ((string) ($settlementsPaid['WAITER']['total'] ?? '0.00')).' BOB ('.(string) ($settlementsPaid['WAITER']['count'] ?? 0).')'],
-                ['Chicas', ((string) ($settlementsPaid['GIRL']['total'] ?? '0.00')).' BOB ('.(string) ($settlementsPaid['GIRL']['count'] ?? 0).')'],
-                ['Limpieza', ((string) ($settlementsPaid['CLEANING']['total'] ?? '0.00')).' BOB ('.(string) ($settlementsPaid['CLEANING']['count'] ?? 0).')'],
-                ['TOTAL PAGADO', ((string) ($settlementsPaid['grand_total'] ?? '0.00')).' BOB'],
-            ];
-            $lines = array_merge($lines, $this->sectionLines('LIQUIDACIONES PAGADAS', $width, $settlementRows));
-            foreach (['WAITER' => 'GARZONES', 'GIRL' => 'CHICAS', 'CLEANING' => 'LIMPIEZA'] as $key => $title) {
-                $people = $settlementsPaid[$key]['people'] ?? [];
-                if ($people === []) {
-                    continue;
-                }
-                $peopleRows = [];
-                foreach ($people as $person) {
-                    $peopleRows[] = [
-                        $this->truncate((string) ($person['name'] ?? '—'), $width - 12),
-                        ((string) ($person['amount'] ?? '0.00')).' BOB',
-                    ];
-                }
-                $lines = array_merge($lines, $this->sectionLines($title, $width, $peopleRows));
+        $productRows = [];
+        $totalUnits = 0;
+        $sortedProducts = array_values(array_filter(
+            $productsSold,
+            static fn (array $row): bool => (int) ($row['quantity_sold'] ?? 0) > 0,
+        ));
+        usort($sortedProducts, static function (array $left, array $right): int {
+            $qtyCompare = (int) ($right['quantity_sold'] ?? 0) <=> (int) ($left['quantity_sold'] ?? 0);
+            if ($qtyCompare !== 0) {
+                return $qtyCompare;
             }
+
+            $amountCompare = (float) ($right['total_amount'] ?? 0) <=> (float) ($left['total_amount'] ?? 0);
+            if ($amountCompare !== 0) {
+                return $amountCompare;
+            }
+
+            return strcmp((string) ($left['product_name'] ?? ''), (string) ($right['product_name'] ?? ''));
+        });
+
+        foreach (array_slice($sortedProducts, 0, 10) as $row) {
+            $quantity = (int) ($row['quantity_sold'] ?? 0);
+            $totalUnits += $quantity;
+            $productRows[] = [
+                $this->truncate((string) ($row['product_name'] ?? 'Producto'), $width - 14),
+                $quantity.' / '.((string) ($row['total_amount'] ?? '0.00')).' BOB',
+            ];
         }
 
-        $adjustments = $operational['settlement_adjustments'] ?? [];
-        if (($adjustments['fines']['count'] ?? 0) > 0
-            || ($adjustments['cleaning']['count'] ?? 0) > 0
-            || ($adjustments['manual_discount']['count'] ?? 0) > 0) {
-            $lines = array_merge($lines, $this->sectionLines('AJUSTES LIQUIDACIONES', $width, [
-                ['Multas', ((string) ($adjustments['fines']['amount'] ?? '0.00')).' BOB ('.(string) ($adjustments['fines']['count'] ?? 0).')'],
-                ['Limpieza desc.', ((string) ($adjustments['cleaning']['amount'] ?? '0.00')).' BOB ('.(string) ($adjustments['cleaning']['count'] ?? 0).')'],
-                ['Desc. manual', ((string) ($adjustments['manual_discount']['amount'] ?? '0.00')).' BOB ('.(string) ($adjustments['manual_discount']['count'] ?? 0).')'],
-            ]));
+        if ($productRows !== []) {
+            $lines = array_merge($lines, $this->sectionLines('PRODUCTOS VENDIDOS', $width, $productRows));
+            $lines[] = $this->row('Total unidades', (string) $totalUnits, $width);
         }
 
-        $pending = $operational['pending'] ?? [];
-        if (($pending['settlements'] ?? 0) > 0
-            || ($pending['orders'] ?? 0) > 0
-            || ($pending['room_services'] ?? 0) > 0
-            || ($pending['shows'] ?? 0) > 0) {
-            $lines = array_merge($lines, $this->sectionLines('PENDIENTES', $width, [
-                ['Liquidaciones', (string) ($pending['settlements'] ?? 0)],
-                ['Comandas', (string) ($pending['orders'] ?? 0)],
-                ['Piezas', (string) ($pending['room_services'] ?? 0)],
-                ['Shows', (string) ($pending['shows'] ?? 0)],
-            ]));
+        $observations = [];
+        if (! empty($session['closing_notes'])) {
+            $observations[] = ['label' => 'Observacion cierre', 'text' => (string) $session['closing_notes']];
         }
-
-        $incidents = $this->cashCloseIncidents($payload, $difference);
-        if ($incidents !== []) {
-            $lines = array_merge($lines, $this->sectionLines('INCIDENCIAS', $width, array_map(
-                static fn (string $text) => ['', $text],
-                $incidents,
-            )));
-        }
-
-        $observations = $this->cashCloseObservations($payload);
         if ($observations !== []) {
             $observationRows = [];
             foreach ($observations as $row) {
                 $observationRows[] = [$row['label'], $this->truncate($row['text'], $width - 8)];
             }
-            $lines = array_merge($lines, $this->sectionLines('OBSERVACIONES', $width, $observationRows));
+            $lines = array_merge($lines, $this->sectionLines('CIERRE', $width, array_merge($observationRows, [
+                ['Firma cajera', '________________'],
+                ['Firma supervisor', '________________'],
+                ['Codigo cierre', '#'.(string) ($session['id'] ?? '—')],
+            ])));
+        } else {
+            $lines = array_merge($lines, $this->sectionLines('CIERRE', $width, [
+                ['Observacion cierre', '—'],
+                ['Firma cajera', '________________'],
+                ['Firma supervisor', '________________'],
+                ['Codigo cierre', '#'.(string) ($session['id'] ?? '—')],
+            ]));
         }
 
         $lines[] = str_repeat('-', $width);

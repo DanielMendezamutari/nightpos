@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Application\Cash\UseCases;
 
-use App\Application\Cash\Services\CashSessionFinancialSummaryBuilder;
 use App\Application\Cash\Services\OpenCashSessionResolver;
 use App\Application\Cash\Support\CashMapper;
 use App\Application\Reports\Services\ComboBraceletReportingService;
+use App\Domain\Cash\Contracts\FinancialDashboardAssembler;
+use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Application\Shift\Support\ShiftMapper;
 use App\Domain\Shift\Repositories\OfficialShiftRepositoryInterface;
 use App\Shared\Application\DTOs\OperationResult;
@@ -23,7 +24,7 @@ final class GetCurrentCashSessionUseCase implements UseCaseInterface
         private readonly BranchContextInterface $branchContext,
         private readonly AuthenticatedStaffContextInterface $staffContext,
         private readonly OpenCashSessionResolver $cashSessionResolver,
-        private readonly CashSessionFinancialSummaryBuilder $financialSummaryBuilder,
+        private readonly FinancialDashboardAssembler $financialDashboardAssembler,
         private readonly OfficialShiftRepositoryInterface $shifts,
         private readonly ComboBraceletReportingService $comboReporting,
     ) {
@@ -50,17 +51,21 @@ final class GetCurrentCashSessionUseCase implements UseCaseInterface
         if ($session !== null) {
             $sessionData = CashMapper::session($session);
 
-            $financial = $this->financialSummaryBuilder->build(
-                sessionId: $session->id,
+            $dashboard = $this->financialDashboardAssembler->assemble(
+                tenantId: $tenant->id,
+                branchId: $branch->id,
+                cashSessionId: new CashSessionId($session->id),
                 openingAmount: (string) $session->openingAmount,
                 storedExpectedAmount: $session->expectedAmount !== null ? (string) $session->expectedAmount : null,
                 declaredClosingAmount: null,
                 differenceAmount: null,
                 status: $session->status ?? 'OPEN',
+                officialShiftId: $session->officialShiftId,
             );
 
-            $sessionData['financial_summary'] = $financial;
-            $sessionData['sales_by_method']   = $this->financialSummaryBuilder->salesByMethod($session->id);
+            $sessionData['financial_dashboard'] = $dashboard->toArray();
+            $sessionData['financial_summary'] = $dashboard->financial_summary;
+            $sessionData['sales_by_method'] = $dashboard->financial_summary['sales_by_method'] ?? ['cash' => '0.00', 'qr' => '0.00', 'card' => '0.00'];
             $sessionData['combo_bracelets']   = $this->comboReporting->buildScopeSummary(
                 $tenant->id,
                 $branch->id,
