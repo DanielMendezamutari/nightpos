@@ -113,7 +113,7 @@ it('registers room service with percent split and cash movement', function () {
         ->and($movement->source_id)->toBe($serviceId);
 });
 
-it('registers show and creates cash movement', function () {
+it('registers show without cash movement and syncs girl settlement', function () {
     $token = servicesCashAdminToken();
     nightposOpenCashSession($token);
 
@@ -127,8 +127,44 @@ it('registers show and creates cash movement', function () {
     $showId = (int) $response->json('data.show.id');
     $show = ShowModel::query()->find($showId);
 
-    expect($show->payment_method)->toBe('QR')
-        ->and(CashMovementModel::query()->find($show->cash_movement_id)->source_type)->toBe('SHOW');
+    $settlement = \App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel::query()
+        ->where('staff_user_id', servicesCashGirlId())
+        ->where('settlement_type', 'GIRL')
+        ->where('status', 'PENDING')
+        ->first();
+
+    expect($show->payment_method)->toBeNull()
+        ->and($show->cash_movement_id)->toBeNull()
+        ->and(CashMovementModel::query()->where('source_type', 'SHOW')->count())->toBe(0)
+        ->and($settlement)->not->toBeNull()
+        ->and((string) $settlement->total_amount)->toBe('150.00')
+        ->and(\App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementItemModel::query()
+            ->where('staff_settlement_id', (int) $settlement->id)
+            ->where('source_type', 'GIRL_SHOW')
+            ->count())->toBe(1);
+});
+
+it('registering show does not increase expected cash', function () {
+    $token = servicesCashAdminToken();
+    nightposOpenCashSession($token, 100);
+
+    $before = test()->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($token))
+        ->assertOk()
+        ->json('data.session.financial_summary');
+
+    test()->postJson('/api/v1/shows', [
+        'girl_user_id' => servicesCashGirlId(),
+        'show_type' => 'PRIVATE',
+        'unit_price' => 150,
+        'payment_method' => 'CASH',
+    ], nightposOperationalHeaders($token))->assertCreated();
+
+    $after = test()->getJson('/api/v1/cash/session/current', nightposOperationalHeaders($token))
+        ->assertOk()
+        ->json('data.session.financial_summary');
+
+    expect((float) $after['expected_cash'])->toBe((float) $before['expected_cash'])
+        ->and((float) ($after['cash_income_sales_shows'] ?? 0))->toBe(0.0);
 });
 
 it('due room service stays occupied until finish then cleaning to available', function () {

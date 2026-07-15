@@ -19,7 +19,6 @@ final readonly class EloquentMovementSummaryBuilder implements MovementSummaryBu
         'DIRECT_SALE_COLLECTION',
         'BRACELET_COLLECTION',
         'ROOM_SERVICE_COLLECTION',
-        'SHOW_COLLECTION',
         'MANUAL_INCOME',
         'SETTLEMENT_GIRL_PAYMENT',
         'SETTLEMENT_WAITER_PAYMENT',
@@ -77,6 +76,10 @@ final readonly class EloquentMovementSummaryBuilder implements MovementSummaryBu
             $method = strtolower((string) ($row['payment_method'] ?? ''));
             $count = (int) ($row['cnt'] ?? 0);
             $amount = new Money((string) ($row['total'] ?? '0'));
+
+            if ($category === 'SHOW_COLLECTION') {
+                continue;
+            }
 
             $isIncome = $type === 'INCOME';
             $totalMovements += $count;

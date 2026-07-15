@@ -10,9 +10,11 @@ use App\Domain\Sale\Entities\SalePayment;
 use App\Domain\Cash\ValueObjects\CashSessionId;
 use App\Domain\Sale\Exceptions\SaleNotFoundException;
 use App\Domain\Sale\Repositories\SaleRepositoryInterface;
+use App\Infrastructure\Persistence\Eloquent\Models\BraceletModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SaleItemModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SaleModel;
 use App\Infrastructure\Persistence\Eloquent\Models\SalePaymentModel;
+use App\Infrastructure\Persistence\Eloquent\Models\RoomServiceModel;
 use Illuminate\Support\Carbon;
 
 final class EloquentSaleRepository implements SaleRepositoryInterface
@@ -158,42 +160,141 @@ final class EloquentSaleRepository implements SaleRepositoryInterface
 
     public function getSalesSummary(CashSessionId $cashSessionId): array
     {
-        $salesQuery = SaleModel::query()->where('cash_session_id', $cashSessionId->value);
+        $sessionId = $cashSessionId->value;
 
-        $totalSales = (clone $salesQuery)->sum('total');
-        $salesCount = (clone $salesQuery)->count();
+        $sales = SaleModel::query()
+            ->where('cash_session_id', $sessionId)
+            ->where('status', 'PAID')
+            ->get(['id', 'order_id', 'total', 'payment_mode']);
 
-        $salesByMethod = SalePaymentModel::query()
-            ->whereIn('sale_id', (clone $salesQuery)->select('id'))
-            ->selectRaw('payment_method, SUM(amount) as total')
-            ->groupBy('payment_method')
-            ->get()
-            ->pluck('total', 'payment_method')
-            ->toArray();
+        $roomServices = RoomServiceModel::query()
+            ->where('cash_session_id', $sessionId)
+            ->get(['id', 'total_amount', 'payment_method']);
 
-        $salesMixedCount = SaleModel::query()
-            ->where('cash_session_id', $cashSessionId->value)
-            ->where('payment_mode', 'MIXED')
-            ->count();
+        $bracelets = BraceletModel::query()
+            ->where('cash_session_id', $sessionId)
+            ->get(['id', 'total_amount', 'payment_method']);
+
+        $sourceBuckets = [
+            'order_sales' => ['count' => 0, 'amount' => 0.0],
+            'direct_sales' => ['count' => 0, 'amount' => 0.0],
+            'room_services' => ['count' => 0, 'amount' => 0.0],
+            'bracelets' => ['count' => 0, 'amount' => 0.0],
+            'other_sales' => ['count' => 0, 'amount' => 0.0],
+        ];
+
+        $methodBuckets = [
+            'CASH' => ['count' => 0, 'amount' => 0.0],
+            'QR' => ['count' => 0, 'amount' => 0.0],
+            'CARD' => ['count' => 0, 'amount' => 0.0],
+            'MIXED' => ['count' => 0, 'amount' => 0.0],
+        ];
+
+        $totalSales = 0.0;
+        $salesCount = 0;
+        $mixedSalesCount = 0;
+
+        foreach ($sales as $sale) {
+            $amount = (float) $sale->total;
+            $totalSales += $amount;
+            $salesCount++;
+
+            $sourceKey = $sale->order_id !== null ? 'order_sales' : 'direct_sales';
+            $sourceBuckets[$sourceKey]['count']++;
+            $sourceBuckets[$sourceKey]['amount'] += $amount;
+
+            $bucket = $this->resolveSalesMethodBucket((string) $sale->payment_mode);
+            $methodBuckets[$bucket]['count']++;
+            $methodBuckets[$bucket]['amount'] += $amount;
+
+            if ($bucket === 'MIXED') {
+                $mixedSalesCount++;
+            }
+        }
+
+        foreach ($roomServices as $roomService) {
+            $amount = (float) $roomService->total_amount;
+            $totalSales += $amount;
+            $salesCount++;
+            $sourceBuckets['room_services']['count']++;
+            $sourceBuckets['room_services']['amount'] += $amount;
+
+            $bucket = $this->resolveSalesMethodBucket((string) $roomService->payment_method);
+            $methodBuckets[$bucket]['count']++;
+            $methodBuckets[$bucket]['amount'] += $amount;
+        }
+
+        foreach ($bracelets as $bracelet) {
+            $amount = (float) $bracelet->total_amount;
+            $totalSales += $amount;
+            $salesCount++;
+            $sourceBuckets['bracelets']['count']++;
+            $sourceBuckets['bracelets']['amount'] += $amount;
+
+            $bucket = $this->resolveSalesMethodBucket((string) $bracelet->payment_method);
+            $methodBuckets[$bucket]['count']++;
+            $methodBuckets[$bucket]['amount'] += $amount;
+        }
 
         $itemCounts = SaleItemModel::query()
-            ->whereIn('sale_id', (clone $salesQuery)->select('id'))
+            ->whereIn('sale_id', SaleModel::query()->where('cash_session_id', $sessionId)->select('id'))
             ->selectRaw("SUM(CASE WHEN sale_mode = 'PRODUCT' THEN quantity ELSE 0 END) as products_sold_count")
             ->selectRaw("SUM(CASE WHEN sale_mode = 'SERVICE' THEN quantity ELSE 0 END) as services_sold_count")
             ->first();
 
+        $bySource = [
+            'order_sales' => number_format($sourceBuckets['order_sales']['amount'], 2, '.', ''),
+            'direct_sales' => number_format($sourceBuckets['direct_sales']['amount'], 2, '.', ''),
+            'room_services' => number_format($sourceBuckets['room_services']['amount'], 2, '.', ''),
+            'bracelets' => number_format($sourceBuckets['bracelets']['amount'], 2, '.', ''),
+            'other_sales' => number_format($sourceBuckets['other_sales']['amount'], 2, '.', ''),
+        ];
+
+        $byMethod = [
+            'CASH' => number_format($methodBuckets['CASH']['amount'], 2, '.', ''),
+            'QR' => number_format($methodBuckets['QR']['amount'], 2, '.', ''),
+            'CARD' => number_format($methodBuckets['CARD']['amount'], 2, '.', ''),
+            'MIXED' => number_format($methodBuckets['MIXED']['amount'], 2, '.', ''),
+        ];
+
         return [
-            'total_sales' => number_format((float) $totalSales, 2, '.', ''),
+            'total_sales_amount' => number_format($totalSales, 2, '.', ''),
+            'total_sales' => number_format($totalSales, 2, '.', ''),
             'sales_count' => $salesCount,
-            'sales_by_method' => [
-                'cash' => number_format((float) ($salesByMethod['CASH'] ?? 0), 2, '.', ''),
-                'qr' => number_format((float) ($salesByMethod['QR'] ?? 0), 2, '.', ''),
-                'card' => number_format((float) ($salesByMethod['CARD'] ?? 0), 2, '.', ''),
+            'cash_total' => $byMethod['CASH'],
+            'qr_total' => $byMethod['QR'],
+            'card_total' => $byMethod['CARD'],
+            'mixed_total' => $byMethod['MIXED'],
+            'sales_cash' => $byMethod['CASH'],
+            'sales_qr' => $byMethod['QR'],
+            'sales_card' => $byMethod['CARD'],
+            'mixed_sales_count' => $mixedSalesCount,
+            'by_method' => [
+                'cash' => $byMethod['CASH'],
+                'qr' => $byMethod['QR'],
+                'card' => $byMethod['CARD'],
+                'mixed' => $byMethod['MIXED'],
             ],
-            'sales_mixed_count' => $salesMixedCount,
+            'sales_by_method' => [
+                'cash' => $byMethod['CASH'],
+                'qr' => $byMethod['QR'],
+                'card' => $byMethod['CARD'],
+            ],
+            'by_source' => $bySource,
+            'sales_by_source' => $bySource,
             'products_sold_count' => $itemCounts->products_sold_count ?? 0,
             'services_sold_count' => $itemCounts->services_sold_count ?? 0,
         ];
+    }
+
+    private function resolveSalesMethodBucket(string $method): string
+    {
+        return match (strtoupper(trim($method))) {
+            'QR' => 'QR',
+            'CARD' => 'CARD',
+            'MIXED' => 'MIXED',
+            default => 'CASH',
+        };
     }
 
     private function mapSale(SaleModel $model): Sale

@@ -595,6 +595,14 @@ final class PrintTicketContentBuilder
      */
     public function buildCashClose(array $payload, int $paperWidthMm = 80, ?string $printedAt = null): string
     {
+        return $this->buildCashCloseSummaryTicket($payload, $paperWidthMm, $printedAt);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function buildCashCloseSummaryTicket(array $payload, int $paperWidthMm = 80, ?string $printedAt = null): string
+    {
         $width = $paperWidthMm <= 58 ? 32 : 48;
         $session = $payload['session'] ?? [];
         $dashboard = $payload['financial_dashboard'] ?? [];
@@ -624,17 +632,25 @@ final class PrintTicketContentBuilder
 
         $lines[] = str_repeat('-', $width);
         $lines[] = $this->center('COBROS / VENTAS', $width);
-        $lines[] = $this->cashCloseAmountLine('Ventas efectivo', (string) ($salesSummary['sales_cash'] ?? '0.00'), $width);
-        $lines[] = $this->cashCloseAmountLine('Ventas QR', (string) ($salesSummary['sales_qr'] ?? '0.00'), $width);
-        $lines[] = $this->cashCloseAmountLine('Ventas tarjeta', (string) ($salesSummary['sales_card'] ?? '0.00'), $width);
-        $lines[] = $this->cashCloseCompactLine('Ventas mixtas', (string) ($salesSummary['mixed_sales_count'] ?? 0), $width);
-        $lines[] = $this->cashCloseAmountLine('TOTAL COBROS', (string) ($salesSummary['total_sales'] ?? '0.00'), $width, false, true);
+        $lines[] = $this->cashCloseAmountLine('Venta total', (string) ($salesSummary['total_sales_amount'] ?? $salesSummary['total_sales'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Efectivo', (string) ($salesSummary['cash_total'] ?? $salesSummary['sales_cash'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('QR', (string) ($salesSummary['qr_total'] ?? $salesSummary['sales_qr'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Tarjeta', (string) ($salesSummary['card_total'] ?? $salesSummary['sales_card'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseCompactLine('Mixto', (string) ($salesSummary['mixed_sales_count'] ?? 0), $width);
         $lines[] = $this->cashCloseCompactLine('Cantidad de ventas', (string) ($salesSummary['sales_count'] ?? 0), $width);
 
         $lines[] = str_repeat('-', $width);
-        $lines[] = $this->center('MOVIMIENTOS', $width);
+        $lines[] = $this->center('VENTAS POR ORIGEN', $width);
+        $lines[] = $this->cashCloseAmountLine('Comandas cobradas', (string) ($salesSummary['by_source']['order_sales'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Venta directa', (string) ($salesSummary['by_source']['direct_sales'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Piezas', (string) ($salesSummary['by_source']['room_services'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Manillas', (string) ($salesSummary['by_source']['bracelets'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Otros ingresos comerciales', (string) ($salesSummary['by_source']['other_sales'] ?? '0.00'), $width);
+
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('CAJA FISICA', $width);
         $lines[] = $this->cashCloseAmountLine('Ingresos manuales', (string) ($cashSummary['cash_income_manual'] ?? '0.00'), $width);
-        $lines[] = $this->cashCloseAmountLine('Egresos operativos', number_format(
+        $lines[] = $this->cashCloseAmountLine('Egresos CASH no personal', number_format(
             (float) ($cashSummary['cash_expense_operational'] ?? 0)
             + (float) ($cashSummary['cash_expense_purchases'] ?? 0)
             + (float) ($cashSummary['cash_expense_other'] ?? 0),
@@ -644,8 +660,6 @@ final class PrintTicketContentBuilder
         ), $width);
         $lines[] = $this->cashCloseAmountLine('Liquidaciones pagadas', (string) ($cashSummary['cash_expense_settlements'] ?? '0.00'), $width);
 
-        $lines[] = str_repeat('-', $width);
-        $lines[] = $this->center('EFECTIVO', $width);
         $lines[] = $this->cashCloseAmountLine('Efectivo esperado', (string) ($cashSummary['expected_cash'] ?? '0.00'), $width);
         $lines[] = $this->cashCloseAmountLine('Efectivo contado', (string) ($cashSummary['counted_cash'] ?? '0.00'), $width);
         $differenceAmount = (string) ($cashSummary['cash_difference'] ?? '0.00');
@@ -716,6 +730,11 @@ final class PrintTicketContentBuilder
             $lines[] = $this->cashCloseCompactLine('Limpieza', '0', $width);
             $lines[] = $this->cashCloseCompactLine('Total pendiente', '0', $width);
         }
+
+        $personnelRows = $settlementSummary['totals']['personnel_rows'] ?? [];
+        $waiterPersonnel = $personnelRows['waiters'] ?? [];
+        $girlPersonnel = $personnelRows['girls'] ?? [];
+        $cleaningPersonnel = $personnelRows['cleaning'] ?? [];
 
         $lines[] = str_repeat('-', $width);
         $lines[] = $this->center('OBSERVACIONES', $width);
@@ -1056,6 +1075,160 @@ final class PrintTicketContentBuilder
         return implode("\n", $lines)."\n";
     }
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function buildCashPersonnelTicket(array $payload, int $paperWidthMm = 80, ?string $printedAt = null): string
+    {
+        $width = $paperWidthMm <= 58 ? 32 : 48;
+        $dashboard = $payload['financial_dashboard'] ?? [];
+        $settlementSummary = $dashboard['settlement_summary'] ?? [];
+        $cashSummary = $dashboard['cash_summary'] ?? [];
+        $page = $payload['personnel_page'] ?? null;
+
+        if (! is_array($page)) {
+            $entries = $this->compactPersonnelEntriesFromSummary($settlementSummary);
+            $globalTotals = [
+                'girls' => (string) ($settlementSummary['totals']['girls_confirmed_total'] ?? '0.00'),
+                'waiters' => (string) ($settlementSummary['totals']['waiters_confirmed_total'] ?? '0.00'),
+                'cleaning' => (string) ($settlementSummary['totals']['cleaning_confirmed_total'] ?? '0.00'),
+                'personnel' => (string) ($cashSummary['cash_expense_settlements'] ?? '0.00'),
+            ];
+
+            $page = [
+                'page_number' => 1,
+                'page_total' => 1,
+                'range_start' => count($entries) > 0 ? 1 : 0,
+                'range_end' => count($entries),
+                'total_records' => count($entries),
+                'entries' => $entries,
+                'page_subtotal' => $globalTotals['personnel'],
+                'global_totals' => $globalTotals,
+                'include_global_totals' => true,
+            ];
+        }
+
+        $lines = [];
+
+        $branchName = (string) ($payload['branch_name'] ?? 'NIGHTPOS');
+        $pageNumber = (int) ($page['page_number'] ?? 1);
+        $pageTotal = (int) ($page['page_total'] ?? 1);
+        $rangeStart = (int) ($page['range_start'] ?? 0);
+        $rangeEnd = (int) ($page['range_end'] ?? 0);
+        $totalRecords = (int) ($page['total_records'] ?? 0);
+
+        $lines[] = $this->center('NIGHTPOS', $width);
+        $lines[] = $this->center("PAGOS PERSONAL {$pageNumber}/{$pageTotal}", $width);
+        $lines[] = str_repeat('=', $width);
+        $lines[] = $this->cashCloseKeyValueLine('Sucursal', $branchName, $width);
+        $lines[] = $this->cashCloseKeyValueLine('Caja', '#'.(string) ($payload['session']['id'] ?? '—'), $width);
+        $lines[] = $this->cashCloseKeyValueLine('Cajera', (string) ($payload['cashier_name'] ?? '—'), $width);
+        $lines[] = $this->cashCloseKeyValueLine('Impresion', $this->formatDateTimeLong((string) ($printedAt ?? now()->toIso8601String())), $width);
+        $lines[] = $this->cashCloseKeyValueLine('Registros', "{$rangeStart}-{$rangeEnd} de {$totalRecords}", $width);
+
+        $entries = is_array($page['entries'] ?? null) ? $page['entries'] : [];
+        $activeRole = '';
+
+        foreach ($entries as $entry) {
+            $role = (string) ($entry['role'] ?? '');
+            if ($role !== $activeRole) {
+                $lines[] = str_repeat('-', $width);
+                $lines[] = $this->center($this->personnelRoleTitle($role), $width);
+                $lines[] = $this->personnelRoleHeader($role);
+                $activeRole = $role;
+            }
+
+            $lines[] = $this->personnelCompactRow($entry, $role);
+        }
+
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->cashCloseAmountLine('SUBTOTAL PAGINA', (string) ($page['page_subtotal'] ?? '0.00'), $width, false, true);
+
+        if ((bool) ($page['include_global_totals'] ?? false)) {
+            $totals = is_array($page['global_totals'] ?? null) ? $page['global_totals'] : [];
+            $lines[] = str_repeat('-', $width);
+            $lines[] = $this->cashCloseAmountLine('TOTAL CHICAS', (string) ($totals['girls'] ?? '0.00'), $width, false, true);
+            $lines[] = $this->cashCloseAmountLine('TOTAL GARZONES', (string) ($totals['waiters'] ?? '0.00'), $width, false, true);
+            $lines[] = $this->cashCloseAmountLine('TOTAL LIMPIEZA', (string) ($totals['cleaning'] ?? '0.00'), $width, false, true);
+            $lines[] = $this->cashCloseAmountLine('TOTAL PERSONAL', (string) ($totals['personnel'] ?? '0.00'), $width, false, true);
+        }
+
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('CONTROL DE PAGO', $width);
+        $lines[] = str_repeat('=', $width);
+        $lines[] = $this->center('Powered by Ribersoft', $width);
+        $lines[] = $this->center('WhatsApp 67369293', $width);
+        $lines[] = str_repeat('=', $width);
+
+        return implode("\n", $lines)."\n";
+    }
+
+    /**
+     * @param array<string, mixed> $settlementSummary
+     * @return list<array<string, mixed>>
+     */
+    private function compactPersonnelEntriesFromSummary(array $settlementSummary): array
+    {
+        $entries = [];
+        $roles = [
+            'GIRL' => $settlementSummary['totals']['personnel_rows']['girls'] ?? [],
+            'WAITER' => $settlementSummary['totals']['personnel_rows']['waiters'] ?? [],
+            'CLEANING' => $settlementSummary['totals']['personnel_rows']['cleaning'] ?? [],
+        ];
+
+        foreach ($roles as $role => $rows) {
+            usort($rows, static fn (array $a, array $b): int => strcasecmp((string) ($a['staff_name'] ?? ''), (string) ($b['staff_name'] ?? '')));
+            $index = 1;
+            foreach ($rows as $row) {
+                $entries[] = [
+                    'role' => $role,
+                    'index' => $index,
+                    'name' => (string) ($row['staff_name'] ?? '—'),
+                    'sale' => (string) ($row['sales_total_amount'] ?? '0.00'),
+                    'pay' => (string) ($row['total_amount'] ?? '0.00'),
+                ];
+                $index++;
+            }
+        }
+
+        return $entries;
+    }
+
+    private function personnelRoleTitle(string $role): string
+    {
+        return match ($role) {
+            'WAITER' => 'GARZONES',
+            'CLEANING' => 'LIMPIEZA',
+            default => 'CHICAS',
+        };
+    }
+
+    private function personnelRoleHeader(string $role): string
+    {
+        return match ($role) {
+            'WAITER' => 'NRO  NOMBRE            VENTA      PAGO',
+            default => 'NRO  NOMBRE                       PAGO',
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $entry
+     */
+    private function personnelCompactRow(array $entry, string $role): string
+    {
+        $index = str_pad((string) ($entry['index'] ?? 0), 2, '0', STR_PAD_LEFT);
+        $name = strtoupper($this->truncate((string) ($entry['name'] ?? '—'), $role === 'WAITER' ? 16 : 24));
+        $pay = number_format((float) ($entry['pay'] ?? 0), 2, '.', ',');
+
+        if ($role === 'WAITER') {
+            $sale = number_format((float) ($entry['sale'] ?? 0), 2, '.', ',');
+
+            return sprintf('%2s   %-16s %8s %9s', $index, $name, $sale, $pay);
+        }
+
+        return sprintf('%2s   %-24s %12s', $index, $name, $pay);
+    }
+
     public function buildForType(PrintJobType $type, array $payload, int $paperWidthMm = 80): string
     {
         return match ($type) {
@@ -1104,7 +1277,7 @@ final class PrintTicketContentBuilder
                 $paperWidthMm,
                 $payload['printed_at'] ?? null,
             ),
-            PrintJobType::CashClose => $this->buildCashClose(
+            PrintJobType::CashClose => $this->buildCashCloseSummaryTicket(
                 $payload,
                 $paperWidthMm,
                 $payload['printed_at'] ?? null,

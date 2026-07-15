@@ -24,12 +24,6 @@ const { openPrintRoute } = useNightPosPrint()
 const router = useRouter()
 const { cashSessionOpen, showOpenCash, loadingCash, onCashOpened } = useServiceCashSession()
 
-const paymentMethods = [
-  { title: 'Efectivo', value: 'CASH' },
-  { title: 'QR', value: 'QR' },
-  { title: 'Tarjeta', value: 'CARD' },
-]
-
 const girls = ref([])
 const showTypes = ref([])
 const saving = ref(false)
@@ -43,7 +37,6 @@ const form = ref({
   girl_user_id: null,
   show_type: null,
   unit_price: null,
-  payment_method: 'CASH',
   registered_at: '',
   notes: '',
 })
@@ -93,7 +86,6 @@ const save = async () => {
       girl_user_id: form.value.girl_user_id,
       show_type: form.value.show_type,
       unit_price: Number(form.value.unit_price),
-      payment_method: form.value.payment_method,
       registered_at: form.value.registered_at || null,
       notes: form.value.notes || null,
     })
@@ -178,6 +170,14 @@ onMounted(async () => {
       ]"
     />
     <NightPosSectionTabs :tabs="serviceTabs" />
+
+    <VAlert
+      type="info"
+      variant="tonal"
+      class="mb-4"
+    >
+      Registrar un show aumenta la liquidación pendiente de la chica. No suma ingresos ni efectivo esperado en caja.
+    </VAlert>
 
     <VAlert
       v-if="!loadingCash && !cashSessionOpen"
@@ -340,14 +340,7 @@ onMounted(async () => {
             <VCol
               cols="12"
               md="6"
-            >
-              <VSelect
-                v-model="form.payment_method"
-                :items="paymentMethods"
-                label="Método de pago *"
-                :rules="[v => !!v || 'Requerido']"
-              />
-            </VCol>
+            />
             <VCol cols="12">
               <VTextarea
                 v-model="form.notes"

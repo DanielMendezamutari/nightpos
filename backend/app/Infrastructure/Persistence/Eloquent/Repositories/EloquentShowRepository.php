@@ -61,7 +61,7 @@ final class EloquentShowRepository implements ShowRepositoryInterface
         string $registeredAt,
         ?string $notes,
         int $cashSessionId,
-        string $paymentMethod,
+        ?string $paymentMethod,
     ): array {
         $model = ShowModel::query()->create([
             'tenant_id' => $tenantId,

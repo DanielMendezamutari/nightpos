@@ -8,6 +8,7 @@ const props = defineProps({
   data: { type: Object, default: null },
   summary: { type: Object, default: null },
   operational: { type: Object, default: null },
+  mode: { type: String, default: 'summary' },
   branchName: { type: String, default: '' },
   tenantName: { type: String, default: '' },
   shiftLabel: { type: String, default: '' },
@@ -137,12 +138,14 @@ const settlementGroups = computed(() => [
   { key: 'GIRL', title: 'Chicas' },
   { key: 'CLEANING', title: 'Limpieza' },
 ])
+
+const isPersonnelMode = computed(() => props.mode === 'personnel')
 </script>
 
 <template>
   <PrintableTicketShell
     :width="width"
-    title="Cierre de caja"
+    :title="isPersonnelMode ? 'Pagos del personal y pendientes' : 'Cierre de caja'"
     :subtitle="branchName || (data ? `Sesión #${data.id}` : '')"
     :loading="loading"
     :footer-text="PRINT_TICKET_FOOTER"
@@ -223,7 +226,10 @@ const settlementGroups = computed(() => [
         </div>
       </section>
 
-      <section class="nightpos-print-section">
+      <section
+        v-if="!isPersonnelMode"
+        class="nightpos-print-section"
+      >
         <div class="nightpos-print-section__title">
           Resumen de ventas
         </div>
@@ -241,7 +247,10 @@ const settlementGroups = computed(() => [
         </div>
       </section>
 
-      <section class="nightpos-print-section">
+      <section
+        v-if="!isPersonnelMode"
+        class="nightpos-print-section"
+      >
         <div class="nightpos-print-section__title">
           Métodos de pago
         </div>
@@ -257,7 +266,10 @@ const settlementGroups = computed(() => [
         </div>
       </section>
 
-      <section class="nightpos-print-section">
+      <section
+        v-if="!isPersonnelMode"
+        class="nightpos-print-section"
+      >
         <div class="nightpos-print-section__title">
           Arqueo
         </div>
@@ -288,7 +300,7 @@ const settlementGroups = computed(() => [
       </section>
 
       <section
-        v-if="movements.length"
+        v-if="!isPersonnelMode && movements.length"
         class="nightpos-print-section"
       >
         <div class="nightpos-print-section__title">

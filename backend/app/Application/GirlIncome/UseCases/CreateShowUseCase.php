@@ -18,12 +18,11 @@ use App\Application\GirlIncome\Services\GirlStaffValidator;
 
 use App\Application\Printing\UseCases\CreateShowPrintJobUseCase;
 use App\Application\Shift\UseCases\EnsureOperationalShiftUseCase;
+use App\Application\StaffSettlement\UseCases\SyncSettlementsFromShowUseCase;
 
 use App\Domain\GirlIncome\Exceptions\GirlIncomeDomainException;
 
 use App\Domain\GirlIncome\Repositories\ShowRepositoryInterface;
-
-use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 
 use App\Shared\Application\DTOs\OperationResult;
 
@@ -62,6 +61,8 @@ final class CreateShowUseCase implements UseCaseInterface
         private readonly ServiceIncomeCashRecorder $serviceCash,
 
         private readonly CreateShowPrintJobUseCase $createShowPrintJob,
+
+        private readonly SyncSettlementsFromShowUseCase $syncSettlementsFromShow,
 
     ) {
 
@@ -123,11 +124,7 @@ final class CreateShowUseCase implements UseCaseInterface
 
         $formatted = number_format($unitPrice, 2, '.', '');
 
-        $paymentMethod = $this->serviceCash->normalizePaymentMethod($tenant->id, $branch->id, $input->paymentMethod);
-
         $cashSession = $this->serviceCash->requireOpenSession($tenant->id, $branch->id, $userId);
-
-        $girlName = (string) (UserModel::query()->whereKey($input->girlUserId)->value('name') ?? 'Chica');
 
         $showType = strtoupper(trim($input->showType));
 
@@ -155,11 +152,7 @@ final class CreateShowUseCase implements UseCaseInterface
 
             $formatted,
 
-            $paymentMethod,
-
             $cashSession,
-
-            $girlName,
 
             $showType,
 
@@ -191,45 +184,17 @@ final class CreateShowUseCase implements UseCaseInterface
 
                 cashSessionId: $cashSession->id,
 
-                paymentMethod: $paymentMethod,
+                paymentMethod: null,
 
             );
-
-
-
-            $movement = $this->serviceCash->recordIncome(
-
-                tenantId: $tenant->id,
-
-                branchId: $branch->id,
-
-                session: $cashSession,
-
-                amount: $formatted,
-
-                paymentMethod: $paymentMethod,
-
-                description: "Show - {$showType} - {$girlName}",
-
-                sourceType: 'SHOW',
-
-                sourceId: (int) $created['id'],
-
-                createdByUserId: $userId,
-
-            );
-
-
-
-            $this->shows->attachCashMovement((int) $created['id'], $tenant->id, $movement->id);
 
 
 
             $created['cash_session_id'] = $cashSession->id;
 
-            $created['cash_movement_id'] = $movement->id;
+            $created['cash_movement_id'] = null;
 
-            $created['payment_method'] = $paymentMethod;
+            $created['payment_method'] = null;
 
 
 
@@ -248,6 +213,19 @@ final class CreateShowUseCase implements UseCaseInterface
             requestedByUserId: $userId,
         );
 
+        $syncWarning = null;
+
+        $syncResult = $this->syncSettlementsFromShow->execute((object) [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'showId' => (int) $entry['id'],
+            'cashSessionId' => $entry['cash_session_id'] ?? null,
+        ]);
+
+        if (! $syncResult->success) {
+            $syncWarning = $syncResult->message;
+        }
+
         return OperationResult::ok('Show registrado correctamente.', [
 
             'show' => $presented,
@@ -265,6 +243,8 @@ final class CreateShowUseCase implements UseCaseInterface
             'print_job' => $printResult['job'],
 
             'print_warning' => $printResult['warning'],
+
+            'sync_warning' => $syncWarning,
 
         ]);
 

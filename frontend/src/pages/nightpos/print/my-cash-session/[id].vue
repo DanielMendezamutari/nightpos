@@ -17,6 +17,7 @@ const loading = ref(true)
 const session = ref(null)
 const summary = ref(null)
 const operational = ref(null)
+const ticket = computed(() => route.query.ticket === 'personnel' ? 'personnel' : 'summary')
 
 const ticketWidth = computed(() => route.query.width === '58' ? '58mm' : '80mm')
 
@@ -58,5 +59,6 @@ onMounted(async () => {
     :shift-label="buildShiftLabel(session?.official_shift)"
     :width="ticketWidth"
     :loading="loading"
+    :mode="ticket"
   />
 </template>

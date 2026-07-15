@@ -190,13 +190,50 @@ it('creates CASH_CLOSE print job on normal cash session close', function () {
 
     $sessionId = (int) $response->json('data.session.id');
 
-    expect($response->json('data.print_job.type'))->toBe('CASH_CLOSE');
+    expect($response->json('data.print_job.type'))->toBe('CASH_CLOSE')
+        ->and($response->json('data.print_jobs'))->toHaveCount(2)
+        ->and($response->json('data.print_warnings') ?? [])->toHaveCount(0);
 
     expect(PrintJobModel::query()
         ->where('source_type', 'cash_session')
         ->where('source_id', $sessionId)
         ->where('type', 'CASH_CLOSE')
-        ->exists())->toBeTrue();
+        ->count())->toBe(2);
+});
+
+it('splits cash close ticket content between summary and personnel tickets', function () {
+    cmcpRegisterDevice();
+    $token = cmcpCashierToken();
+    nightposEnsureShiftOpen();
+    nightposOpenCashSession($token, 350, false);
+    nightposPrepareCashSessionClose($token);
+
+    $response = test()->postJson('/api/v1/cash/session/close', [
+        'declared_closing_amount' => 350,
+    ], nightposOperationalHeaders($token))->assertOk();
+
+    $jobs = PrintJobModel::query()
+        ->where('source_type', 'cash_session')
+        ->where('source_id', $response->json('data.session.id'))
+        ->orderBy('id')
+        ->get();
+
+    expect($jobs)->toHaveCount(2);
+
+    $builder = app(PrintTicketContentBuilder::class);
+    $summary = $builder->buildCashCloseSummaryTicket($jobs[0]->payload ?? []);
+    $personnel = $builder->buildCashPersonnelTicket($jobs[1]->payload ?? []);
+
+    expect($summary)
+        ->toContain('REPORTE DE VENTAS / CIERRE DE CAJA')
+        ->toContain('VENTAS POR ORIGEN')
+        ->not->toContain('PAGOS DEL PERSONAL');
+
+    expect($personnel)
+        ->toContain('PAGOS DEL PERSONAL')
+        ->toContain('GARZONES')
+        ->toContain('CHICAS')
+        ->toContain('LIMPIEZA');
 });
 
 it('closes cash session and returns print_warning when no active printer', function () {
@@ -246,8 +283,8 @@ it('includes admin fields on forced close ticket', function () {
         ->toContain('ENCABEZADO')
         ->toContain('MONTO INICIAL')
         ->toContain('COBROS / VENTAS')
-        ->toContain('MOVIMIENTOS')
-        ->toContain('EFECTIVO')
+        ->toContain('VENTAS POR ORIGEN')
+        ->toContain('CAJA FISICA')
         ->toContain('VENTAS TOTALES / PRODUCTOS')
         ->toContain('PENDIENTES')
         ->toContain('OBSERVACIONES')
@@ -280,8 +317,8 @@ it('includes section layout on normal cash close ticket', function () {
         ->toContain('REPORTE DE VENTAS / CIERRE DE CAJA')
         ->toContain('MONTO INICIAL')
         ->toContain('COBROS / VENTAS')
-        ->toContain('MOVIMIENTOS')
-        ->toContain('EFECTIVO')
+        ->toContain('VENTAS POR ORIGEN')
+        ->toContain('CAJA FISICA')
         ->toContain('VENTAS TOTALES / PRODUCTOS')
         ->toContain('PENDIENTES')
         ->toContain('Impreso:')
@@ -349,12 +386,11 @@ it('cash close ticket keeps mixed-payment product once and cash-only expected ca
     ]);
 
     expect($content)
-        ->toContain('Ventas efectivo')
+        ->toContain('Venta total')
         ->toContain('10.00')
-        ->toContain('Ventas QR')
+        ->toContain('Efectivo')
         ->toContain('15.00')
-        ->toContain('Ventas mixtas')
-        ->toContain('TOTAL COBROS')
+        ->toContain('Mixto')
         ->toContain('Cantidad de ventas')
         ->toContain('PRODUCTO MIXTO CIERRE')
         ->toContain('TOTAL ITEMS VENDIDOS')

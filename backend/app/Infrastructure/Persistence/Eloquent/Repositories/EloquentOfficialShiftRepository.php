@@ -36,6 +36,8 @@ final class EloquentOfficialShiftRepository implements OfficialShiftRepositoryIn
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
             ->where('status', OfficialShiftStatus::OPEN)
+            ->orderByDesc('opened_at')
+            ->orderByDesc('id')
             ->first();
 
         return $model ? $this->mapShift($model) : null;

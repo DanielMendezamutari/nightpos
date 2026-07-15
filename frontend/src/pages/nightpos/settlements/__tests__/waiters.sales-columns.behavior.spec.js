@@ -14,9 +14,11 @@ describe('settlements waiters sales columns behavior', () => {
     expect(waitersContent.includes("key: 'sales_count'")).toBe(true)
   })
 
-  it('muestra la columna Total vendido en la tabla de garzones', () => {
-    expect(waitersContent.includes("title: 'Total vendido'")).toBe(true)
-    expect(waitersContent.includes("key: 'sales_total_amount'")).toBe(true)
+  it('muestra columnas de ventas cobradas y provisionales en la tabla de garzones', () => {
+    expect(waitersContent.includes("title: 'Total vendido cobrado'" )).toBe(true)
+    expect(waitersContent.includes("key: 'sales_total_amount'" )).toBe(true)
+    expect(waitersContent.includes("title: 'Ventas provisionales sin cobrar'" )).toBe(true)
+    expect(waitersContent.includes("key: 'provisional_sales_total_amount'" )).toBe(true)
   })
 
   it('formatea montos en BOB para total vendido en la vista de garzones', () => {
@@ -33,6 +35,12 @@ describe('settlements waiters sales columns behavior', () => {
   it('estado vacio muestra mensaje y no pantalla en blanco', () => {
     expect(waitersContent.includes('Sin turno clasificado. Genere liquidaciones desde el resumen cuando haya ventas cobradas.')).toBe(true)
     expect(waitersContent.includes('VDataTable')).toBe(true)
+  })
+
+  it('abre detalle operativo local para filas provisionales o mixtas', () => {
+    expect(waitersContent.includes('const openDetailDialog = item => {')).toBe(true)
+    expect(waitersContent.includes('Ventas provisionales:')).toBe(true)
+    expect(waitersContent.includes('Detalle operativo')).toBe(true)
   })
 
   it('detalle de liquidacion de garzon incluye cantidad y total vendido', () => {

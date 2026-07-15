@@ -113,10 +113,14 @@ final class CashController extends Controller
     public function printClose(int $id): JsonResponse
     {
         $reprint = (bool) request()->boolean('reprint');
+        $ticket = (string) request()->input('ticket', 'summary');
+        $page = request()->input('page');
 
         return $this->presenter->present($this->printClose->execute((object) [
             'sessionId' => $id,
             'reprint' => $reprint,
+            'ticket' => $ticket,
+            'page' => $page !== null ? (int) $page : null,
         ]));
     }
 }

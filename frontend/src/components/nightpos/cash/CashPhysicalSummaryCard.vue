@@ -45,7 +45,7 @@ const differenceColor = computed(() => {
 <template>
   <VCard>
     <VCardTitle class="d-flex flex-wrap align-center gap-2">
-      Caja fisica
+      Caja física
       <VChip
         :color="sessionStatus === 'OPEN' ? 'success' : 'secondary'"
         size="small"
@@ -66,7 +66,7 @@ const differenceColor = computed(() => {
           <div class="text-h6">{{ openDuration }}</div>
         </VCol>
         <VCol cols="12" md="6">
-          <div class="text-caption text-medium-emphasis">Ingresos en efectivo por ventas</div>
+          <div class="text-caption text-medium-emphasis">Ventas cobradas en efectivo</div>
           <div class="text-h6">{{ fmtBob(summary.cash_income_sales) }}</div>
         </VCol>
         <VCol cols="12" md="6">
@@ -74,11 +74,15 @@ const differenceColor = computed(() => {
           <div class="text-h6">{{ fmtBob(summary.cash_income_manual) }}</div>
         </VCol>
         <VCol cols="12" md="6">
+          <div class="text-caption text-medium-emphasis">Liquidaciones pagadas en efectivo</div>
+          <div class="text-h6">{{ fmtBob(summary.settlement_payments ?? 0) }}</div>
+        </VCol>
+        <VCol cols="12" md="6">
           <div class="text-caption text-medium-emphasis">Egresos en efectivo</div>
           <div class="text-h6">{{ fmtBob(summary.cash_expense_total) }}</div>
         </VCol>
         <VCol cols="12" md="6">
-          <div class="text-caption text-medium-emphasis">Saldo esperado</div>
+          <div class="text-caption text-medium-emphasis">Efectivo esperado</div>
           <div class="text-h5 font-weight-bold">{{ fmtBob(summary.expected_cash) }}</div>
         </VCol>
       </VRow>
@@ -87,7 +91,7 @@ const differenceColor = computed(() => {
 
       <VRow>
         <VCol cols="12" md="6">
-          <div class="text-caption text-medium-emphasis">Dinero contado</div>
+          <div class="text-caption text-medium-emphasis">Efectivo contado</div>
           <div class="text-h6">{{ summary.counted_cash == null ? '—' : fmtBob(summary.counted_cash) }}</div>
         </VCol>
         <VCol cols="12" md="6">

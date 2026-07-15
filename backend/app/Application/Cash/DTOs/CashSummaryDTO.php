@@ -11,6 +11,10 @@ final readonly class CashSummaryDTO
     public function __construct(
         public Money $opening_cash,
         public Money $cash_income_sales,
+        public Money $cash_income_sales_normal,
+        public Money $cash_income_sales_room_services,
+        public Money $cash_income_sales_shows,
+        public Money $cash_income_sales_other,
         public Money $cash_income_manual,
         public Money $cash_expense_settlements,
         public Money $cash_expense_operational,

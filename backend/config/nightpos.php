@@ -21,6 +21,7 @@ return [
     'printing' => [
         'ticket_footer' => env('NIGHTPOS_PRINT_TICKET_FOOTER', 'Powered by Ribersoft · WhatsApp 67369293'),
         'agent_online_seconds' => (int) env('NIGHTPOS_AGENT_ONLINE_SECONDS', 120),
+        'max_lines_per_personnel_ticket_80mm' => (int) env('NIGHTPOS_MAX_LINES_PERSONNEL_80MM', 58),
     ],
     'platform_operations' => [
         'backend_version' => env('NIGHTPOS_BACKEND_VERSION', '1.0.0'),

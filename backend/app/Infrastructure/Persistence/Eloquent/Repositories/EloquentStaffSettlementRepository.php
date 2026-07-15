@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Persistence\Eloquent\Repositories;
 
 use App\Domain\StaffSettlement\Repositories\StaffSettlementRepositoryInterface;
+use App\Application\StaffSettlement\Services\CashSessionPersonnelLedgerService;
 use App\Application\StaffSettlement\Services\SettlementTotalsCalculator;
 use App\Application\StaffSettlement\Services\SettlementWaiterSnapshotResolver;
 use App\Infrastructure\Persistence\Eloquent\Models\BraceletModel;
@@ -26,6 +27,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
 {
     public function __construct(
         private readonly SettlementTotalsCalculator $totalsCalculator,
+        private readonly CashSessionPersonnelLedgerService $personnelLedger,
     ) {
     }
 
@@ -51,6 +53,8 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
             ->where('status', 'OPEN')
+            ->orderByDesc('opened_at')
+            ->orderByDesc('id')
             ->value('id');
 
         return $openId !== null ? (int) $openId : null;
@@ -142,6 +146,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                 'sales.order_id',
                 'sales.waiter_user_id as sale_waiter_user_id',
                 'sales.cash_session_id',
+                'sales.official_shift_id as sale_official_shift_id',
                 'sales.sale_number',
             ])
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
@@ -253,6 +258,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                                 (string) $line->line_total,
                                 $line->waiter_commission_percent_snapshot !== null ? (string) $line->waiter_commission_percent_snapshot : null,
                                 (string) $line->waiter_commission_amount_snapshot,
+                                $line->sale_official_shift_id !== null ? (int) $line->sale_official_shift_id : $officialShiftId,
                             );
 
                             $createdItems++;
@@ -297,6 +303,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                                 (string) $line->line_total,
                                 null,
                                 (string) $line->girl_amount_snapshot,
+                                $line->sale_official_shift_id !== null ? (int) $line->sale_official_shift_id : $officialShiftId,
                             );
 
                             $createdItems++;
@@ -369,6 +376,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                     (string) $allocation->unit_amount_snapshot,
                     null,
                     (string) $allocation->total_amount_snapshot,
+                    $officialShiftId,
                 );
 
                 $createdItems++;
@@ -407,6 +415,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                     (string) $bracelet->unit_price,
                     null,
                     (string) $bracelet->total_amount,
+                    $bracelet->official_shift_id !== null ? (int) $bracelet->official_shift_id : $officialShiftId,
                 );
 
                 $createdItems++;
@@ -456,6 +465,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                     (string) $room->unit_price,
                     null,
                     $girlSettlementAmount,
+                    $room->official_shift_id !== null ? (int) $room->official_shift_id : $officialShiftId,
                 );
 
                 $createdItems++;
@@ -494,6 +504,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                     (string) $show->unit_price,
                     null,
                     (string) $show->total_amount,
+                    $show->official_shift_id !== null ? (int) $show->official_shift_id : $officialShiftId,
                 );
 
                 $createdItems++;
@@ -541,6 +552,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                     (string) $task->amount,
                     null,
                     (string) $task->amount,
+                    $task->official_shift_id !== null ? (int) $task->official_shift_id : $officialShiftId,
                 );
 
                 $createdItems++;
@@ -585,6 +597,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                     $baseAmount,
                     null,
                     $baseAmount,
+                    $officialShiftId,
                 );
 
                 $createdItems++;
@@ -644,6 +657,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                 'sales.order_id',
                 'sales.waiter_user_id as sale_waiter_user_id',
                 'sales.cash_session_id',
+                'sales.official_shift_id as sale_official_shift_id',
                 'sales.sale_number',
             ])
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
@@ -665,6 +679,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                 'sales.order_id',
                 'sales.sale_number',
                 'sales.cash_session_id',
+                'sales.official_shift_id as sale_official_shift_id',
             ])
             ->join('sale_items', 'sale_items.id', '=', 'sale_item_allocations.sale_item_id')
             ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
@@ -716,6 +731,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                             (string) $line->line_total,
                             $line->waiter_commission_percent_snapshot !== null ? (string) $line->waiter_commission_percent_snapshot : null,
                             (string) $line->waiter_commission_amount_snapshot,
+                            $line->sale_official_shift_id !== null ? (int) $line->sale_official_shift_id : $officialShiftId,
                         );
 
                         $createdItems++;
@@ -755,6 +771,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                                 (string) $line->line_total,
                                 null,
                                 (string) $line->girl_amount_snapshot,
+                                $line->sale_official_shift_id !== null ? (int) $line->sale_official_shift_id : $officialShiftId,
                             );
 
                             $createdItems++;
@@ -801,6 +818,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                     (string) $allocation->unit_amount_snapshot,
                     null,
                     (string) $allocation->total_amount_snapshot,
+                    $allocation->sale_official_shift_id !== null ? (int) $allocation->sale_official_shift_id : $officialShiftId,
                 );
 
                 $createdItems++;
@@ -908,6 +926,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                 (string) $room->unit_price,
                 null,
                 $girlSettlementAmount,
+                $room->official_shift_id !== null ? (int) $room->official_shift_id : $officialShiftId,
             );
 
             $createdItems++;
@@ -924,6 +943,100 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             'shift_id' => $officialShiftId,
             'cash_session_id' => $cashSessionId,
             'room_service_id' => $roomServiceId,
+        ];
+    }
+
+    public function syncFromShow(int $tenantId, int $branchId, int $showId): array
+    {
+        $show = ShowModel::query()
+            ->where('id', $showId)
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->first();
+
+        if ($show === null) {
+            return [
+                'created_items' => 0,
+                'settlements_touched' => 0,
+                'shift_id' => null,
+                'cash_session_id' => null,
+                'show_id' => $showId,
+            ];
+        }
+
+        $officialShiftId = $show->official_shift_id !== null ? (int) $show->official_shift_id : null;
+        $cashSessionId = $show->cash_session_id !== null ? (int) $show->cash_session_id : null;
+
+        if ($officialShiftId === null || $show->girl_user_id === null) {
+            return [
+                'created_items' => 0,
+                'settlements_touched' => 0,
+                'shift_id' => $officialShiftId,
+                'cash_session_id' => $cashSessionId,
+                'show_id' => $showId,
+            ];
+        }
+
+        $createdItems = 0;
+        $touchedSettlementIds = [];
+
+        DB::transaction(function () use (
+            $tenantId,
+            $branchId,
+            $officialShiftId,
+            $cashSessionId,
+            $show,
+            &$createdItems,
+            &$touchedSettlementIds,
+        ): void {
+            if ($this->sourceAlreadySettled((int) $show->id, 'GIRL_SHOW')) {
+                return;
+            }
+
+            $settlementId = $this->ensureSettlement(
+                $tenantId,
+                $branchId,
+                $officialShiftId,
+                $this->settlementCashSessionId($cashSessionId, $cashSessionId),
+                (int) $show->girl_user_id,
+                'GIRL',
+                'GIRL',
+            );
+
+            if (! $this->canAddItemsToSettlement($settlementId)) {
+                return;
+            }
+
+            $this->createItem(
+                $tenantId,
+                $branchId,
+                $settlementId,
+                null,
+                null,
+                null,
+                (int) $show->id,
+                'GIRL_SHOW',
+                sprintf('Show — %s', $show->show_type),
+                (string) $show->unit_price,
+                null,
+                (string) $show->total_amount,
+                $show->official_shift_id !== null ? (int) $show->official_shift_id : $officialShiftId,
+            );
+
+            $createdItems++;
+            $touchedSettlementIds[$settlementId] = true;
+
+            foreach (array_keys($touchedSettlementIds) as $touchedSettlementId) {
+                $this->recalculateTotal((int) $touchedSettlementId);
+            }
+        });
+
+        return [
+            'created_items' => $createdItems,
+            'settlements_touched' => count($touchedSettlementIds),
+            'shift_id' => $officialShiftId,
+            'cash_session_id' => $cashSessionId,
+            'show_id' => $showId,
         ];
     }
 
@@ -1194,6 +1307,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
 
     public function cashSessionHasActivity(int $tenantId, int $branchId, ?int $officialShiftId, int $cashSessionId): bool
     {
+        $ledger = $this->personnelLedger->build($tenantId, $branchId, $cashSessionId);
+        if (($ledger['girls'] ?? []) !== [] || ($ledger['waiters'] ?? []) !== [] || ($ledger['cleaning'] ?? []) !== []) {
+            return true;
+        }
+
         $sales = SaleModel::query()
             ->where('tenant_id', $tenantId)
             ->where('branch_id', $branchId)
@@ -1259,7 +1377,60 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             ->where('branch_id', $branchId)
             ->first();
 
+        if ($cashSessionId !== null) {
+            $settlementModels = $this->loadSettlementsQuery($tenantId, $branchId)
+                ->where('status', '!=', 'CANCELLED')
+                ->where('cash_session_id', $cashSessionId)
+                ->orderBy('settlement_type')
+                ->orderBy('staff_user_id')
+                ->orderBy('id')
+                ->get();
+
+            $waiterSalesByUserId = $this->resolveWaiterSalesMetrics(
+                $tenantId,
+                $branchId,
+                $officialShiftId,
+                $cashSessionId,
+                $settlementModels
+                    ->where('settlement_type', 'WAITER')
+                    ->pluck('staff_user_id')
+                    ->map(static fn ($id) => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all(),
+            );
+
+            $cutNumbers = $this->computeCutNumbers($settlementModels);
+            $settlements = $settlementModels
+                ->map(fn (StaffSettlementModel $m) => $this->mapSettlementSummary(
+                    $m,
+                    $cutNumbers[(int) $m->id] ?? 1,
+                    $waiterSalesByUserId[(int) $m->staff_user_id] ?? null,
+                ))
+                ->all();
+
+            $ledger = $this->personnelLedger->build($tenantId, $branchId, $cashSessionId);
+
+            return [
+                'shift' => $shift ? [
+                    'id' => $shift->id,
+                    'name' => $shift->name,
+                    'shift_type' => $shift->shift_type,
+                    'shift_type_label' => $shift->shift_type === 'DAY' ? 'Día' : 'Noche',
+                    'business_date' => $shift->business_date?->format('Y-m-d'),
+                    'status' => $shift->status,
+                ] : null,
+                'summary' => $this->buildSummary(array_merge($ledger['waiters'], $ledger['girls'], $ledger['cleaning'])),
+                'waiters' => $ledger['waiters'],
+                'girls' => $ledger['girls'],
+                'cleaning' => $ledger['cleaning'],
+                'settlements' => $settlements,
+                'personnel_totals' => $ledger['totals'],
+            ];
+        }
+
         $settlementModels = $this->loadSettlementsQuery($tenantId, $branchId)
+            ->where('status', '!=', 'CANCELLED')
             ->when($cashSessionId === null && $officialShiftId !== null, fn ($q) => $q->where('official_shift_id', $officialShiftId))
             ->when($onlyStaffUserId !== null, fn ($q) => $q->where('staff_user_id', $onlyStaffUserId))
             ->when($cashSessionId !== null, fn ($q) => $this->applyCashSessionSettlementScope($q, $cashSessionId))
@@ -1511,18 +1682,25 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         ?string $compensationSource = null,
     ): int {
         $existingQuery = StaffSettlementModel::query()
-            ->where('official_shift_id', $officialShiftId)
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
             ->where('staff_user_id', $staffUserId)
             ->where('settlement_type', $settlementType)
             ->where('status', 'PENDING');
 
         if ($cashSessionId !== null) {
             $existingQuery->where('cash_session_id', $cashSessionId);
+        } else {
+            $existingQuery->where('official_shift_id', $officialShiftId);
         }
 
         $existingPending = $existingQuery->orderBy('id')->first();
 
         if ($existingPending !== null) {
+            if ($existingPending->official_shift_id === null && $officialShiftId > 0) {
+                $existingPending->update(['official_shift_id' => $officialShiftId]);
+            }
+
             if ($settlementType === 'WAITER') {
                 $updates = [];
 
@@ -1572,11 +1750,13 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         string $baseAmount,
         ?string $percent,
         string $amount,
+        ?int $sourceOfficialShiftId = null,
     ): void {
         StaffSettlementItemModel::query()->create([
             'tenant_id' => $tenantId,
             'branch_id' => $branchId,
             'staff_settlement_id' => $settlementId,
+            'official_shift_id' => $sourceOfficialShiftId,
             'sale_id' => $saleId,
             'sale_item_id' => $saleItemId,
             'order_id' => $orderId,
@@ -1601,8 +1781,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     private function buildSummary(array $settlements): array
     {
         $waiterTotal = 0.0;
+        $waiterProvisionalSales = 0.0;
         $girlTotal = 0.0;
+        $girlProvisional = 0.0;
         $cleaningTotal = 0.0;
+        $cleaningProvisional = 0.0;
         $consumption = 0.0;
         $bracelets = 0.0;
         $pieces = 0.0;
@@ -1615,9 +1798,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
 
             if ($row['settlement_type'] === 'WAITER') {
                 $waiterTotal += $amount;
+                $waiterProvisionalSales += (float) ($row['provisional_sales_total_amount'] ?? 0);
             }
             elseif ($row['settlement_type'] === 'CLEANING') {
                 $cleaningTotal += $amount;
+                $cleaningProvisional += (float) ($row['provisional_total_amount'] ?? 0);
             }
             else {
                 $girlTotal += $amount;
@@ -1625,20 +1810,24 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
                 $bracelets += (float) ($row['bracelets_total'] ?? 0);
                 $pieces += (float) ($row['pieces_total'] ?? 0);
                 $shows += (float) ($row['shows_total'] ?? 0);
+                $girlProvisional += (float) ($row['provisional_total_amount'] ?? 0);
             }
 
-            if ($row['status'] === 'PENDING') {
+            if (($row['status'] ?? null) === 'PENDING') {
                 $pending += $amount;
             }
-            elseif ($row['status'] === 'PAID') {
+            elseif (($row['status'] ?? null) === 'PAID') {
                 $paid += $amount;
             }
         }
 
         return [
             'total_waiters' => number_format($waiterTotal, 2, '.', ''),
+            'total_waiters_provisional_sales' => number_format($waiterProvisionalSales, 2, '.', ''),
             'total_girls' => number_format($girlTotal, 2, '.', ''),
+            'total_girls_provisional' => number_format($girlProvisional, 2, '.', ''),
             'total_cleaning' => number_format($cleaningTotal, 2, '.', ''),
+            'total_cleaning_provisional' => number_format($cleaningProvisional, 2, '.', ''),
             'total_consumption' => number_format($consumption, 2, '.', ''),
             'total_bracelets' => number_format($bracelets, 2, '.', ''),
             'total_pieces' => number_format($pieces, 2, '.', ''),
@@ -1837,6 +2026,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             match ($item->source_type) {
                 'GIRL_CONSUMPTION' => $consumption += (float) $item->amount,
                 'GIRL_BRACELET' => $bracelets += (float) $item->amount,
+                'GIRL_BRACELET_ALLOCATION' => $bracelets += (float) $item->amount,
                 'GIRL_ROOM' => $pieces += (float) $item->amount,
                 'GIRL_SHOW' => $shows += (float) $item->amount,
                 'CLEANING_BASE' => $cleaningBase += (float) $item->amount,
@@ -1969,6 +2159,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             'sale_id' => $item->sale_id,
             'sale_item_id' => $item->sale_item_id,
             'order_id' => $item->order_id,
+            'official_shift_id' => $item->official_shift_id,
             'source_id' => $item->source_id,
             'source_type' => $item->source_type,
             'description' => $item->description,

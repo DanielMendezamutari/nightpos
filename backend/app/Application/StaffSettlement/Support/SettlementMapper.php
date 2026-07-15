@@ -99,6 +99,7 @@ final class SettlementMapper
             'sale_id' => $row['sale_id'],
             'sale_item_id' => $row['sale_item_id'],
             'order_id' => $row['order_id'],
+            'official_shift_id' => $row['official_shift_id'] ?? null,
             'source_id' => $row['source_id'] ?? null,
             'source_type' => $row['source_type'],
             'registered_at' => $row['registered_at'] ?? null,

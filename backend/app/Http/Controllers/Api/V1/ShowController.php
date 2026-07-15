@@ -38,7 +38,7 @@ final class ShowController extends Controller
             girlUserId: (int) $validated['girl_user_id'],
             showType: $validated['show_type'],
             unitPrice: (string) $validated['unit_price'],
-            paymentMethod: (string) $validated['payment_method'],
+            paymentMethod: $validated['payment_method'] ?? null,
             registeredAt: $validated['registered_at'] ?? null,
             notes: $validated['notes'] ?? null,
         )), 201);

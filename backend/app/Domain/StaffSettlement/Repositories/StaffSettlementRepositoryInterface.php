@@ -44,6 +44,20 @@ interface StaffSettlementRepositoryInterface
     public function syncFromRoomService(int $tenantId, int $branchId, int $roomServiceId): array;
 
     /**
+     * Sincroniza únicamente la liquidación derivada de un show registrado.
+     * Idempotente por `show_id`.
+     *
+     * @return array{
+     *   created_items: int,
+     *   settlements_touched: int,
+     *   shift_id: int|null,
+     *   cash_session_id: int|null,
+     *   show_id: int
+     * }
+     */
+    public function syncFromShow(int $tenantId, int $branchId, int $showId): array;
+
+    /**
      * @return array<string, mixed>
      */
     public function getCurrentShiftOverview(

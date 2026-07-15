@@ -150,11 +150,6 @@ final class CashMovementTaxonomyResolver
                 'category' => CashMovementCategory::ROOM_SERVICE_COLLECTION,
                 'strategy' => 'source_type',
             ],
-            'SHOW' => [
-                'family' => CashMovementFamily::SALE,
-                'category' => CashMovementCategory::SHOW_COLLECTION,
-                'strategy' => 'source_type',
-            ],
             default => null,
         };
     }
@@ -284,14 +279,6 @@ final class CashMovementTaxonomyResolver
                 return [
                     'family' => CashMovementFamily::SALE,
                     'category' => CashMovementCategory::ROOM_SERVICE_COLLECTION,
-                    'strategy' => 'description_fallback',
-                ];
-            }
-
-            if (str_starts_with($normalized, 'show')) {
-                return [
-                    'family' => CashMovementFamily::SALE,
-                    'category' => CashMovementCategory::SHOW_COLLECTION,
                     'strategy' => 'description_fallback',
                 ];
             }

@@ -330,3 +330,15 @@ it('15) does not duplicate counting', function () {
         ->and($summary->total_income->amount)->toBe('40.00')
         ->and($summary->movement_count_by_category[CashMovementCategory::SALE_COLLECTION])->toBe(2);
 });
+
+it('16) ignores legacy show collection income in operational movement totals', function () {
+    $session = movementSummaryOpenSession(100);
+
+    movementSummaryInsertMovement($session, 'INCOME', CashMovementFamily::SALE, CashMovementCategory::SHOW_COLLECTION, 200, 'CASH');
+
+    $summary = movementSummaryBuild($session);
+
+    expect($summary->total_movements)->toBe(0)
+        ->and($summary->total_income->amount)->toBe('0.00')
+        ->and($summary->income_by_family[CashMovementFamily::SALE])->toBe('0.00');
+});

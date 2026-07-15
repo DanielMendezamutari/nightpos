@@ -36,7 +36,7 @@ interface ShowRepositoryInterface
         string $registeredAt,
         ?string $notes,
         int $cashSessionId,
-        string $paymentMethod,
+        ?string $paymentMethod,
     ): array;
 
     public function attachCashMovement(int $id, int $tenantId, int $cashMovementId): void;

@@ -325,8 +325,34 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
                 CashMovementCategory::DIRECT_SALE_COLLECTION,
                 CashMovementCategory::BRACELET_COLLECTION,
                 CashMovementCategory::ROOM_SERVICE_COLLECTION,
-                CashMovementCategory::SHOW_COLLECTION,
             ],
+        );
+
+        $cashIncomeSalesNormal = $sum(
+            CashMovementType::INCOME,
+            CashMovementFamily::SALE,
+            [
+                CashMovementCategory::SALE_COLLECTION,
+                CashMovementCategory::DIRECT_SALE_COLLECTION,
+            ],
+        );
+
+        $cashIncomeSalesRoomServices = $sum(
+            CashMovementType::INCOME,
+            CashMovementFamily::SALE,
+            [CashMovementCategory::ROOM_SERVICE_COLLECTION],
+        );
+
+        $cashIncomeSalesShows = $sum(
+            CashMovementType::INCOME,
+            CashMovementFamily::SALE,
+            [],
+        );
+
+        $cashIncomeSalesOther = $sum(
+            CashMovementType::INCOME,
+            CashMovementFamily::SALE,
+            [CashMovementCategory::BRACELET_COLLECTION],
         );
 
         $cashIncomeManual = $sum(
@@ -372,6 +398,10 @@ final class EloquentCashSessionRepository implements CashSessionRepositoryInterf
         return [
             'opening_cash' => number_format((float) $session->opening_amount, 2, '.', ''),
             'cash_income_sales' => number_format($cashIncomeSales, 2, '.', ''),
+            'cash_income_sales_normal' => number_format($cashIncomeSalesNormal, 2, '.', ''),
+            'cash_income_sales_room_services' => number_format($cashIncomeSalesRoomServices, 2, '.', ''),
+            'cash_income_sales_shows' => number_format($cashIncomeSalesShows, 2, '.', ''),
+            'cash_income_sales_other' => number_format($cashIncomeSalesOther, 2, '.', ''),
             'cash_income_manual' => number_format($cashIncomeManual, 2, '.', ''),
             'cash_expense_settlements' => number_format($cashExpenseSettlements, 2, '.', ''),
             'cash_expense_operational' => number_format($cashExpenseOperational, 2, '.', ''),

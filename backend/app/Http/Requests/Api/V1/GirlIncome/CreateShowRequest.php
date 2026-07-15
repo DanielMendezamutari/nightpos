@@ -19,7 +19,7 @@ final class CreateShowRequest extends FormRequest
             'girl_user_id' => ['required', 'integer', 'min:1'],
             'show_type' => ['required', 'string', 'max:100'],
             'unit_price' => ['required', 'numeric', 'min:0.01'],
-            'payment_method' => ['required', 'string', 'max:20'],
+            'payment_method' => ['nullable', 'string', 'max:20'],
             'registered_at' => ['nullable', 'date'],
             'notes' => ['nullable', 'string', 'max:1000'],
         ];

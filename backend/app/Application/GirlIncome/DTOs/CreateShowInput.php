@@ -22,7 +22,7 @@ final readonly class CreateShowInput
 
         public string $unitPrice,
 
-        public string $paymentMethod,
+        public ?string $paymentMethod = null,
 
         public ?string $registeredAt = null,
 

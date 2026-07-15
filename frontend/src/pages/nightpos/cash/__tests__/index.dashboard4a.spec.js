@@ -6,9 +6,20 @@ describe('cash index Sprint 4A dashboard behavior guards', () => {
   const filePath = resolve(process.cwd(), 'src/pages/nightpos/cash/index.vue')
   const content = readFileSync(filePath, 'utf8')
 
+  const indexOfAll = parts => parts.map(part => content.indexOf(part))
+
+  const expectIncreasingOrder = parts => {
+    const positions = indexOfAll(parts)
+    positions.forEach(position => expect(position).toBeGreaterThanOrEqual(0))
+
+    for (let index = 1; index < positions.length; index += 1) {
+      expect(positions[index]).toBeGreaterThan(positions[index - 1])
+    }
+  }
+
   it('renders physical cash block', () => {
     expect(content.includes('<CashPhysicalSummaryCard')).toBe(true)
-    expect(content.includes(':summary="cashSummaryData"')).toBe(true)
+    expect(content.includes(':summary="physicalSummaryData"')).toBe(true)
   })
 
   it('keeps expected cash centered in cash summary path (QR/card not merged into cash expected)', () => {
@@ -23,9 +34,9 @@ describe('cash index Sprint 4A dashboard behavior guards', () => {
   })
 
   it('maps sales summary by payment method', () => {
-    expect(content.includes('sales_cash: byMethod.cash ?? legacy.total_cash ?? 0')).toBe(true)
-    expect(content.includes('sales_qr: byMethod.qr ?? legacy.total_qr ?? 0')).toBe(true)
-    expect(content.includes('sales_card: byMethod.card ?? legacy.total_card ?? 0')).toBe(true)
+    expect(content.includes('cash_total: legacy.cash_total ?? byMethod.cash ?? legacy.total_cash ?? 0')).toBe(true)
+    expect(content.includes('qr_total: legacy.qr_total ?? byMethod.qr ?? legacy.total_qr ?? 0')).toBe(true)
+    expect(content.includes('card_total: legacy.card_total ?? byMethod.card ?? legacy.total_card ?? 0')).toBe(true)
   })
 
   it('maps movement summary by category buckets', () => {
@@ -59,5 +70,40 @@ describe('cash index Sprint 4A dashboard behavior guards', () => {
     expect(content.includes('Venta directa')).toBe(true)
     expect(content.includes('Ingreso / egreso manual')).toBe(true)
     expect(content.includes('Cerrar caja')).toBe(true)
+  })
+
+  it('renders the required dashboard blocks in visual order', () => {
+    expectIncreasingOrder([
+      'Bloque 1 - Venta total',
+      'Bloque 2 - Caja física',
+      'Bloque 3 - Pendientes operativos',
+      'Bloque 4 - Productos vendidos',
+      'Bloque 5 - Movimientos',
+      'Bloque 6 - Contexto caja / turno',
+    ])
+  })
+
+  it('keeps the dashboard order without responsive order classes', () => {
+    expect(content.includes('order-md-')).toBe(false)
+    expect(content.includes('order-sm-')).toBe(false)
+    expect(content.includes('order-lg-')).toBe(false)
+    expect(content.includes('order-xl-')).toBe(false)
+    expect(content.includes('flex-order')).toBe(false)
+  })
+
+  it('keeps the current dashboard bindings and actions intact', () => {
+    expect(content.includes('<CashSalesSummaryPanel :sales="salesSummaryData" />')).toBe(true)
+    expect(content.includes(':summary="physicalSummaryData"')).toBe(true)
+    expect(content.includes(':pending="pendingSummaryData"')).toBe(true)
+    expect(content.includes(':movement="movementSummaryData"')).toBe(true)
+    expect(content.includes('<CashScopeContextAlert :scope="scopeSummaryData" />')).toBe(true)
+    expect(content.includes('Ingreso / egreso manual')).toBe(true)
+    expect(content.includes('Cerrar caja')).toBe(true)
+  })
+
+  it('keeps the open cash dialog inputs properly separated', () => {
+    expect(content.includes('label="Fondo inicial (BOB)"')).toBe(true)
+    expect(content.includes('label="Notas (opcional)"')).toBe(true)
+    expect(/class="mb-4"\s*\/\>\s*<VTextField/.test(content)).toBe(true)
   })
 })

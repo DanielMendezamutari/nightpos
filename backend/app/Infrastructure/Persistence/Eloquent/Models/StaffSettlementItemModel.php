@@ -15,6 +15,7 @@ final class StaffSettlementItemModel extends Model
         'tenant_id',
         'branch_id',
         'staff_settlement_id',
+        'official_shift_id',
         'sale_id',
         'sale_item_id',
         'order_id',
@@ -29,6 +30,7 @@ final class StaffSettlementItemModel extends Model
     protected function casts(): array
     {
         return [
+            'official_shift_id' => 'integer',
             'base_amount' => 'decimal:2',
             'percent' => 'decimal:2',
             'amount' => 'decimal:2',

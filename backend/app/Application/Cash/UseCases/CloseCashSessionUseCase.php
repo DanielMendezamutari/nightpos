@@ -108,7 +108,9 @@ final class CloseCashSessionUseCase implements UseCaseInterface
         return OperationResult::ok('Caja cerrada correctamente.', [
             'session' => CashMapper::session($closed),
             'print_job' => $printResult['job'],
+            'print_jobs' => $printResult['jobs'] ?? null,
             'print_warning' => $printResult['warning'],
+            'print_warnings' => $printResult['warnings'] ?? null,
         ]);
     }
 }

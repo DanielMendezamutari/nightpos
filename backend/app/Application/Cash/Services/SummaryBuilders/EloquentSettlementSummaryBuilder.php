@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Cash\Services\SummaryBuilders;
 
 use App\Application\Cash\DTOs\SettlementSummaryDTO;
+use App\Application\StaffSettlement\Services\CashSessionPersonnelLedgerService;
 use App\Domain\Cash\Contracts\SettlementSummaryRepositoryInterface;
 use App\Domain\Cash\Contracts\SummaryBuilders\SettlementSummaryBuilder;
 use App\Shared\Domain\ValueObjects\Money;
@@ -18,6 +19,7 @@ final readonly class EloquentSettlementSummaryBuilder implements SettlementSumma
 
     public function __construct(
         private SettlementSummaryRepositoryInterface $settlementRepository,
+        private CashSessionPersonnelLedgerService $personnelLedger,
     ) {
     }
 
@@ -73,11 +75,24 @@ final readonly class EloquentSettlementSummaryBuilder implements SettlementSumma
 
         $adjustmentsBreakdown = $this->buildAdjustmentsSummary($breakdown['adjustments'] ?? []);
         $manualCompensation = $this->buildManualCompensationSummary($breakdown['manual_compensation'] ?? []);
+        $personnel = $cashSessionId !== null
+            ? $this->personnelLedger->build($tenantId, $branchId, $cashSessionId)
+            : ['girls' => [], 'waiters' => [], 'cleaning' => [], 'totals' => []];
 
         return new SettlementSummaryDTO(
-            waiters: $this->flattenRoleMetrics($roleMetrics['WAITER']),
-            girls: $this->flattenRoleMetrics($roleMetrics['GIRL']),
-            cleaning: $this->flattenRoleMetrics($roleMetrics['CLEANING']),
+            waiters: array_merge($this->flattenRoleMetrics($roleMetrics['WAITER']), [
+                'provisional_sales_amount' => (string) ($personnel['totals']['waiters_provisional_sales_total'] ?? '0.00'),
+                'confirmed_sales_amount' => (string) ($personnel['totals']['waiters_confirmed_sales_total'] ?? '0.00'),
+                'rows' => $personnel['waiters'] ?? [],
+            ]),
+            girls: array_merge($this->flattenRoleMetrics($roleMetrics['GIRL']), [
+                'provisional_pending_amount' => (string) ($personnel['totals']['girls_provisional_total'] ?? '0.00'),
+                'rows' => $personnel['girls'] ?? [],
+            ]),
+            cleaning: array_merge($this->flattenRoleMetrics($roleMetrics['CLEANING']), [
+                'provisional_pending_amount' => (string) ($personnel['totals']['cleaning_provisional_total'] ?? '0.00'),
+                'rows' => $personnel['cleaning'] ?? [],
+            ]),
             totals: [
                 'pending_total_count' => $totals['pending']['count'],
                 'pending_total_gross' => $totals['pending']['gross']->amount,
@@ -87,6 +102,14 @@ final readonly class EloquentSettlementSummaryBuilder implements SettlementSumma
                 'paid_total_gross' => $totals['paid']['gross']->amount,
                 'paid_total_adjustments' => $totals['paid']['adjustments']->amount,
                 'paid_total_net' => $totals['paid']['net']->amount,
+                'girls_provisional_total' => (string) ($personnel['totals']['girls_provisional_total'] ?? '0.00'),
+                'waiters_provisional_sales_total' => (string) ($personnel['totals']['waiters_provisional_sales_total'] ?? '0.00'),
+                'cleaning_provisional_total' => (string) ($personnel['totals']['cleaning_provisional_total'] ?? '0.00'),
+                'personnel_rows' => [
+                    'waiters' => $personnel['waiters'] ?? [],
+                    'girls' => $personnel['girls'] ?? [],
+                    'cleaning' => $personnel['cleaning'] ?? [],
+                ],
             ],
             adjustments_breakdown: $adjustmentsBreakdown,
             manual_compensation: $manualCompensation,

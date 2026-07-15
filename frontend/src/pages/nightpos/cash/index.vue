@@ -80,6 +80,8 @@ const showCloseBlockers = ref(false)
 const lastClosedSession = ref(null)
 
 const closeReprintLoading = ref(false)
+const closePersonnelPrintLoading = ref(false)
+const closePersonnelPageLoading = ref(null)
 
 const openForm = ref({ opening_amount: 0, opening_notes: '' })
 
@@ -116,6 +118,10 @@ const cashSummaryData = computed(() => {
   return {
     opening_cash: legacy.opening_cash ?? session.value?.opening_amount ?? 0,
     cash_income_sales: legacy.total_cash ?? 0,
+    cash_income_sales_normal: legacy.total_cash ?? 0,
+    cash_income_sales_room_services: 0,
+    cash_income_sales_shows: 0,
+    cash_income_sales_other: 0,
     cash_income_manual: legacy.total_manual_income ?? 0,
     cash_expense_total: legacy.expense_by_method?.cash ?? legacy.total_manual_expense ?? 0,
     expected_cash: legacy.expected_cash ?? session.value?.expected_amount ?? session.value?.opening_amount ?? 0,
@@ -123,6 +129,11 @@ const cashSummaryData = computed(() => {
     cash_difference: legacy.cash_difference ?? null,
   }
 })
+
+const physicalSummaryData = computed(() => ({
+  ...cashSummaryData.value,
+  settlement_payments: movementSummaryData.value.settlement_payments,
+}))
 
 const salesSummaryData = computed(() => {
   const dashboardSales = financialDashboard.value?.sales_summary
@@ -133,13 +144,28 @@ const salesSummaryData = computed(() => {
   const byMethod = legacy.sales_by_method ?? {}
 
   return {
-    total_sales: legacy.total_sales ?? 0,
+    total_sales_amount: legacy.total_sales_amount ?? legacy.total_sales ?? 0,
+    total_sales: legacy.total_sales ?? legacy.total_sales_amount ?? 0,
     sales_count: legacy.sales_count ?? 0,
     average_ticket: legacy.average_ticket ?? 0,
-    sales_cash: byMethod.cash ?? legacy.total_cash ?? 0,
-    sales_qr: byMethod.qr ?? legacy.total_qr ?? 0,
-    sales_card: byMethod.card ?? legacy.total_card ?? 0,
+    cash_total: legacy.cash_total ?? byMethod.cash ?? legacy.total_cash ?? 0,
+    qr_total: legacy.qr_total ?? byMethod.qr ?? legacy.total_qr ?? 0,
+    card_total: legacy.card_total ?? byMethod.card ?? legacy.total_card ?? 0,
+    mixed_total: legacy.mixed_total ?? byMethod.mixed ?? 0,
     mixed_sales_count: legacy.mixed_sales_count ?? 0,
+    by_source: legacy.by_source ?? {
+      order_sales: legacy.total_sales ?? 0,
+      direct_sales: 0,
+      room_services: 0,
+      bracelets: 0,
+      other_sales: 0,
+    },
+    by_method: legacy.by_method ?? {
+      cash: legacy.total_cash ?? 0,
+      qr: legacy.total_qr ?? 0,
+      card: legacy.total_card ?? 0,
+      mixed: legacy.mixed_total ?? 0,
+    },
   }
 })
 
@@ -211,6 +237,14 @@ const pendingSummaryData = computed(() => {
       girls: toNumber(settlement.girls?.pending_net_amount),
       cleaning: toNumber(settlement.cleaning?.pending_net_amount),
       total: toNumber(settlement.totals?.pending_total_net),
+      girls_provisional: toNumber(settlement.girls?.provisional_pending_amount),
+      waiters_provisional_sales: toNumber(settlement.waiters?.provisional_sales_amount),
+      cleaning_provisional: toNumber(settlement.cleaning?.provisional_pending_amount),
+      personnel_rows: settlement.totals?.personnel_rows ?? {
+        waiters: settlement.waiters?.rows ?? [],
+        girls: settlement.girls?.rows ?? [],
+        cleaning: settlement.cleaning?.rows ?? [],
+      },
       pending_orders_count: pendingOrdersCount,
       critical_alerts: blockers.map(item => item.message),
     }
@@ -223,6 +257,10 @@ const pendingSummaryData = computed(() => {
     girls: toNumber(legacy.pending_girls),
     cleaning: toNumber(legacy.pending_cleaning),
     total: toNumber(legacy.pending_total),
+    girls_provisional: 0,
+    waiters_provisional_sales: 0,
+    cleaning_provisional: 0,
+    personnel_rows: { waiters: [], girls: [], cleaning: [] },
     pending_orders_count: pendingOrdersCount,
     critical_alerts: blockers.map(item => item.message),
   }
@@ -235,6 +273,32 @@ const recentMovements = computed(() => {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 8)
 })
+
+const closedPrintJobs = computed(() => lastClosedSession.value?.print_jobs ?? [])
+
+const personnelPageJobs = computed(() => {
+  return [...closedPrintJobs.value]
+    .filter(job => job?.payload?.ticket_key === 'personnel')
+    .sort((a, b) => Number(a?.payload?.page_number ?? 0) - Number(b?.payload?.page_number ?? 0))
+})
+
+const personnelPageStatusLabel = status => {
+  if (status === 'PRINTED')
+    return 'impresa'
+  if (status === 'FAILED')
+    return 'fallida'
+
+  return 'pendiente'
+}
+
+const personnelPageStatusColor = status => {
+  if (status === 'PRINTED')
+    return 'success'
+  if (status === 'FAILED')
+    return 'error'
+
+  return 'warning'
+}
 
 
 
@@ -411,7 +475,9 @@ const submitClose = async () => {
     lastClosedSession.value = {
       ...(result?.session ?? {}),
       print_job: result?.print_job ?? null,
+      print_jobs: result?.print_jobs ?? [],
       print_warning: result?.print_warning ?? null,
+      print_warnings: result?.print_warnings ?? [],
     }
 
     showClose.value = false
@@ -450,7 +516,22 @@ const openCloseReceipt = () => {
   if (!lastClosedSession.value?.id)
     return
 
-  openPrintRoute({ name: 'nightpos-print-my-cash-session-id', params: { id: lastClosedSession.value.id } })
+  openPrintRoute({
+    name: 'nightpos-print-my-cash-session-id',
+    params: { id: lastClosedSession.value.id },
+    query: { ticket: 'summary' },
+  })
+}
+
+const openPersonnelReceipt = () => {
+  if (!lastClosedSession.value?.id)
+    return
+
+  openPrintRoute({
+    name: 'nightpos-print-my-cash-session-id',
+    params: { id: lastClosedSession.value.id },
+    query: { ticket: 'personnel' },
+  })
 }
 
 const reprintCloseReceipt = async () => {
@@ -459,7 +540,9 @@ const reprintCloseReceipt = async () => {
 
   closeReprintLoading.value = true
   try {
-    const result = await printCashClose(lastClosedSession.value.id, { reprint: true })
+    const result = await printCashClose(lastClosedSession.value.id, { reprint: true, ticket: 'summary' })
+    if (result?.print_jobs)
+      lastClosedSession.value.print_jobs = result.print_jobs
     if (result?.print_warning)
       notify(result.print_warning, 'warning')
     else
@@ -471,6 +554,51 @@ const reprintCloseReceipt = async () => {
   }
   finally {
     closeReprintLoading.value = false
+  }
+}
+
+const reprintPersonnelReceipt = async () => {
+  if (!lastClosedSession.value?.id)
+    return
+
+  closePersonnelPrintLoading.value = true
+  try {
+    const result = await printCashClose(lastClosedSession.value.id, { reprint: true, ticket: 'personnel' })
+    if (result?.print_jobs)
+      lastClosedSession.value.print_jobs = result.print_jobs
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else
+      notify('Ticket de personal reenviado a impresora.')
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error) || 'No se pudo reimprimir el ticket de personal. Puede abrir la vista imprimible.', 'error')
+    openPersonnelReceipt()
+  }
+  finally {
+    closePersonnelPrintLoading.value = false
+  }
+}
+
+const reprintPersonnelPage = async pageNumber => {
+  if (!lastClosedSession.value?.id)
+    return
+
+  closePersonnelPageLoading.value = pageNumber
+  try {
+    const result = await printCashClose(lastClosedSession.value.id, { reprint: true, ticket: 'personnel', page: pageNumber })
+    if (result?.print_jobs)
+      lastClosedSession.value.print_jobs = result.print_jobs
+    if (result?.print_warning)
+      notify(result.print_warning, 'warning')
+    else
+      notify(`Página ${pageNumber} reenviada a impresora.`)
+  }
+  catch (error) {
+    notify(getApiErrorMessage(error) || `No se pudo reimprimir la página ${pageNumber}.`, 'error')
+  }
+  finally {
+    closePersonnelPageLoading.value = null
   }
 }
 
@@ -690,6 +818,30 @@ useOnContextChange(async () => {
               : 'Caja cerrada y comprobante enviado a impresora.'
           }}
         </div>
+        <div
+          v-if="personnelPageJobs.length"
+          class="mb-3"
+        >
+          <div class="text-subtitle-2 mb-1">
+            Pagos del personal: {{ personnelPageJobs.length }} páginas generadas
+          </div>
+          <div class="d-flex flex-column gap-1">
+            <div
+              v-for="job in personnelPageJobs"
+              :key="job.id"
+              class="d-flex align-center justify-space-between"
+            >
+              <span>Página {{ job?.payload?.page_number ?? '?' }}: {{ personnelPageStatusLabel(job.status) }}</span>
+              <VChip
+                size="x-small"
+                :color="personnelPageStatusColor(job.status)"
+                variant="tonal"
+              >
+                {{ personnelPageStatusLabel(job.status) }}
+              </VChip>
+            </div>
+          </div>
+        </div>
         <div class="d-flex flex-wrap gap-2">
           <VBtn
             size="small"
@@ -697,7 +849,15 @@ useOnContextChange(async () => {
             prepend-icon="ri-file-text-line"
             @click="openCloseReceipt"
           >
-            Ver cierre
+            Ver resumen
+          </VBtn>
+          <VBtn
+            size="small"
+            variant="tonal"
+            prepend-icon="ri-user-line"
+            @click="openPersonnelReceipt"
+          >
+            Ver personal
           </VBtn>
           <VBtn
             size="small"
@@ -706,7 +866,32 @@ useOnContextChange(async () => {
             :loading="closeReprintLoading"
             @click="reprintCloseReceipt"
           >
-            Reimprimir cierre
+            Reimprimir resumen
+          </VBtn>
+          <VBtn
+            size="small"
+            variant="tonal"
+            prepend-icon="ri-group-line"
+            :loading="closePersonnelPrintLoading"
+            @click="reprintPersonnelReceipt"
+          >
+            Reimprimir todas (personal)
+          </VBtn>
+        </div>
+        <div
+          v-if="personnelPageJobs.length"
+          class="d-flex flex-wrap gap-2 mt-2"
+        >
+          <VBtn
+            v-for="job in personnelPageJobs"
+            :key="`reprint-page-${job.id}`"
+            size="x-small"
+            variant="text"
+            prepend-icon="ri-printer-line"
+            :loading="closePersonnelPageLoading === Number(job?.payload?.page_number)"
+            @click="reprintPersonnelPage(Number(job?.payload?.page_number))"
+          >
+            Reimprimir página {{ job?.payload?.page_number ?? '?' }}
           </VBtn>
         </div>
       </VAlert>
@@ -776,8 +961,20 @@ useOnContextChange(async () => {
 
       <VRow class="mb-4">
         <VCol cols="12">
+          <div class="text-overline mb-2">
+            Bloque 1 - Venta total
+          </div>
+          <CashSalesSummaryPanel :sales="salesSummaryData" />
+        </VCol>
+      </VRow>
+
+      <VRow class="mb-4">
+        <VCol cols="12">
+          <div class="text-overline mb-2">
+            Bloque 2 - Caja física
+          </div>
           <CashPhysicalSummaryCard
-            :summary="cashSummaryData"
+            :summary="physicalSummaryData"
             :session-status="session.status"
             :opened-at="session.opened_at"
           />
@@ -786,6 +983,9 @@ useOnContextChange(async () => {
 
       <VRow class="mb-4">
         <VCol cols="12">
+          <div class="text-overline mb-2">
+            Bloque 3 - Pendientes operativos
+          </div>
           <CashPendingOperationsPanel
             :pending="pendingSummaryData"
             @go-settlements="goToSettlements"
@@ -796,12 +996,34 @@ useOnContextChange(async () => {
 
       <VRow class="mb-4">
         <VCol cols="12">
-          <CashSalesSummaryPanel :sales="salesSummaryData" />
+          <div class="text-overline mb-2">
+            Bloque 4 - Productos vendidos
+          </div>
+          <VCard v-if="reconciliation">
+            <VCardTitle>Productos vendidos</VCardTitle>
+            <VCardText>
+              <ComboBraceletSummaryPanel
+                v-if="session?.combo_bracelets?.total_bracelet_units"
+                :summary="session.combo_bracelets"
+                compact
+                class="mb-4"
+              />
+
+              <ProductReconciliationPanel
+                :data="reconciliation"
+                :loading="reconciliationLoading"
+                title=""
+              />
+            </VCardText>
+          </VCard>
         </VCol>
       </VRow>
 
       <VRow class="mb-4">
         <VCol cols="12">
+          <div class="text-overline mb-2">
+            Bloque 5 - Movimientos
+          </div>
           <CashMovementSummaryPanel
             :movement="movementSummaryData"
             :recent-movements="recentMovements"
@@ -809,134 +1031,66 @@ useOnContextChange(async () => {
         </VCol>
       </VRow>
 
+      <div
+        v-if="session.status === 'OPEN' && canAccessCash"
+        class="cash-page__actions"
+      >
+        <VBtn
+          color="success"
+          size="x-large"
+          class="mb-3"
+          block
+          @click="showMovement = true"
+        >
+          <VIcon
+            icon="ri-add-line"
+            start
+          />
+          Ingreso / egreso manual
+        </VBtn>
+        <VBtn
+          color="error"
+          variant="elevated"
+          size="x-large"
+          block
+          :loading="closeCheckLoading"
+          @click="openCloseDialog"
+        >
+          <VIcon
+            icon="ri-lock-line"
+            start
+          />
+          Cerrar caja
+        </VBtn>
+      </div>
+
       <VRow class="mb-4">
         <VCol cols="12">
+          <div class="text-overline mb-2">
+            Bloque 6 - Contexto caja / turno
+          </div>
           <CashScopeContextAlert :scope="scopeSummaryData" />
         </VCol>
       </VRow>
-
-
-
-      <VCard v-if="reconciliation" class="mb-4">
-        <VCardTitle>Productos vendidos</VCardTitle>
-        <VCardText>
-          <ComboBraceletSummaryPanel
-            v-if="session?.combo_bracelets?.total_bracelet_units"
-            :summary="session.combo_bracelets"
-            compact
-            class="mb-4"
-          />
-
-          <ProductReconciliationPanel
-            :data="reconciliation"
-            :loading="reconciliationLoading"
-            title=""
-          />
-        </VCardText>
-      </VCard>
-
-
-
-      <div
-
-        v-if="session.status === 'OPEN' && canAccessCash"
-
-        class="cash-page__actions"
-
-      >
-
-        <VBtn
-
-          color="success"
-
-          size="x-large"
-
-          class="mb-3"
-
-          block
-
-          @click="showMovement = true"
-
-        >
-
-          <VIcon
-
-            icon="ri-add-line"
-
-            start
-
-          />
-
-          Ingreso / egreso manual
-
-        </VBtn>
-
-        <VBtn
-
-          color="error"
-
-          variant="elevated"
-
-          size="x-large"
-
-          block
-
-          :loading="closeCheckLoading"
-
-          @click="openCloseDialog"
-
-        >
-
-          <VIcon
-
-            icon="ri-lock-line"
-
-            start
-
-          />
-
-          Cerrar caja
-
-        </VBtn>
-
-      </div>
-
     </template>
 
-
-
     <VDialog
-
       v-model="showOpen"
-
       max-width="440"
-
     >
-
       <VCard title="Abrir caja">
-
         <VCardText>
-
           <VTextField
-
             v-model.number="openForm.opening_amount"
-
             type="number"
-
             label="Fondo inicial (BOB)"
-
             min="0"
-
             class="mb-4"
-
           />
 
           <VTextField
-
             v-model="openForm.opening_notes"
-
             label="Notas (opcional)"
-
           />
 
         </VCardText>

@@ -9,13 +9,18 @@ use App\Shared\Domain\ValueObjects\Money;
 final readonly class SalesSummaryDTO
 {
     public function __construct(
-        public Money $total_sales,
+        public Money $total_sales_amount,
         public int $sales_count,
         public Money $average_ticket,
-        public Money $sales_cash,
-        public Money $sales_qr,
-        public Money $sales_card,
+        public Money $cash_total,
+        public Money $qr_total,
+        public Money $card_total,
+        public Money $mixed_total,
         public int $mixed_sales_count,
+        /** @var array<string, string> */
+        public array $by_source,
+        /** @var array<string, string> */
+        public array $by_method,
         /** @var array<string, string> */
         public array $sales_by_method,
         public int $products_sold_count,

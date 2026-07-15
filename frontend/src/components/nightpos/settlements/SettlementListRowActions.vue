@@ -30,12 +30,14 @@ const emit = defineEmits(['pay', 'multar', 'detail', 'assign-manual'])
 
 const isPending = item => item.status === 'PENDING'
 const isCancelled = item => item.status === 'CANCELLED'
+const canOpenDetail = item => Boolean(item?.id) || Array.isArray(item?.details)
+const canOperationalEdit = item => Boolean(item?.id) && !['PROVISIONAL', 'INFORMATIVE', 'MIXED'].includes(item?.status)
 </script>
 
 <template>
   <div class="settlement-row-actions d-flex gap-2 flex-wrap align-center">
     <VBtn
-      v-if="canPay && isPending(item)"
+      v-if="canPay && isPending(item) && canOperationalEdit(item)"
       size="small"
       color="success"
       variant="tonal"
@@ -47,7 +49,7 @@ const isCancelled = item => item.status === 'CANCELLED'
       Pagar
     </VBtn>
     <VBtn
-      v-if="canAssignManual && isPending(item)"
+      v-if="canAssignManual && isPending(item) && canOperationalEdit(item)"
       size="small"
       color="info"
       variant="flat"
@@ -58,7 +60,7 @@ const isCancelled = item => item.status === 'CANCELLED'
       Asignar monto
     </VBtn>
     <VBtn
-      v-if="canMultar && !isCancelled(item)"
+      v-if="canMultar && !isCancelled(item) && canOperationalEdit(item)"
       size="small"
       color="warning"
       variant="flat"
@@ -72,6 +74,7 @@ const isCancelled = item => item.status === 'CANCELLED'
       size="small"
       variant="text"
       class="settlement-row-actions__btn"
+      :disabled="!canOpenDetail(item)"
       @click="emit('detail', item)"
     >
       Ver detalle

@@ -37,6 +37,8 @@ final class PrintCashCloseUseCase implements UseCaseInterface
 
         $sessionId = (int) ($input->sessionId ?? 0);
         $reprint = (bool) ($input->reprint ?? false);
+        $ticket = (string) ($input->ticket ?? 'summary');
+        $page = isset($input->page) ? (int) $input->page : null;
         $session = $this->sessions->findById($sessionId, $tenant->id);
 
         if ($session === null || $session->branchId !== $branch->id) {
@@ -53,12 +55,24 @@ final class PrintCashCloseUseCase implements UseCaseInterface
             branchId: $branch->id,
             requestedByUserId: $userId,
             idempotencyKey: $idempotencyKey,
+            ticket: $ticket,
+            isReprint: $reprint,
+            personnelPage: $page,
         );
+
+        if ($ticket === 'personnel') {
+            $printResult['job'] = $printResult['personnel_job'] ?? $printResult['job'] ?? null;
+            $printResult['warning'] = $printResult['warnings'][0] ?? $printResult['warning'] ?? null;
+        } elseif ($ticket === 'all') {
+            $printResult['job'] = $printResult['summary_job'] ?? $printResult['job'] ?? null;
+        }
 
         return OperationResult::ok('Comprobante de cierre encolado.', [
             'session' => CashMapper::session($session),
             'print_job' => $printResult['job'],
             'print_warning' => $printResult['warning'],
+            'print_jobs' => $printResult['jobs'] ?? null,
+            'print_warnings' => $printResult['warnings'] ?? null,
         ]);
     }
 }

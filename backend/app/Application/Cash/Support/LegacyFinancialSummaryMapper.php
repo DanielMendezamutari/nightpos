@@ -21,11 +21,13 @@ final class LegacyFinancialSummaryMapper
         ?string $differenceAmount,
         string $status,
     ): array {
-        $salesByMethod = $salesSummary['sales_by_method'] ?? [
+        $salesByMethod = $salesSummary['sales_by_method'] ?? $salesSummary['by_method'] ?? [
             'cash' => '0.00',
             'qr' => '0.00',
             'card' => '0.00',
         ];
+
+        $totalSales = (string) ($salesSummary['total_sales_amount'] ?? $salesSummary['total_sales'] ?? '0.00');
 
         $incomeByMethod = $movementSummary['income_by_payment_method'] ?? [
             'cash' => '0.00',
@@ -56,13 +58,26 @@ final class LegacyFinancialSummaryMapper
         );
 
         return [
-            'total_cash' => $this->asMoneyString((string) ($salesSummary['sales_cash'] ?? '0.00')),
-            'total_qr' => $this->asMoneyString((string) ($salesSummary['sales_qr'] ?? '0.00')),
-            'total_card' => $this->asMoneyString((string) ($salesSummary['sales_card'] ?? '0.00')),
+            'total_cash' => $this->asMoneyString((string) ($salesSummary['cash_total'] ?? $salesSummary['sales_cash'] ?? '0.00')),
+            'total_qr' => $this->asMoneyString((string) ($salesSummary['qr_total'] ?? $salesSummary['sales_qr'] ?? '0.00')),
+            'total_card' => $this->asMoneyString((string) ($salesSummary['card_total'] ?? $salesSummary['sales_card'] ?? '0.00')),
             'sales_by_method' => [
                 'cash' => $this->asMoneyString((string) ($salesByMethod['cash'] ?? '0.00')),
                 'qr' => $this->asMoneyString((string) ($salesByMethod['qr'] ?? '0.00')),
                 'card' => $this->asMoneyString((string) ($salesByMethod['card'] ?? '0.00')),
+            ],
+            'by_method' => [
+                'cash' => $this->asMoneyString((string) ($salesSummary['cash_total'] ?? $salesSummary['sales_cash'] ?? '0.00')),
+                'qr' => $this->asMoneyString((string) ($salesSummary['qr_total'] ?? $salesSummary['sales_qr'] ?? '0.00')),
+                'card' => $this->asMoneyString((string) ($salesSummary['card_total'] ?? $salesSummary['sales_card'] ?? '0.00')),
+                'mixed' => $this->asMoneyString((string) ($salesSummary['mixed_total'] ?? '0.00')),
+            ],
+            'by_source' => $salesSummary['by_source'] ?? [
+                'order_sales' => '0.00',
+                'direct_sales' => '0.00',
+                'room_services' => '0.00',
+                'bracelets' => '0.00',
+                'other_sales' => '0.00',
             ],
             'opening_cash' => $this->asMoneyString($openingCash),
             'income_cash' => $this->asMoneyString((string) ($incomeByMethod['cash'] ?? '0.00')),
@@ -71,12 +86,13 @@ final class LegacyFinancialSummaryMapper
             'expense_cash' => $this->asMoneyString((string) ($expenseByMethod['cash'] ?? '0.00')),
             'expense_qr' => $this->asMoneyString((string) ($expenseByMethod['qr'] ?? '0.00')),
             'expense_card' => $this->asMoneyString((string) ($expenseByMethod['card'] ?? '0.00')),
-            'sales_cash' => $this->asMoneyString((string) ($salesSummary['sales_cash'] ?? '0.00')),
-            'sales_qr' => $this->asMoneyString((string) ($salesSummary['sales_qr'] ?? '0.00')),
-            'sales_card' => $this->asMoneyString((string) ($salesSummary['sales_card'] ?? '0.00')),
+            'sales_cash' => $this->asMoneyString((string) ($salesSummary['cash_total'] ?? $salesSummary['sales_cash'] ?? '0.00')),
+            'sales_qr' => $this->asMoneyString((string) ($salesSummary['qr_total'] ?? $salesSummary['sales_qr'] ?? '0.00')),
+            'sales_card' => $this->asMoneyString((string) ($salesSummary['card_total'] ?? $salesSummary['sales_card'] ?? '0.00')),
             'expected_qr' => $expectedQr,
             'expected_card' => $expectedCard,
-            'total_sales' => $this->asMoneyString((string) ($salesSummary['total_sales'] ?? '0.00')),
+            'total_sales_amount' => $this->asMoneyString($totalSales),
+            'total_sales' => $this->asMoneyString($totalSales),
             'total_manual_income' => $this->asMoneyString((string) ($movementSummary['income_by_family']['MANUAL'] ?? '0.00')),
             'total_manual_expense' => $this->asMoneyString((string) ($movementSummary['total_expense'] ?? '0.00')),
             'total_income' => $this->asMoneyString((string) ($movementSummary['total_income'] ?? '0.00')),

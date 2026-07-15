@@ -438,3 +438,43 @@ it('17) result does not depend on description', function () {
         ->and($summary->cash_expense_other->amount)->toBe('10.00')
         ->and($summary->expected_cash->amount)->toBe('110.00');
 });
+
+it('18) excludes legacy show income from cash sales breakdown and expected cash', function () {
+    $session = cashSummaryOpenSession(0);
+
+    cashSummaryInsertMovement(
+        $session,
+        'INCOME',
+        CashMovementFamily::SALE,
+        CashMovementCategory::SALE_COLLECTION,
+        500,
+        'CASH',
+    );
+
+    cashSummaryInsertMovement(
+        $session,
+        'INCOME',
+        CashMovementFamily::SALE,
+        CashMovementCategory::ROOM_SERVICE_COLLECTION,
+        1800,
+        'CASH',
+    );
+
+    cashSummaryInsertMovement(
+        $session,
+        'INCOME',
+        CashMovementFamily::SALE,
+        CashMovementCategory::SHOW_COLLECTION,
+        200,
+        'CASH',
+    );
+
+    $summary = cashSummaryBuild($session);
+
+    expect($summary->cash_income_sales_normal->amount)->toBe('500.00')
+        ->and($summary->cash_income_sales_room_services->amount)->toBe('1800.00')
+        ->and($summary->cash_income_sales_shows->amount)->toBe('0.00')
+        ->and($summary->cash_income_sales_other->amount)->toBe('0.00')
+        ->and($summary->cash_income_sales->amount)->toBe('2300.00')
+        ->and($summary->expected_cash->amount)->toBe('2300.00');
+});

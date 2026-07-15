@@ -42,8 +42,15 @@ export async function fetchCashSession(id) {
   return unwrapNightPosResponse(response)
 }
 
-export async function printCashClose(sessionId, { reprint = false } = {}) {
-  const response = await api.post(`/cash/sessions/${sessionId}/print-close`, reprint ? { reprint: true } : {})
+export async function printCashClose(sessionId, { reprint = false, ticket = 'summary', page = null } = {}) {
+  const response = await api.post(
+    `/cash/sessions/${sessionId}/print-close`,
+    {
+      ...(reprint ? { reprint: true } : {}),
+      ticket,
+      ...(page != null ? { page } : {}),
+    },
+  )
 
   return unwrapNightPosResponse(response)
 }

@@ -23,6 +23,10 @@ final readonly class EloquentCashSummaryBuilder implements CashSummaryBuilder
 
         $openingCash = new Money((string) ($summary['opening_cash'] ?? '0'));
         $cashIncomeSales = new Money((string) ($summary['cash_income_sales'] ?? '0'));
+        $cashIncomeSalesNormal = new Money((string) ($summary['cash_income_sales_normal'] ?? '0'));
+        $cashIncomeSalesRoomServices = new Money((string) ($summary['cash_income_sales_room_services'] ?? '0'));
+        $cashIncomeSalesShows = new Money((string) ($summary['cash_income_sales_shows'] ?? '0'));
+        $cashIncomeSalesOther = new Money((string) ($summary['cash_income_sales_other'] ?? '0'));
         $cashIncomeManual = new Money((string) ($summary['cash_income_manual'] ?? '0'));
         $cashExpenseSettlements = new Money((string) ($summary['cash_expense_settlements'] ?? '0'));
         $cashExpenseOperational = new Money((string) ($summary['cash_expense_operational'] ?? '0'));
@@ -59,6 +63,10 @@ final readonly class EloquentCashSummaryBuilder implements CashSummaryBuilder
         return new CashSummaryDTO(
             opening_cash: $openingCash,
             cash_income_sales: $cashIncomeSales,
+            cash_income_sales_normal: $cashIncomeSalesNormal,
+            cash_income_sales_room_services: $cashIncomeSalesRoomServices,
+            cash_income_sales_shows: $cashIncomeSalesShows,
+            cash_income_sales_other: $cashIncomeSalesOther,
             cash_income_manual: $cashIncomeManual,
             cash_expense_settlements: $cashExpenseSettlements,
             cash_expense_operational: $cashExpenseOperational,

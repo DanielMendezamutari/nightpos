@@ -145,7 +145,9 @@ final class ForceCloseCashSessionAdminUseCase implements UseCaseInterface
         return OperationResult::ok('Caja cerrada administrativamente.', [
             'session' => $responseSession,
             'print_job' => $printResult['job'],
+            'print_jobs' => $printResult['jobs'] ?? null,
             'print_warning' => $printResult['warning'],
+            'print_warnings' => $printResult['warnings'] ?? null,
         ]);
     }
 
