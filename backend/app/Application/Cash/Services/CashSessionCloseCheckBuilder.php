@@ -38,7 +38,6 @@ final class CashSessionCloseCheckBuilder
             ->count();
 
         $sourceCounts = $this->settlements->countShiftSources($tenantId, $branchId, $officialShiftId, $cashSessionId);
-        $hasSettlementSources = array_sum($sourceCounts) > 0;
         $unsettledSources = $this->settlements->countUnsettledShiftSources($tenantId, $branchId, $officialShiftId, $cashSessionId);
         $settlementsGenerated = $this->settlements->countGeneratedSettlements($tenantId, $branchId, $officialShiftId, $cashSessionId);
         $pendingSettlements = $this->settlements->countPendingSettlements($tenantId, $branchId, $officialShiftId, $cashSessionId);
@@ -74,76 +73,6 @@ final class CashSessionCloseCheckBuilder
                 'route'   => 'nightpos-room-services',
             ];
             $actions[] = ['label' => 'Ir a control de piezas', 'route' => 'nightpos-room-services'];
-        }
-
-        $mustGenerate = ($settlementsGenerated === 0 && $hasSettlementSources) || $unsettledSources > 0;
-
-        if ($mustGenerate) {
-            $generateCount = max($unsettledSources, $hasSettlementSources && $settlementsGenerated === 0 ? 1 : 0);
-            $blockers[] = [
-                'type'    => 'SETTLEMENTS_NOT_GENERATED',
-                'code'    => 'settlements_not_generated',
-                'count'   => $unsettledSources > 0 ? $unsettledSources : $generateCount,
-                'message' => $unsettledSources > 0
-                    ? ($unsettledSources === 1
-                        ? 'Debe generar liquidaciones: hay 1 fuente sin liquidar.'
-                        : "Debe generar liquidaciones: hay {$unsettledSources} fuentes sin liquidar.")
-                    : 'Debe generar liquidaciones para este turno/caja.',
-                'route'   => 'nightpos-settlements',
-            ];
-            $actions[] = ['label' => 'Generar liquidaciones', 'route' => 'nightpos-settlements'];
-        }
-
-        if ($pendingSettlements > 0) {
-            $blockers[] = [
-                'type'    => 'SETTLEMENTS_PENDING_PAYMENT',
-                'code'    => 'settlements_pending_payment',
-                'count'   => $pendingSettlements,
-                'message' => $pendingSettlements === 1
-                    ? 'Hay 1 liquidación pendiente de pago.'
-                    : "Hay {$pendingSettlements} liquidaciones pendientes de pago.",
-                'route'   => 'nightpos-settlements',
-            ];
-            $actions[] = ['label' => 'Ir a liquidaciones', 'route' => 'nightpos-settlements'];
-        }
-
-        if ($pendingWaiters > 0) {
-            $blockers[] = [
-                'type'    => 'SETTLEMENTS_PENDING_PAYMENT',
-                'code'    => 'pending_waiter_settlements',
-                'count'   => $pendingWaiters,
-                'message' => $pendingWaiters === 1
-                    ? 'Hay 1 pago de garzón pendiente.'
-                    : "Hay {$pendingWaiters} pagos de garzón pendientes.",
-                'route'   => 'nightpos-settlements-waiters',
-            ];
-            $actions[] = ['label' => 'Pagar garzones', 'route' => 'nightpos-settlements-waiters'];
-        }
-
-        if ($pendingGirls > 0) {
-            $blockers[] = [
-                'type'    => 'SETTLEMENTS_PENDING_PAYMENT',
-                'code'    => 'pending_girl_settlements',
-                'count'   => $pendingGirls,
-                'message' => $pendingGirls === 1
-                    ? 'Hay 1 pago de chica pendiente.'
-                    : "Hay {$pendingGirls} pagos de chica pendientes.",
-                'route'   => 'nightpos-settlements-girls',
-            ];
-            $actions[] = ['label' => 'Pagar chicas', 'route' => 'nightpos-settlements-girls'];
-        }
-
-        if ($pendingCleaning > 0) {
-            $blockers[] = [
-                'type'    => 'SETTLEMENTS_PENDING_PAYMENT',
-                'code'    => 'pending_cleaning_settlements',
-                'count'   => $pendingCleaning,
-                'message' => $pendingCleaning === 1
-                    ? 'Hay 1 pago de limpieza pendiente.'
-                    : "Hay {$pendingCleaning} pagos de limpieza pendientes.",
-                'route'   => 'nightpos-settlements-cleaning',
-            ];
-            $actions[] = ['label' => 'Pagar limpieza', 'route' => 'nightpos-settlements-cleaning'];
         }
 
         $actions = $this->uniqueActions($actions);

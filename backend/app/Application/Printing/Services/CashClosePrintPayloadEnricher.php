@@ -114,23 +114,25 @@ final class CashClosePrintPayloadEnricher
         $sold = $recon['sold'] ?? [];
         usort(
             $sold,
-            static fn (array $a, array $b): int => (float) ($b['total_amount'] ?? 0) <=> (float) ($a['total_amount'] ?? 0)
-                ?: (int) ($b['quantity_sold'] ?? 0) <=> (int) ($a['quantity_sold'] ?? 0),
+            static fn (array $a, array $b): int => (int) ($b['quantity_sold'] ?? 0) <=> (int) ($a['quantity_sold'] ?? 0)
+                ?: (float) ($b['total_amount'] ?? 0) <=> (float) ($a['total_amount'] ?? 0)
+                ?: strcmp((string) ($a['product_name'] ?? ''), (string) ($b['product_name'] ?? '')),
         );
 
-        $payload['top_products'] = array_map(
+        $normalizedSold = array_map(
             static fn (array $row): array => [
                 'product_name' => (string) ($row['product_name'] ?? 'Producto'),
                 'quantity_sold' => (int) ($row['quantity_sold'] ?? 0),
                 'total_amount' => (string) ($row['total_amount'] ?? '0.00'),
             ],
-            array_slice($sold, 0, 10),
+            $sold,
         );
 
-        $payload['products_sold'] = $payload['top_products'];
+        $payload['products_sold'] = $normalizedSold;
+        $payload['top_products'] = array_slice($normalizedSold, 0, 10);
         $payload['products_sold_total_units'] = (int) array_sum(array_map(
             static fn (array $row): int => (int) ($row['quantity_sold'] ?? 0),
-            $sold,
+            $normalizedSold,
         ));
 
         $payload['reconciliation_mismatch_count'] = (int) ($recon['summary']['mismatch_count'] ?? 0);

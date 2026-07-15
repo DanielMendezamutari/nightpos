@@ -5,6 +5,8 @@ declare(strict_types=1);
 use App\Infrastructure\Persistence\Eloquent\Models\BranchModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CashMovementModel;
 use App\Infrastructure\Persistence\Eloquent\Models\CleaningTaskModel;
+use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
+use App\Infrastructure\Persistence\Eloquent\Models\OrderModel;
 use App\Infrastructure\Persistence\Eloquent\Models\RoleModel;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffProfileModel;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementItemModel;
@@ -19,6 +21,14 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(NightPosSeeder::class);
     nightposEnsureShiftOpen();
+
+    $shiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+    if ($shiftId > 0) {
+        OrderModel::query()
+            ->where('official_shift_id', $shiftId)
+            ->where('status', 'SENT_TO_BAR')
+            ->update(['status' => 'CANCELLED', 'cancelled_at' => now()]);
+    }
 });
 
 function partialGirlId(): int
@@ -273,7 +283,7 @@ it('does not duplicate settlement items for already settled sources', function (
     expect(StaffSettlementItemModel::query()->where('source_type', 'GIRL_CONSUMPTION')->count())->toBe(1);
 });
 
-it('blocks cash close when new sources exist without settlement items after a paid cut', function () {
+it('allows cash close when new pending settlement sources appear after a paid cut', function () {
     $token = partialCashierToken();
     $admin = partialAdminToken();
     $waiter = partialWaiterToken();
@@ -288,10 +298,12 @@ it('blocks cash close when new sources exist without settlement items after a pa
 
     $response = test()->getJson('/api/v1/cash/session/current/close-check', nightposOperationalHeaders($token))
         ->assertOk()
-        ->assertJsonPath('data.can_close', false);
+        ->assertJsonPath('data.can_close', true);
 
     expect(collect($response->json('data.blockers'))->pluck('code')->all())
-        ->toContain('settlements_not_generated');
+        ->not->toContain('settlements_not_generated');
+
+    expect((int) ($response->json('data.summary.pending_settlements') ?? 0))->toBeGreaterThan(0);
 });
 
 it('reports sum paid and pending amounts across multiple cuts', function () {

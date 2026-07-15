@@ -7,6 +7,7 @@ namespace App\Application\Sale\UseCases;
 use App\Application\Cash\Services\OpenCashSessionResolver;
 use App\Application\Printing\UseCases\CreateSaleReceiptPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
+use App\Application\StaffSettlement\UseCases\SyncSettlementsFromSaleUseCase;
 use App\Application\Order\Services\OrderItemPricing;
 use App\Application\Sale\DTOs\DirectSaleInput;
 use App\Application\Sale\Support\SaleMapper;
@@ -37,6 +38,7 @@ final class CreateDirectSaleUseCase implements UseCaseInterface
         private readonly OpenCashSessionResolver $cashSessionResolver,
         private readonly CashSessionRepositoryInterface $cashSessions,
         private readonly SaleRepositoryInterface $sales,
+        private readonly SyncSettlementsFromSaleUseCase $syncSettlementsFromSale,
         private readonly OrderItemPricing $itemPricing,
         private readonly ProductRepositoryInterface $products,
         private readonly EnsureOperationalShiftUseCase $ensureOperationalShift,
@@ -214,6 +216,18 @@ final class CreateDirectSaleUseCase implements UseCaseInterface
             return $sale;
         });
 
+        $syncWarning = null;
+        $syncResult = $this->syncSettlementsFromSale->execute((object) [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'saleId' => $sale->id,
+            'cashSessionId' => $cashSession->id,
+        ]);
+
+        if (! $syncResult->success) {
+            $syncWarning = $syncResult->message;
+        }
+
         $this->audit->record(
             'sale.direct_created',
             'sale',
@@ -265,10 +279,19 @@ final class CreateDirectSaleUseCase implements UseCaseInterface
             requestedByUserId: $cashierId,
         );
 
+        $operationWarning = $printResult['warning'];
+
+        if ($syncWarning !== null) {
+            $operationWarning = $operationWarning !== null
+                ? trim($operationWarning.' '.$syncWarning)
+                : $syncWarning;
+        }
+
         return OperationResult::ok('Venta directa registrada correctamente.', [
             'sale' => SaleMapper::sale($sale),
             'print_job' => $printResult['job'],
-            'print_warning' => $printResult['warning'],
+            'print_warning' => $operationWarning,
+            'sync_warning' => $syncWarning,
         ]);
     }
 }

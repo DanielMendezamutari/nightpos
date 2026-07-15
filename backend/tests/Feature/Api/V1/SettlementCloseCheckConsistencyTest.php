@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Infrastructure\Persistence\Eloquent\Models\CashSessionModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
+use App\Infrastructure\Persistence\Eloquent\Models\OrderModel;
 use App\Infrastructure\Persistence\Eloquent\Models\StaffSettlementModel;
 use App\Infrastructure\Persistence\Eloquent\Models\UserModel;
 use Database\Seeders\NightPosSeeder;
@@ -14,6 +15,14 @@ uses(RefreshDatabase::class);
 beforeEach(function () {
     $this->seed(NightPosSeeder::class);
     nightposEnsureShiftOpen();
+
+    $shiftId = (int) OfficialShiftModel::query()->where('status', 'OPEN')->value('id');
+    if ($shiftId > 0) {
+        OrderModel::query()
+            ->where('official_shift_id', $shiftId)
+            ->where('status', 'SENT_TO_BAR')
+            ->update(['status' => 'CANCELLED', 'cancelled_at' => now()]);
+    }
 });
 
 function consistencyCashierToken(): string
@@ -64,33 +73,34 @@ function consistencyChargeGirlOrder(string $cashierToken): void
     ], nightposOperationalHeaders($cashierToken))->assertCreated();
 }
 
-it('close-check reports SETTLEMENTS_NOT_GENERATED when sources exist but nothing generated', function () {
+it('close-check allows close and keeps pending summary after automatic settlement generation on charge', function () {
     $cashier = consistencyCashierToken();
     consistencyChargeGirlOrder($cashier);
 
     $response = test()->getJson('/api/v1/cash/session/current/close-check', nightposOperationalHeaders($cashier))
         ->assertOk()
-        ->assertJsonPath('data.can_close', false);
+        ->assertJsonPath('data.can_close', true);
 
     $types = collect($response->json('data.blockers'))->pluck('type')->all();
-    expect($types)->toContain('SETTLEMENTS_NOT_GENERATED');
+    expect($types)->not->toContain('SETTLEMENTS_NOT_GENERATED')
+        ->and($response->json('data.summary.generated_pending_count'))->toBeGreaterThan(0);
 });
 
-it('close-check reports SETTLEMENTS_PENDING_PAYMENT after generate and current-shift shows pending for cashier', function () {
+it('manual generate remains idempotent and close-check stays open with pending settlements', function () {
     $cashier = consistencyCashierToken();
     consistencyChargeGirlOrder($cashier);
 
     test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders($cashier))
         ->assertCreated()
-        ->assertJsonPath('data.created_items', fn ($v) => $v > 0);
+        ->assertJsonPath('data.created_items', 0);
 
     $closeCheck = test()->getJson('/api/v1/cash/session/current/close-check', nightposOperationalHeaders($cashier))
         ->assertOk()
-        ->assertJsonPath('data.can_close', false)
+        ->assertJsonPath('data.can_close', true)
         ->json('data');
 
     $types = collect($closeCheck['blockers'])->pluck('type')->all();
-    expect($types)->toContain('SETTLEMENTS_PENDING_PAYMENT')
+    expect($types)->not->toContain('SETTLEMENTS_PENDING_PAYMENT')
         ->and($closeCheck['summary']['generated_pending_count'])->toBeGreaterThan(0);
 
     $current = test()->getJson('/api/v1/settlements/current-shift', nightposOperationalHeaders($cashier))
@@ -125,7 +135,7 @@ it('generate again with existing pending does not create new items but reports p
         ->and($current['girls'])->not->toBeEmpty();
 });
 
-it('cashier can pay pending settlement and close-check clears payment blocker', function () {
+it('cashier can pay pending settlement and close-check remains free of settlement blockers', function () {
     $cashier = consistencyCashierToken();
     consistencyChargeGirlOrder($cashier);
 
@@ -144,11 +154,12 @@ it('cashier can pay pending settlement and close-check clears payment blocker', 
         ->assertOk()
         ->json('data');
 
-    $paymentBlockers = collect($closeCheck['blockers'])
-        ->where('type', 'SETTLEMENTS_PENDING_PAYMENT')
+    $settlementBlockers = collect($closeCheck['blockers'])
+        ->whereIn('type', ['SETTLEMENTS_PENDING_PAYMENT', 'SETTLEMENTS_NOT_GENERATED'])
         ->count();
 
-    expect($paymentBlockers)->toBe(0);
+    expect($settlementBlockers)->toBe(0)
+        ->and($closeCheck['can_close'])->toBeTrue();
 });
 
 it('close-check and generate use the same official_shift_id as cash session', function () {

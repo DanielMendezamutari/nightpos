@@ -12,11 +12,13 @@ export async function fetchSettlementPendingSources() {
   return unwrapNightPosResponse(response)
 }
 
-export async function generateCurrentShiftSettlements() {
+export async function reconcileCurrentShiftSettlements() {
   const response = await api.post('/settlements/generate-current-shift')
 
   return unwrapNightPosResponse(response)
 }
+
+export const generateCurrentShiftSettlements = reconcileCurrentShiftSettlements
 
 export async function fetchSettlement(id) {
   const response = await api.get(`/settlements/${id}`)

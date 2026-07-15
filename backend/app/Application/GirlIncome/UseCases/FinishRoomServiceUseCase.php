@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\GirlIncome\UseCases;
 
 use App\Application\SSE\Services\OperationalEventEmitter;
+use App\Application\StaffSettlement\UseCases\SyncSettlementsFromRoomServiceUseCase;
 use App\Domain\GirlIncome\Exceptions\GirlIncomeDomainException;
 use App\Domain\GirlIncome\Repositories\RoomServiceRepositoryInterface;
 use App\Domain\Room\Repositories\RoomRepositoryInterface;
@@ -23,6 +24,7 @@ final class FinishRoomServiceUseCase implements UseCaseInterface
         private readonly RoomServiceRepositoryInterface $roomServices,
         private readonly RoomRepositoryInterface $rooms,
         private readonly OperationalEventEmitter $eventEmitter,
+        private readonly SyncSettlementsFromRoomServiceUseCase $syncSettlementsFromRoomService,
     ) {
     }
 
@@ -84,10 +86,30 @@ final class FinishRoomServiceUseCase implements UseCaseInterface
             ]
         );
 
+        $syncWarning = null;
+
+        $syncResult = $this->syncSettlementsFromRoomService->execute((object) [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'roomServiceId' => (int) ($entry['id'] ?? 0),
+            'cashSessionId' => $entry['cash_session_id'] ?? null,
+        ]);
+
+        if (! $syncResult->success) {
+            $syncWarning = $syncResult->message;
+        }
+
         $message = $releaseRoomImmediately
             ? 'Pieza terminada. Habitación disponible para nueva pieza.'
             : 'Pieza terminada.';
 
-        return OperationResult::ok($message, ['room_service' => $entry]);
+        if ($syncWarning !== null) {
+            $message = trim($message.' '.$syncWarning);
+        }
+
+        return OperationResult::ok($message, [
+            'room_service' => $entry,
+            'sync_warning' => $syncWarning,
+        ]);
     }
 }

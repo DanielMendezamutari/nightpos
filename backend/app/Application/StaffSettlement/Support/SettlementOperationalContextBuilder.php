@@ -112,7 +112,15 @@ final class SettlementOperationalContextBuilder
                     'already_generated_pending_count' => 0,
                 ]);
 
+        $pendingSourcesCount = (int) ($settlementSummary['unsettled_sources_count'] ?? 0);
+        $lastAutoSyncAt = $settlements->latestAutoSyncAt($tenantId, $branchId, $shiftId, $sourcesCashSessionId);
+        $syncStatus = $pendingSourcesCount > 0 ? 'PENDING_SOURCES' : 'UP_TO_DATE';
+
         return [
+            'auto_sync_enabled' => true,
+            'last_auto_sync_at' => $lastAutoSyncAt,
+            'pending_sources_count' => $pendingSourcesCount,
+            'sync_status' => $syncStatus,
             'context' => [
                 'tenant_id' => $tenantId,
                 'branch_id' => $branchId,

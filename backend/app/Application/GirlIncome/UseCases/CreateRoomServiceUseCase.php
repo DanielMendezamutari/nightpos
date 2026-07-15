@@ -18,6 +18,7 @@ use App\Application\GirlIncome\Services\GirlStaffValidator;
 use App\Application\Order\Support\OrderOperationalEventPayload;
 use App\Application\Printing\UseCases\CreateRoomServicePrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
+use App\Application\StaffSettlement\UseCases\SyncSettlementsFromRoomServiceUseCase;
 
 use App\Application\GirlIncome\Support\RoomServiceAmountCalculator;
 
@@ -80,6 +81,8 @@ final class CreateRoomServiceUseCase implements UseCaseInterface
         private readonly OperationalEventEmitter $eventEmitter,
 
         private readonly CreateRoomServicePrintJobUseCase $createRoomServicePrintJob,
+
+        private readonly SyncSettlementsFromRoomServiceUseCase $syncSettlementsFromRoomService,
 
     ) {
 
@@ -424,6 +427,19 @@ final class CreateRoomServiceUseCase implements UseCaseInterface
             requestedByUserId: $userId,
         );
 
+        $syncWarning = null;
+
+        $syncResult = $this->syncSettlementsFromRoomService->execute((object) [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'roomServiceId' => (int) $entry['id'],
+            'cashSessionId' => $entry['cash_session_id'] ?? null,
+        ]);
+
+        if (! $syncResult->success) {
+            $syncWarning = $syncResult->message;
+        }
+
         return OperationResult::ok('Pieza registrada correctamente.', [
 
             'room_service' => $presented,
@@ -441,6 +457,8 @@ final class CreateRoomServiceUseCase implements UseCaseInterface
             'print_job' => $printResult['job'],
 
             'print_warning' => $printResult['warning'],
+
+            'sync_warning' => $syncWarning,
 
         ]);
 

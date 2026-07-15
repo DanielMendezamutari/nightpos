@@ -44,6 +44,8 @@ use App\Application\StaffSettlement\UseCases\GenerateCurrentShiftSettlementsUseC
 use App\Application\StaffSettlement\UseCases\GetCurrentShiftSettlementsUseCase;
 use App\Application\StaffSettlement\UseCases\GetSettlementPayPreviewUseCase;
 use App\Application\StaffSettlement\UseCases\GetSettlementUseCase;
+use App\Application\StaffSettlement\UseCases\SyncSettlementsFromRoomServiceUseCase;
+use App\Application\StaffSettlement\UseCases\SyncSettlementsFromSaleUseCase;
 use App\Application\StaffSettlement\UseCases\ListSettlementHistoryUseCase;
 use App\Application\StaffSettlement\UseCases\ListStaffFinesUseCase;
 use App\Application\Cash\Services\OpenCashSessionResolver;
@@ -558,6 +560,8 @@ final class NightPosServiceProvider extends ServiceProvider
         $this->app->singleton(SettlementTicketNumberGenerator::class);
         $this->app->singleton(SettlementStaffValidator::class);
         $this->app->singleton(GenerateCurrentShiftSettlementsUseCase::class);
+        $this->app->singleton(SyncSettlementsFromRoomServiceUseCase::class);
+        $this->app->singleton(SyncSettlementsFromSaleUseCase::class);
         $this->app->singleton(GetCurrentShiftSettlementsUseCase::class);
         $this->app->singleton(GetSettlementUseCase::class);
         $this->app->singleton(GetSettlementPayPreviewUseCase::class);

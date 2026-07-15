@@ -11,7 +11,7 @@ import NightPosPageHeader from '@/components/nightpos/layout/NightPosPageHeader.
 
 import NightPosSectionTabs from '@/components/nightpos/layout/NightPosSectionTabs.vue'
 
-import { generateCurrentShiftSettlements } from '@/api/settlements'
+import { reconcileCurrentShiftSettlements } from '@/api/settlements'
 
 import { useCurrentShiftSettlements } from '@/composables/useCurrentShiftSettlements'
 
@@ -41,7 +41,19 @@ const { can, canManageSettlementFines } = useNightPosPermissions()
 
 const { notify } = useNightPosNotify()
 
-const { loading, shift, summary, context, sourcesSummary, reload } = useCurrentShiftSettlements()
+const {
+  loading,
+  shift,
+  summary,
+  context,
+  sourcesSummary,
+  autoSyncEnabled,
+  lastAutoSyncAt,
+  pendingSourcesCount,
+  syncStatus,
+  syncMessage,
+  reload,
+} = useCurrentShiftSettlements()
 
 const {
 
@@ -61,6 +73,8 @@ const generating = ref(false)
 const showCashMovement = ref(false)
 const showFineDialog = ref(false)
 const finesListRef = ref(null)
+
+const canReconcileSettlements = computed(() => can('admin.cash_sessions.view') && can('settlements.generate'))
 
 const {
   cashSessionOpen,
@@ -168,9 +182,9 @@ const onMovementRegistered = async () => {
 
 
 
-const generate = async () => {
+const reconcile = async () => {
 
-  if (!can('settlements.generate'))
+  if (!canReconcileSettlements.value)
 
     return
 
@@ -182,19 +196,19 @@ const generate = async () => {
 
   try {
 
-    const result = await generateCurrentShiftSettlements()
+    const result = await reconcileCurrentShiftSettlements()
 
     if (result.created_items > 0) {
-      notify(`Liquidaciones generadas (${result.created_items} líneas nuevas)`)
+      notify(`Reconciliación completada (${result.created_items} líneas nuevas)`)
     }
     else if ((result.settlement_summary?.generated_pending_count ?? 0) > 0) {
-      notify('No hay nuevas liquidaciones para generar. Tienes pagos pendientes en tu caja.', 'warning')
+      notify('No hay líneas nuevas para reconciliar. Hay pagos pendientes en la caja.', 'warning')
     }
     else {
       notify(
         result.context?.scope === 'my_cash_session'
-          ? 'No hay liquidaciones nuevas para generar en tu caja actual.'
-          : 'No hay liquidaciones nuevas para generar en este turno.',
+          ? 'No hay líneas nuevas para reconciliar en tu caja actual.'
+          : 'No hay líneas nuevas para reconciliar en este turno.',
         'info',
       )
     }
@@ -207,7 +221,7 @@ const generate = async () => {
 
     if (import.meta.env.DEV) {
 
-      console.error('[settlements/generate-current-shift]', error?.response?.status, error?.response?.data?.message ?? error)
+      console.error('[settlements/reconcile-current-shift]', error?.response?.status, error?.response?.data?.message ?? error)
 
     }
 
@@ -234,6 +248,7 @@ const debouncedRefresh = () => {
 
 on('settlement.generated', debouncedRefresh)
 on('settlement.paid', debouncedRefresh)
+on('settlement.sync_delayed', debouncedRefresh)
 on('cash.movement.created', debouncedRefresh)
 
 onMounted(() => { startSse() })
@@ -295,7 +310,7 @@ onUnmounted(() => { stopSse() })
 
         <VBtn
 
-          v-if="can('settlements.generate')"
+          v-if="canReconcileSettlements"
 
           color="primary"
 
@@ -304,11 +319,11 @@ onUnmounted(() => { stopSse() })
           :loading="generating"
           :disabled="generating"
 
-          @click="generate"
+          @click="reconcile"
 
         >
 
-          Generar liquidaciones del turno actual
+          Reconciliar liquidaciones
 
         </VBtn>
 
@@ -325,6 +340,44 @@ onUnmounted(() => { stopSse() })
     <SettlementsCashBanner @cash-opened="onCashOpened" />
 
 
+
+    <VAlert
+
+      v-if="shift && autoSyncEnabled && !loading"
+
+      type="info"
+
+      variant="tonal"
+
+      class="mb-4"
+
+    >
+
+      Las liquidaciones se actualizan automáticamente con cada venta cobrada.
+
+      <div class="text-caption text-medium-emphasis mt-1">
+        Estado: {{ syncStatus }}
+        <span v-if="lastAutoSyncAt"> · Última sync: {{ lastAutoSyncAt }}</span>
+        <span> · Fuentes pendientes: {{ pendingSourcesCount }}</span>
+      </div>
+
+    </VAlert>
+
+    <VAlert
+
+      v-if="shift && syncStatus === 'DELAYED' && !loading"
+
+      type="warning"
+
+      variant="tonal"
+
+      class="mb-4"
+
+    >
+
+      {{ syncMessage || 'Algunos pagos podrían tardar en actualizarse. Reintente en unos segundos.' }}
+
+    </VAlert>
 
     <VAlert
 
@@ -414,7 +467,7 @@ onUnmounted(() => { stopSse() })
 
       v-if="shift && !summaryHasData && !loading && !hasPendingPayments"
 
-      type="warning"
+      type="info"
 
       variant="tonal"
 
@@ -422,12 +475,7 @@ onUnmounted(() => { stopSse() })
 
     >
 
-      <span v-if="context?.scope === 'my_cash_session'">
-        No tienes liquidaciones pendientes en tu caja.
-      </span>
-      <span v-else>
-        No hay liquidaciones pendientes para este turno.
-      </span>
+      Aún no existen ventas cobradas con pagos pendientes en esta caja.
 
       <span v-if="sourcesSummary">
 
@@ -477,7 +525,7 @@ onUnmounted(() => { stopSse() })
 
         <strong>{{ pendingSources.waiters_without_commission.map(w => w.name).filter(Boolean).join(', ') }}</strong>.
 
-        Revise el personal antes de generar liquidaciones.
+        Compensación manual pendiente.
 
       </template>
 
@@ -485,9 +533,7 @@ onUnmounted(() => { stopSse() })
 
         Hay <strong>{{ pendingSources.waiters_without_commission_count ?? pendingSources.waiters_without_commission.length }}</strong>
 
-        garzón(es) sin porcentaje de comisión configurado.
-
-        Contacte al administrador antes de generar liquidaciones.
+        garzón(es) con compensación manual pendiente.
 
       </template>
 
@@ -570,24 +616,6 @@ onUnmounted(() => { stopSse() })
 
 
     <VAlert
-
-      v-if="!loading && shift && !summaryHasData && !hasPendingPayments"
-
-      type="warning"
-
-      variant="tonal"
-
-      class="mb-4"
-
-    >
-
-      Las liquidaciones del turno aún no se han generado — todos los totales son 0.
-
-      Pulse <strong>«Generar liquidaciones del turno actual»</strong> para calcular comisiones, chicas y limpieza.
-
-    </VAlert>
-
-
 
     <VProgressLinear
 

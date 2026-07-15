@@ -114,6 +114,8 @@ const itemHeaders = computed(() => {
     return [
       { title: 'Venta', key: 'sale_number' },
       { title: 'Comanda', key: 'order_number' },
+      { title: 'Hora', key: 'registered_at' },
+      { title: 'Pago', key: 'payment_method' },
       { title: 'Descripción', key: 'description' },
       { title: 'Base', key: 'base_amount' },
       { title: '%', key: 'percent' },
@@ -128,6 +130,28 @@ const itemHeaders = computed(() => {
     { title: 'Hora', key: 'registered_at' },
   ]
 })
+
+const waiterSalesCount = computed(() => Number(settlement.value?.sales_count ?? 0))
+
+const waiterSalesTotal = computed(() =>
+  settlement.value?.sales_total_amount
+  ?? settlement.value?.waiter_sales_total
+  ?? '0.00')
+
+const formatBobAmount = amount => {
+  if (amount === null || amount === undefined || amount === '')
+    return '—'
+
+  const numeric = Number(amount)
+
+  if (Number.isNaN(numeric))
+    return `${amount} BOB`
+
+  return `${new Intl.NumberFormat('es-BO', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numeric)} BOB`
+}
 
 const openPayDialog = async () => {
   await refreshCashSession()
@@ -371,7 +395,7 @@ onMounted(load)
       </VCard>
 
       <VCard
-        v-if="isWaiter && settlement.waiter_sales_total"
+        v-if="isWaiter"
         variant="outlined"
         class="mb-4"
       >
@@ -382,18 +406,29 @@ onMounted(load)
           <VRow dense>
             <VCol
               cols="12"
-              sm="4"
+              sm="3"
             >
               <p class="text-caption mb-1">
-                Venta total
+                Cant. ventas
               </p>
               <p class="text-h6 mb-0">
-                {{ formatBob(settlement.waiter_sales_total) }}
+                {{ waiterSalesCount }}
               </p>
             </VCol>
             <VCol
               cols="12"
-              sm="4"
+              sm="3"
+            >
+              <p class="text-caption mb-1">
+                Total vendido
+              </p>
+              <p class="text-h6 mb-0">
+                {{ formatBobAmount(waiterSalesTotal) }}
+              </p>
+            </VCol>
+            <VCol
+              cols="12"
+              sm="3"
             >
               <p class="text-caption mb-1">
                 Porcentaje
@@ -404,7 +439,7 @@ onMounted(load)
             </VCol>
             <VCol
               cols="12"
-              sm="4"
+              sm="3"
             >
               <p class="text-caption mb-1">
                 Comisión
@@ -693,6 +728,9 @@ onMounted(load)
           </template>
           <template #item.order_number="{ item }">
             {{ item.order_number || '—' }}
+          </template>
+          <template #item.payment_method="{ item }">
+            {{ item.payment_method || '—' }}
           </template>
         </VDataTable>
       </VCard>

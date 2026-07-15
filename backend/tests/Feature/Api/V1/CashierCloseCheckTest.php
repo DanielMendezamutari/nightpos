@@ -83,7 +83,7 @@ it('blocks cash close with ACTIVE room service', function () {
     expect($codes)->toContain('active_room_services');
 });
 
-it('blocks cash close when settlements were not generated', function () {
+it('allows cash close with pending settlements after charging sales', function () {
     $token = cashierPrepareSession();
 
     $result = nightposCreateOrderWithItem($token, ['table_label' => 'Settlement block']);
@@ -94,10 +94,17 @@ it('blocks cash close when settlements were not generated', function () {
 
     $response = test()->getJson('/api/v1/cash/session/current/close-check', cashierHeaders($token))
         ->assertOk()
-        ->assertJsonPath('data.can_close', false);
+        ->assertJsonPath('data.can_close', true);
 
     expect(collect($response->json('data.blockers'))->pluck('code')->all())
-        ->toContain('settlements_not_generated');
+        ->not->toContain('settlements_not_generated')
+        ->not->toContain('settlements_pending_payment');
+
+    expect((int) ($response->json('data.summary.pending_settlements') ?? 0))->toBeGreaterThan(0);
+
+    test()->postJson('/api/v1/cash/session/close', [
+        'declared_closing_amount' => 250,
+    ], cashierHeaders($token))->assertOk();
 });
 
 it('allows cash close when operational pendings are resolved', function () {

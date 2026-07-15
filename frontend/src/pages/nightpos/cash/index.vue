@@ -14,7 +14,6 @@ import {
 
 } from '@/api/cash'
 import { fetchProductReconciliation } from '@/api/reports'
-import { fetchCurrentShiftSettlements } from '@/api/settlements'
 import ProductReconciliationPanel from '@/components/nightpos/reports/ProductReconciliationPanel.vue'
 import ComboBraceletSummaryPanel from '@/components/nightpos/reports/ComboBraceletSummaryPanel.vue'
 import CashMovementDialog from '@/components/nightpos/cash/CashMovementDialog.vue'
@@ -74,8 +73,6 @@ const showOpen = ref(false)
 const showMovement = ref(false)
 
 const showClose = ref(false)
-const pendingSettlementsTotal = ref(0)
-const pendingSettlementsLoading = ref(false)
 const closeCheck = ref(null)
 const closeCheckLoading = ref(false)
 const showCloseBlockers = ref(false)
@@ -496,19 +493,6 @@ const openCloseDialog = async () => {
       closing_notes: '',
     }
     showClose.value = true
-
-    pendingSettlementsLoading.value = true
-    try {
-      const data = await fetchCurrentShiftSettlements()
-      const pending = Number(data.summary?.total_pending ?? 0)
-      pendingSettlementsTotal.value = pending
-    }
-    catch {
-      pendingSettlementsTotal.value = pendingSummaryData.value.total
-    }
-    finally {
-      pendingSettlementsLoading.value = false
-    }
   }
   catch (error) {
     notify(getApiErrorMessage(error), 'error')
@@ -1083,23 +1067,20 @@ useOnContextChange(async () => {
         <VCardText>
 
           <VAlert
-            v-if="pendingSettlementsTotal > 0"
-            type="warning"
+            type="info"
             variant="tonal"
             class="mb-4"
           >
-            Tienes <strong>liquidaciones pendientes</strong> por <strong>{{ fmtBob(pendingSettlementsTotal) }}</strong>.
-            Si las pagas ahora, se descontarán de tu caja.
-            <VBtn
-              size="small"
-              variant="text"
-              color="warning"
-              class="ms-2"
-              :to="{ name: 'nightpos-settlements' }"
-              @click="showClose = false"
-            >
-              Ir a Liquidaciones
-            </VBtn>
+            <div class="text-subtitle-2 mb-2">
+              LIQUIDACIONES
+            </div>
+            <div>Chicas pendientes: <strong>{{ fmtBob(pendingSummaryData.girls) }}</strong></div>
+            <div>Garzones pendientes: <strong>{{ fmtBob(pendingSummaryData.waiters) }}</strong></div>
+            <div>Limpieza pendiente: <strong>{{ fmtBob(pendingSummaryData.cleaning) }}</strong></div>
+            <div class="mt-1">Total pendiente: <strong>{{ fmtBob(pendingSummaryData.total) }}</strong></div>
+            <div class="mt-2">Estos montos quedarán pendientes para pago posterior.</div>
+            <div>Las liquidaciones se actualizan automáticamente.</div>
+            <div>Puede cerrar caja aunque existan pagos pendientes.</div>
           </VAlert>
 
           <VTable density="compact" class="mb-4">

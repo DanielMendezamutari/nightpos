@@ -603,6 +603,330 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         ];
     }
 
+    public function syncFromSale(int $tenantId, int $branchId, int $saleId): array
+    {
+        $sale = SaleModel::query()
+            ->where('id', $saleId)
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->first();
+
+        if ($sale === null) {
+            return [
+                'created_items' => 0,
+                'settlements_touched' => 0,
+                'shift_id' => null,
+                'cash_session_id' => null,
+                'sale_id' => $saleId,
+            ];
+        }
+
+        $officialShiftId = $sale->official_shift_id !== null ? (int) $sale->official_shift_id : null;
+        $cashSessionId = $sale->cash_session_id !== null ? (int) $sale->cash_session_id : null;
+
+        if ($officialShiftId === null) {
+            return [
+                'created_items' => 0,
+                'settlements_touched' => 0,
+                'shift_id' => null,
+                'cash_session_id' => $cashSessionId,
+                'sale_id' => $saleId,
+            ];
+        }
+
+        $createdItems = 0;
+        $touchedSettlementIds = [];
+
+        $saleItems = SaleItemModel::query()
+            ->select([
+                'sale_items.*',
+                'sales.id as sale_id',
+                'sales.order_id',
+                'sales.waiter_user_id as sale_waiter_user_id',
+                'sales.cash_session_id',
+                'sales.sale_number',
+            ])
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->where('sales.tenant_id', $tenantId)
+            ->where('sales.branch_id', $branchId)
+            ->where('sales.id', $saleId)
+            ->get();
+
+        $braceletAllocations = SaleItemAllocationModel::query()
+            ->select([
+                'sale_item_allocations.id',
+                'sale_item_allocations.sale_item_id',
+                'sale_item_allocations.girl_user_id',
+                'sale_item_allocations.units',
+                'sale_item_allocations.unit_amount_snapshot',
+                'sale_item_allocations.total_amount_snapshot',
+                'sale_items.product_name_snapshot',
+                'sales.id as sale_id',
+                'sales.order_id',
+                'sales.sale_number',
+                'sales.cash_session_id',
+            ])
+            ->join('sale_items', 'sale_items.id', '=', 'sale_item_allocations.sale_item_id')
+            ->join('sales', 'sales.id', '=', 'sale_items.sale_id')
+            ->where('sale_item_allocations.tenant_id', $tenantId)
+            ->where('sale_item_allocations.branch_id', $branchId)
+            ->where('sales.id', $saleId)
+            ->get();
+
+        DB::transaction(function () use (
+            $tenantId,
+            $branchId,
+            $officialShiftId,
+            $cashSessionId,
+            $saleItems,
+            $braceletAllocations,
+            &$createdItems,
+            &$touchedSettlementIds,
+        ): void {
+            foreach ($saleItems as $line) {
+                $waiterPercent = (float) ($line->waiter_commission_percent_snapshot ?? 0);
+
+                if ($line->sale_waiter_user_id && ! $this->saleItemAlreadySettled((int) $line->id, 'WAITER_COMMISSION')) {
+                    $waiterCompensationMode = $waiterPercent > 0 ? 'AUTO_PERCENT' : 'MANUAL';
+                    $waiterCompensationSource = $waiterPercent > 0 ? 'PROFILE_PERCENT' : 'REQUIRES_MANUAL_INPUT';
+
+                    $settlementId = $this->ensureSettlement(
+                        $tenantId,
+                        $branchId,
+                        $officialShiftId,
+                        $this->settlementCashSessionId($cashSessionId, $line->cash_session_id ? (int) $line->cash_session_id : null),
+                        (int) $line->sale_waiter_user_id,
+                        'WAITER',
+                        'WAITER',
+                        $waiterCompensationMode,
+                        $waiterCompensationSource,
+                    );
+
+                    if ($this->canAddItemsToSettlement($settlementId)) {
+                        $this->createItem(
+                            $tenantId,
+                            $branchId,
+                            $settlementId,
+                            (int) $line->sale_id,
+                            (int) $line->id,
+                            $line->order_id ? (int) $line->order_id : null,
+                            null,
+                            'WAITER_COMMISSION',
+                            sprintf('Comisión — %s (%s)', $line->product_name_snapshot, $line->sale_number),
+                            (string) $line->line_total,
+                            $line->waiter_commission_percent_snapshot !== null ? (string) $line->waiter_commission_percent_snapshot : null,
+                            (string) $line->waiter_commission_amount_snapshot,
+                        );
+
+                        $createdItems++;
+                        $touchedSettlementIds[$settlementId] = true;
+                    }
+                }
+
+                $girlAmount = (float) ($line->girl_amount_snapshot ?? 0);
+                $hasAllocations = SaleItemAllocationModel::query()
+                    ->where('sale_item_id', $line->id)
+                    ->exists();
+
+                if (! $hasAllocations && $girlAmount > 0 && $line->girl_user_id && $line->sale_mode === 'CON_ACOMPANANTE') {
+                    if (! $this->saleItemAlreadySettled((int) $line->id, 'GIRL_CONSUMPTION')) {
+                        $settlementId = $this->ensureSettlement(
+                            $tenantId,
+                            $branchId,
+                            $officialShiftId,
+                            $this->settlementCashSessionId($cashSessionId, $line->cash_session_id ? (int) $line->cash_session_id : null),
+                            (int) $line->girl_user_id,
+                            'GIRL',
+                            'GIRL',
+                        );
+
+                        if ($this->canAddItemsToSettlement($settlementId)) {
+                            $girlName = UserModel::query()->whereKey($line->girl_user_id)->value('name') ?? 'Chica';
+                            $this->createItem(
+                                $tenantId,
+                                $branchId,
+                                $settlementId,
+                                (int) $line->sale_id,
+                                (int) $line->id,
+                                $line->order_id ? (int) $line->order_id : null,
+                                null,
+                                'GIRL_CONSUMPTION',
+                                sprintf('%s — 1 manilla — %s', $line->product_name_snapshot, $girlName),
+                                (string) $line->line_total,
+                                null,
+                                (string) $line->girl_amount_snapshot,
+                            );
+
+                            $createdItems++;
+                            $touchedSettlementIds[$settlementId] = true;
+                        }
+                    }
+                }
+            }
+
+            foreach ($braceletAllocations as $allocation) {
+                if ($this->sourceAlreadySettled((int) $allocation->id, 'GIRL_BRACELET_ALLOCATION')) {
+                    continue;
+                }
+
+                $settlementId = $this->ensureSettlement(
+                    $tenantId,
+                    $branchId,
+                    $officialShiftId,
+                    $this->settlementCashSessionId($cashSessionId, $allocation->cash_session_id ? (int) $allocation->cash_session_id : null),
+                    (int) $allocation->girl_user_id,
+                    'GIRL',
+                    'GIRL',
+                );
+
+                if (! $this->canAddItemsToSettlement($settlementId)) {
+                    continue;
+                }
+
+                $this->createItem(
+                    $tenantId,
+                    $branchId,
+                    $settlementId,
+                    (int) $allocation->sale_id,
+                    null,
+                    $allocation->order_id ? (int) $allocation->order_id : null,
+                    (int) $allocation->id,
+                    'GIRL_BRACELET_ALLOCATION',
+                    sprintf(
+                        'Manillas combo — %s ×%d u. (%s)',
+                        $allocation->product_name_snapshot,
+                        $allocation->units,
+                        $allocation->sale_number,
+                    ),
+                    (string) $allocation->unit_amount_snapshot,
+                    null,
+                    (string) $allocation->total_amount_snapshot,
+                );
+
+                $createdItems++;
+                $touchedSettlementIds[$settlementId] = true;
+            }
+
+            foreach (array_keys($touchedSettlementIds) as $settlementId) {
+                $this->recalculateTotal((int) $settlementId);
+            }
+        });
+
+        return [
+            'created_items' => $createdItems,
+            'settlements_touched' => count($touchedSettlementIds),
+            'shift_id' => $officialShiftId,
+            'cash_session_id' => $cashSessionId,
+            'sale_id' => $saleId,
+        ];
+    }
+
+    public function syncFromRoomService(int $tenantId, int $branchId, int $roomServiceId): array
+    {
+        $room = RoomServiceModel::query()
+            ->where('id', $roomServiceId)
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->first();
+
+        if ($room === null) {
+            return [
+                'created_items' => 0,
+                'settlements_touched' => 0,
+                'shift_id' => null,
+                'cash_session_id' => null,
+                'room_service_id' => $roomServiceId,
+            ];
+        }
+
+        $officialShiftId = $room->official_shift_id !== null ? (int) $room->official_shift_id : null;
+        $cashSessionId = $room->cash_session_id !== null ? (int) $room->cash_session_id : null;
+
+        if (
+            $officialShiftId === null
+            || $room->girl_user_id === null
+            || ! in_array((string) $room->status, ['ACTIVE', 'DUE', 'FINISHED'], true)
+        ) {
+            return [
+                'created_items' => 0,
+                'settlements_touched' => 0,
+                'shift_id' => $officialShiftId,
+                'cash_session_id' => $cashSessionId,
+                'room_service_id' => $roomServiceId,
+            ];
+        }
+
+        $createdItems = 0;
+        $touchedSettlementIds = [];
+
+        DB::transaction(function () use (
+            $tenantId,
+            $branchId,
+            $officialShiftId,
+            $cashSessionId,
+            $room,
+            &$createdItems,
+            &$touchedSettlementIds,
+        ): void {
+            if ($this->sourceAlreadySettled((int) $room->id, 'GIRL_ROOM')) {
+                return;
+            }
+
+            $settlementId = $this->ensureSettlement(
+                $tenantId,
+                $branchId,
+                $officialShiftId,
+                $this->settlementCashSessionId($cashSessionId, $cashSessionId),
+                (int) $room->girl_user_id,
+                'GIRL',
+                'GIRL',
+            );
+
+            if (! $this->canAddItemsToSettlement($settlementId)) {
+                return;
+            }
+
+            $roomLabel = $room->room_label ?? ($room->room_number ? "hab. {$room->room_number}" : 'pieza');
+            $girlSettlementAmount = $room->girl_amount !== null
+                ? (string) $room->girl_amount
+                : (string) $room->total_amount;
+            $cleaningDeduction = (float) ($room->cleaning_amount ?? 0);
+            $roomDescription = $cleaningDeduction > 0
+                ? sprintf('Pieza — %s (limpieza -%.2f)', $roomLabel, $cleaningDeduction)
+                : sprintf('Pieza — %s', $roomLabel);
+
+            $this->createItem(
+                $tenantId,
+                $branchId,
+                $settlementId,
+                null,
+                null,
+                $room->order_id !== null ? (int) $room->order_id : null,
+                (int) $room->id,
+                'GIRL_ROOM',
+                $roomDescription,
+                (string) $room->unit_price,
+                null,
+                $girlSettlementAmount,
+            );
+
+            $createdItems++;
+            $touchedSettlementIds[$settlementId] = true;
+
+            foreach (array_keys($touchedSettlementIds) as $touchedSettlementId) {
+                $this->recalculateTotal((int) $touchedSettlementId);
+            }
+        });
+
+        return [
+            'created_items' => $createdItems,
+            'settlements_touched' => count($touchedSettlementIds),
+            'shift_id' => $officialShiftId,
+            'cash_session_id' => $cashSessionId,
+            'room_service_id' => $roomServiceId,
+        ];
+    }
+
     /**
      * @return array{
      *     sales: int,
@@ -944,10 +1268,28 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             ->orderBy('id')
             ->get();
 
+        $waiterSalesByUserId = $this->resolveWaiterSalesMetrics(
+            $tenantId,
+            $branchId,
+            $officialShiftId,
+            $cashSessionId,
+            $settlementModels
+                ->where('settlement_type', 'WAITER')
+                ->pluck('staff_user_id')
+                ->map(static fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all(),
+        );
+
         $cutNumbers = $this->computeCutNumbers($settlementModels);
 
         $settlements = $settlementModels
-            ->map(fn (StaffSettlementModel $m) => $this->mapSettlementSummary($m, $cutNumbers[(int) $m->id] ?? 1))
+            ->map(fn (StaffSettlementModel $m) => $this->mapSettlementSummary(
+                $m,
+                $cutNumbers[(int) $m->id] ?? 1,
+                $waiterSalesByUserId[(int) $m->staff_user_id] ?? null,
+            ))
             ->all();
 
         $waiters = array_values(array_filter($settlements, fn (array $s) => $s['settlement_type'] === 'WAITER'));
@@ -982,6 +1324,16 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             return null;
         }
 
+        $waiterSalesData = $model->settlement_type === 'WAITER'
+            ? ($this->resolveWaiterSalesMetrics(
+                $tenantId,
+                $branchId,
+                $model->official_shift_id !== null ? (int) $model->official_shift_id : null,
+                $model->cash_session_id !== null ? (int) $model->cash_session_id : null,
+                [(int) $model->staff_user_id],
+            )[(int) $model->staff_user_id] ?? null)
+            : null;
+
         if ($model->status === 'PENDING') {
             $this->totalsCalculator->recalculate((int) $model->id);
             $model->refresh();
@@ -1004,7 +1356,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         );
 
         return [
-            'settlement' => $this->mapSettlementSummary($model, $cutNumbers[(int) $model->id] ?? $this->resolveCutNumber($model)),
+            'settlement' => $this->mapSettlementSummary(
+                $model,
+                $cutNumbers[(int) $model->id] ?? $this->resolveCutNumber($model),
+                $waiterSalesData,
+            ),
             'items' => $items,
             'adjustments' => $this->mapAdjustments((int) $model->id),
         ];
@@ -1381,6 +1737,25 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         ];
     }
 
+    public function latestAutoSyncAt(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): ?string
+    {
+        $query = StaffSettlementItemModel::query()
+            ->from('staff_settlement_items as ssi')
+            ->join('staff_settlements as ss', 'ss.id', '=', 'ssi.staff_settlement_id')
+            ->where('ssi.tenant_id', $tenantId)
+            ->where('ssi.branch_id', $branchId);
+
+        if ($cashSessionId !== null) {
+            $query->where('ss.cash_session_id', $cashSessionId);
+        } elseif ($officialShiftId !== null) {
+            $query->where('ss.official_shift_id', $officialShiftId);
+        }
+
+        $value = $query->max('ssi.created_at');
+
+        return $value !== null ? (string) $value : null;
+    }
+
     /**
      * Scope de caja: incluye todas las liquidaciones de la sesion, incluso si
      * pertenecen a distintos official_shift_id.
@@ -1439,7 +1814,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     /**
      * @return array<string, mixed>
      */
-    private function mapSettlementSummary(StaffSettlementModel $model, int $cutNumber = 1): array
+    private function mapSettlementSummary(
+        StaffSettlementModel $model,
+        int $cutNumber = 1,
+        ?array $waiterSalesData = null,
+    ): array
     {
         $items = $model->relationLoaded('items') ? $model->items : $model->items()->get();
 
@@ -1485,6 +1864,14 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             $items,
         );
 
+        $resolvedSalesCount = $salesCount;
+        $resolvedSalesTotal = $waiterSnapshot['sales_total'] ?? null;
+
+        if ($model->settlement_type === 'WAITER') {
+            $resolvedSalesCount = (int) ($waiterSalesData['sales_count'] ?? 0);
+            $resolvedSalesTotal = (string) ($waiterSalesData['sales_total_amount'] ?? '0.00');
+        }
+
         return [
             'id' => $model->id,
             'cut_number' => $cutNumber,
@@ -1526,10 +1913,11 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             'requires_manual_amount' => $model->settlement_type === 'WAITER'
                 && $model->compensation_mode === 'MANUAL'
                 && $model->manual_amount_input === null,
-            'sales_count' => $salesCount,
+            'sales_count' => $resolvedSalesCount,
             'commission_percent' => $waiterSnapshot['commission_percent'] ?? $percent,
             'commission_amount' => $waiterSnapshot['commission_amount'] ?? null,
-            'waiter_sales_total' => $waiterSnapshot['sales_total'] ?? null,
+            'waiter_sales_total' => $resolvedSalesTotal,
+            'sales_total_amount' => $resolvedSalesTotal,
             'consumption_total' => number_format($consumption, 2, '.', ''),
             'bracelets_total' => number_format($bracelets, 2, '.', ''),
             'pieces_total' => number_format($pieces, 2, '.', ''),
@@ -1549,7 +1937,7 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
     private function mapItemDetail(StaffSettlementItemModel $item): array
     {
         $saleItem = $item->saleItem;
-        $sale = $item->sale_id ? SaleModel::query()->find($item->sale_id) : null;
+        $sale = $item->sale_id ? SaleModel::query()->with('payments')->find($item->sale_id) : null;
         $registeredAt = null;
 
         if ($item->source_id !== null) {
@@ -1563,8 +1951,17 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
         }
 
         if ($registeredAt === null && $sale !== null) {
-            $registeredAt = $sale->created_at?->format('Y-m-d H:i:s');
+            $registeredAt = $sale->paid_at?->format('Y-m-d H:i:s')
+                ?? $sale->created_at?->format('Y-m-d H:i:s');
         }
+
+        $paymentMethods = $sale?->payments
+            ?->pluck('payment_method')
+            ->filter(static fn ($method) => $method !== null && $method !== '')
+            ->map(static fn ($method) => strtoupper((string) $method))
+            ->unique()
+            ->values()
+            ->all();
 
         return [
             'id' => $item->id,
@@ -1581,8 +1978,62 @@ final class EloquentStaffSettlementRepository implements StaffSettlementReposito
             'product_name' => $saleItem?->product_name_snapshot,
             'sale_mode' => $saleItem?->sale_mode,
             'sale_number' => $sale?->sale_number,
+            'sale_total' => $sale !== null ? number_format((float) $sale->total, 2, '.', '') : null,
+            'payment_method' => ! empty($paymentMethods) ? implode(' + ', $paymentMethods) : null,
             'registered_at' => $registeredAt,
             'created_at' => $item->created_at?->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * @param  list<int>  $waiterUserIds
+     * @return array<int, array{sales_count:int, sales_total_amount:string}>
+     */
+    private function resolveWaiterSalesMetrics(
+        int $tenantId,
+        int $branchId,
+        ?int $officialShiftId,
+        ?int $cashSessionId,
+        array $waiterUserIds,
+    ): array {
+        if ($waiterUserIds === []) {
+            return [];
+        }
+
+        $query = SaleModel::query()
+            ->selectRaw('waiter_user_id, COUNT(*) as sales_count, SUM(total) as sales_total_amount')
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('status', 'PAID')
+            ->whereNotNull('waiter_user_id')
+            ->whereIn('waiter_user_id', $waiterUserIds);
+
+        if ($cashSessionId !== null) {
+            $query->where('cash_session_id', $cashSessionId);
+        }
+        elseif ($officialShiftId !== null) {
+            $query->where('official_shift_id', $officialShiftId);
+        }
+
+        $rows = $query
+            ->groupBy('waiter_user_id')
+            ->get();
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $waiterUserId = (int) ($row->waiter_user_id ?? 0);
+
+            if ($waiterUserId <= 0) {
+                continue;
+            }
+
+            $result[$waiterUserId] = [
+                'sales_count' => (int) ($row->sales_count ?? 0),
+                'sales_total_amount' => number_format((float) ($row->sales_total_amount ?? 0), 2, '.', ''),
+            ];
+        }
+
+        return $result;
     }
 }

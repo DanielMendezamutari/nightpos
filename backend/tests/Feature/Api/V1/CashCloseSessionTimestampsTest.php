@@ -86,8 +86,9 @@ it('prints distinct opening and closing times on cash close ticket', function ()
     expect($content)
         ->toContain('Apertura')
         ->toContain('Cierre')
-        ->toContain('20/06 21:00')
-        ->toContain('21/06 09:00');
+        ->toContain('20/06/2026 21:00')
+        ->toContain('21/06/2026 09:00')
+        ->toContain('Impreso:');
 
     $lines = explode("\n", $content);
     $aperturaLine = collect($lines)->first(fn ($line) => str_contains($line, 'Apertura'));

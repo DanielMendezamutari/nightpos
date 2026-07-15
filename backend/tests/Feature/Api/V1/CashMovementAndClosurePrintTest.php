@@ -242,14 +242,23 @@ it('includes admin fields on forced close ticket', function () {
     $content = app(PrintTicketContentBuilder::class)->buildCashClose($job->payload ?? []);
 
     expect($content)
-        ->toContain('CIERRE ADMINISTRATIVO')
-        ->toContain('INFORMACION GENERAL')
-        ->toContain('VENTAS')
-        ->toContain('CAJA FISICA')
-        ->toContain('LIQUIDACIONES')
-        ->toContain('CIERRE')
+        ->toContain('REPORTE DE VENTAS / CIERRE DE CAJA')
+        ->toContain('ENCABEZADO')
+        ->toContain('MONTO INICIAL')
+        ->toContain('COBROS / VENTAS')
+        ->toContain('MOVIMIENTOS')
+        ->toContain('EFECTIVO')
+        ->toContain('VENTAS TOTALES / PRODUCTOS')
+        ->toContain('PENDIENTES')
+        ->toContain('OBSERVACIONES')
+        ->toContain('FIRMA CAJERA')
+        ->toContain('Impreso:')
         ->toContain('Admin Demo')
-        ->toContain('Powered by Ribersoft');
+        ->toContain('Powered by Ribersoft')
+        ->not->toContain('Ticket promedio')
+        ->not->toContain('KPIs')
+        ->not->toContain('ALERTA')
+        ->not->toContain('RANKING');
 });
 
 it('includes section layout on normal cash close ticket', function () {
@@ -265,14 +274,20 @@ it('includes section layout on normal cash close ticket', function () {
 
     $job = PrintJobModel::query()->find($response->json('data.print_job.id'));
     $content = app(PrintTicketContentBuilder::class)->buildCashClose($job->payload ?? []);
+    $lineCount = count(array_filter(explode("\n", trim($content)), static fn (string $line): bool => $line !== ''));
 
     expect($content)
-        ->toContain('CIERRE NORMAL')
-        ->toContain('INFORMACION GENERAL')
-        ->toContain('VENTAS')
-        ->toContain('CAJA FISICA')
-        ->toContain('LIQUIDACIONES')
+        ->toContain('REPORTE DE VENTAS / CIERRE DE CAJA')
+        ->toContain('MONTO INICIAL')
+        ->toContain('COBROS / VENTAS')
+        ->toContain('MOVIMIENTOS')
+        ->toContain('EFECTIVO')
+        ->toContain('VENTAS TOTALES / PRODUCTOS')
+        ->toContain('PENDIENTES')
+        ->toContain('Impreso:')
         ->toContain('Powered by Ribersoft');
+
+    expect($lineCount)->toBeLessThanOrEqual(110);
 });
 
 it('cash close ticket keeps mixed-payment product once and cash-only expected cash', function () {
@@ -334,16 +349,23 @@ it('cash close ticket keeps mixed-payment product once and cash-only expected ca
     ]);
 
     expect($content)
-        ->toContain('Ventas CASH')
+        ->toContain('Ventas efectivo')
+        ->toContain('10.00')
         ->toContain('Ventas QR')
-        ->toContain('Ventas MIXED')
-        ->toContain('CAJA FISICA')
-        ->toContain('110.00 BOB');
+        ->toContain('15.00')
+        ->toContain('Ventas mixtas')
+        ->toContain('TOTAL COBROS')
+        ->toContain('Cantidad de ventas')
+        ->toContain('PRODUCTO MIXTO CIERRE')
+        ->toContain('TOTAL ITEMS VENDIDOS')
+        ->toContain('OTROS PRODUCTOS')
+        ->toContain('Total pendiente: 0');
 
-    expect(substr_count($content, '1 / 25.00 BOB'))->toBe(1);
+    expect(substr_count($content, 'PRODUCTO MIXTO CIERRE'))->toBe(1);
+    expect($content)->not->toContain('Ticket promedio');
 });
 
-it('cash close ticket keeps top 10 products and warning when session crosses shifts', function () {
+it('cash close ticket sorts products by quantity and reports total units sold', function () {
     $builder = app(PrintTicketContentBuilder::class);
 
     $products = [];
@@ -354,6 +376,11 @@ it('cash close ticket keeps top 10 products and warning when session crosses shi
             'total_amount' => number_format($index * 10, 2, '.', ''),
         ];
     }
+    $products[] = [
+        'product_name' => 'Producto Cancelado',
+        'quantity_sold' => 0,
+        'total_amount' => '0.00',
+    ];
 
     $content = $builder->buildCashClose([
         'branch_name' => 'Sucursal Centro',
@@ -407,11 +434,84 @@ it('cash close ticket keeps top 10 products and warning when session crosses shi
         'products_sold' => $products,
     ]);
 
+    $pos11 = strpos($content, 'PROD-11');
+    $pos10 = strpos($content, 'PROD-10');
+    $pos01 = strpos($content, 'PROD-01');
+
     expect($content)
-        ->toContain('Cruza turnos')
-        ->toContain('PRODUCTOS VENDIDOS')
-        ->toContain('Prod-11')
-        ->not->toContain('Prod-01');
+        ->toContain('VENTAS TOTALES / PRODUCTOS')
+        ->toContain('11 - PROD-11')
+        ->toContain(' 1 - PROD-01')
+        ->toContain('TOTAL ITEMS VENDIDOS')
+        ->toContain('66');
+
+    expect($pos11)->not->toBeFalse();
+    expect($pos10)->not->toBeFalse();
+    expect($pos01)->not->toBeFalse();
+    expect($pos11)->toBeLessThan($pos10);
+    expect($pos10)->toBeLessThan($pos01);
+    expect($content)->not->toContain('PRODUCTO CANCELADO');
+});
+
+it('highlights pending balances when they are not zero', function () {
+    $content = app(PrintTicketContentBuilder::class)->buildCashClose([
+        'branch_name' => 'Sucursal Centro',
+        'tenant_name' => 'Casa Demo NightPOS',
+        'cashier_name' => 'Admin Demo',
+        'session' => [
+            'id' => 27,
+            'opened_at' => '2026-07-13T15:00:00Z',
+            'closed_at' => '2026-07-13T16:29:00Z',
+            'opening_amount' => '100.00',
+            'expected_amount' => '110.00',
+            'declared_closing_amount' => '110.00',
+            'difference_amount' => '-10.00',
+            'closing_notes' => 'Cierre sin novedad',
+        ],
+        'financial_dashboard' => [
+            'sales_summary' => [
+                'total_sales' => '25.00',
+                'sales_count' => 1,
+                'average_ticket' => '25.00',
+                'sales_cash' => '10.00',
+                'sales_qr' => '15.00',
+                'sales_card' => '0.00',
+                'mixed_sales_count' => 1,
+            ],
+            'cash_summary' => [
+                'opening_cash' => '100.00',
+                'cash_income_manual' => '0.00',
+                'cash_expense_operational' => '0.00',
+                'cash_expense_purchases' => '0.00',
+                'cash_expense_other' => '0.00',
+                'cash_expense_settlements' => '0.00',
+                'expected_cash' => '110.00',
+                'counted_cash' => '100.00',
+                'cash_difference' => '-10.00',
+            ],
+            'settlement_summary' => [
+                'waiters' => ['paid_count' => 0, 'paid_net_amount' => '0.00', 'pending_net_amount' => '80.00'],
+                'girls' => ['paid_count' => 0, 'paid_net_amount' => '0.00', 'pending_net_amount' => '350.00'],
+                'cleaning' => ['paid_count' => 0, 'paid_net_amount' => '0.00', 'pending_net_amount' => '20.00'],
+                'totals' => ['paid_total_net' => '0.00', 'pending_total_net' => '450.00'],
+            ],
+            'scope_summary' => [
+                'scope_label' => 'Turno Operativo',
+                'crosses_multiple_shifts' => false,
+            ],
+        ],
+        'products_sold' => [
+            ['product_name' => 'Corona', 'quantity_sold' => 18, 'total_amount' => '540.00'],
+        ],
+    ]);
+
+    expect($content)
+        ->toContain('PENDIENTES')
+        ->toContain('********************************')
+        ->toContain('Chicas')
+        ->toContain('Garzones')
+        ->toContain('Limpieza')
+        ->toContain('TOTAL PENDIENTE');
 });
 
 it('creates SHIFT_CLOSE print job on demand after shift close', function () {

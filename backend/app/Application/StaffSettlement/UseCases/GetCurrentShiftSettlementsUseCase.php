@@ -23,6 +23,7 @@ use App\Domain\StaffSettlement\Exceptions\StaffSettlementDomainException;
 use App\Domain\StaffSettlement\Repositories\StaffSettlementRepositoryInterface;
 
 use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
+use App\Infrastructure\Persistence\Eloquent\Models\AuditLogModel;
 
 use App\Shared\Application\DTOs\OperationResult;
 
@@ -125,6 +126,18 @@ final class GetCurrentShiftSettlementsUseCase implements UseCaseInterface
             $scopeInfo['empty_overview'],
 
         );
+
+        $recentSyncFailureAt = $this->recentAutoSyncFailureAt(
+            $tenant->id,
+            $branch->id,
+            $scopeInfo['cash_session_id'] ?? null,
+        );
+
+        if ($recentSyncFailureAt !== null) {
+            $operational['sync_status'] = 'DELAYED';
+            $operational['sync_message'] = 'Algunos pagos podrían tardar en actualizarse. Reintente en unos segundos.';
+            $operational['last_sync_error_at'] = $recentSyncFailureAt;
+        }
 
 
 
@@ -323,6 +336,27 @@ final class GetCurrentShiftSettlementsUseCase implements UseCaseInterface
 
         ];
 
+    }
+
+    private function recentAutoSyncFailureAt(int $tenantId, int $branchId, ?int $cashSessionId): ?string
+    {
+        $query = AuditLogModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('action', 'settlement.auto_sync_failed')
+            ->where('created_at', '>=', now()->subMinutes(5))
+            ->orderByDesc('created_at');
+
+        if ($cashSessionId !== null) {
+            $query->where(function ($inner) use ($cashSessionId) {
+                $inner->where('metadata->cash_session_id', $cashSessionId)
+                    ->orWhereNull('metadata->cash_session_id');
+            });
+        }
+
+        $value = $query->value('created_at');
+
+        return $value !== null ? (string) $value : null;
     }
 
 }

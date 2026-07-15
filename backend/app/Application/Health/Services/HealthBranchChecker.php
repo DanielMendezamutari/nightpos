@@ -7,6 +7,7 @@ namespace App\Application\Health\Services;
 use App\Application\DocumentSequence\Services\DocumentSequenceService;
 use App\Application\Health\Support\HealthSeverity;
 use App\Infrastructure\Persistence\Eloquent\Models\CashSessionModel;
+use App\Infrastructure\Persistence\Eloquent\Models\AuditLogModel;
 use App\Infrastructure\Persistence\Eloquent\Models\DocumentSequenceModel;
 use App\Infrastructure\Persistence\Eloquent\Models\OfficialShiftModel;
 use App\Infrastructure\Persistence\Eloquent\Models\PrintDeviceModel;
@@ -34,9 +35,46 @@ final class HealthBranchChecker
             $this->checkOpenCashSessions($tenantId, $branchId, $now),
             $this->checkOpenShifts($tenantId, $branchId, $now),
             $this->checkPendingSettlementsOnClosedShifts($tenantId, $branchId),
+            $this->checkSettlementAutoSyncFailures($tenantId, $branchId, $now),
             $this->checkPrintAgent($tenantId, $branchId, $now),
             $this->checkPendingPrintJobs($tenantId, $branchId, $now),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function checkSettlementAutoSyncFailures(int $tenantId, int $branchId, Carbon $now): array
+    {
+        $windowMinutes = (int) config('nightpos.health_center.settlement_sync_failure_minutes', 30);
+        $cutoff = $now->copy()->subMinutes($windowMinutes);
+
+        $rows = AuditLogModel::query()
+            ->where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('action', 'settlement.auto_sync_failed')
+            ->where('created_at', '>=', $cutoff)
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get(['id', 'subject_id', 'metadata', 'created_at']);
+
+        if ($rows->isEmpty()) {
+            return $this->ok('SETTLE.AUTO_SYNC', 'Sin fallos recientes de auto-sincronización', ['count' => 0]);
+        }
+
+        return $this->issue(
+            'SETTLE.AUTO_SYNC',
+            $rows->count() === 1
+                ? '1 fallo reciente de auto-sincronización de liquidaciones.'
+                : $rows->count().' fallos recientes de auto-sincronización de liquidaciones.',
+            HealthSeverity::WARNING,
+            [
+                'count' => $rows->count(),
+                'window_minutes' => $windowMinutes,
+                'sale_ids' => $rows->pluck('subject_id')->filter()->map(static fn ($id) => (int) $id)->unique()->values()->all(),
+                'cash_session_ids' => $rows->map(static fn ($row) => (int) ($row->metadata['cash_session_id'] ?? 0))->filter()->unique()->values()->all(),
+            ],
+        );
     }
 
     /**

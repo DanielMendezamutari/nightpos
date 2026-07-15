@@ -607,63 +607,53 @@ final class PrintTicketContentBuilder
 
         $branchName = (string) ($payload['branch_name'] ?? 'NIGHTPOS');
         $lines[] = $this->center($branchName, $width);
-        $lines[] = $this->center('CIERRE DE CAJA', $width);
-        $lines[] = $this->center('Caja #'.(string) ($session['id'] ?? '—'), $width);
+        $lines[] = $this->center('REPORTE DE VENTAS / CIERRE DE CAJA', $width);
         $lines[] = str_repeat('=', $width);
 
-        foreach ($this->cashCloseBannerLines($payload, $width) as $bannerLine) {
-            $lines[] = $bannerLine;
-        }
+        $lines[] = $this->center('ENCABEZADO', $width);
+        $lines[] = $this->cashCloseKeyValueLine('Sucursal', $branchName, $width);
+        $lines[] = $this->cashCloseKeyValueLine('Caja', '#'.(string) ($session['id'] ?? '—'), $width);
+        $lines[] = $this->cashCloseKeyValueLine('Cajera', (string) ($payload['cashier_name'] ?? '—'), $width);
+        $lines[] = $this->cashCloseKeyValueLine('Turno', (string) ($payload['current_shift_label'] ?? $payload['shift_label'] ?? $scopeSummary['scope_label'] ?? '—'), $width);
+        $lines[] = $this->cashCloseKeyValueLine('Apertura', $this->formatDateTimeLong((string) ($session['opened_at'] ?? '')), $width);
+        $lines[] = $this->cashCloseKeyValueLine('Cierre', $this->formatDateTimeLong((string) ($session['closed_at'] ?? '')), $width);
 
-        $lines = array_merge($lines, $this->sectionLines('INFORMACION GENERAL', $width, array_filter([
-            ['Empresa', (string) ($payload['tenant_name'] ?? 'NIGHTPOS')],
-            ['Sucursal', $branchName],
-            ['Caja', '#'.(string) ($session['id'] ?? '—')],
-            ['Cajera', (string) ($payload['cashier_name'] ?? '—')],
-            ['Apertura', $this->formatDateTime((string) ($session['opened_at'] ?? ''))],
-            ['Cierre', $this->formatDateTime((string) ($session['closed_at'] ?? ''))],
-            ['Turno apertura', (string) ($payload['shift_label'] ?? '—')],
-            ['Turno operativo', (string) ($payload['current_shift_label'] ?? $scopeSummary['scope_label'] ?? '—')],
-            ! empty($scopeSummary['crosses_multiple_shifts']) ? ['Aviso', 'Cruza turnos'] : null,
-        ])));
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('MONTO INICIAL', $width);
+        $lines[] = $this->cashCloseAmountLine('Monto inicial Bs', (string) ($cashSummary['opening_cash'] ?? '0.00'), $width);
 
-        $lines = array_merge($lines, $this->sectionLines('VENTAS', $width, [
-            ['Total vendido', ((string) ($salesSummary['total_sales'] ?? '0.00')).' BOB'],
-            ['Cantidad ventas', (string) ($salesSummary['sales_count'] ?? 0)],
-            ['Ticket promedio', ((string) ($salesSummary['average_ticket'] ?? '0.00')).' BOB'],
-            ['Ventas CASH', ((string) ($salesSummary['sales_cash'] ?? '0.00')).' BOB'],
-            ['Ventas QR', ((string) ($salesSummary['sales_qr'] ?? '0.00')).' BOB'],
-            ['Ventas CARD', ((string) ($salesSummary['sales_card'] ?? '0.00')).' BOB'],
-            ['Ventas MIXED', (string) ($salesSummary['mixed_sales_count'] ?? 0)],
-        ]));
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('COBROS / VENTAS', $width);
+        $lines[] = $this->cashCloseAmountLine('Ventas efectivo', (string) ($salesSummary['sales_cash'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Ventas QR', (string) ($salesSummary['sales_qr'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Ventas tarjeta', (string) ($salesSummary['sales_card'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseCompactLine('Ventas mixtas', (string) ($salesSummary['mixed_sales_count'] ?? 0), $width);
+        $lines[] = $this->cashCloseAmountLine('TOTAL COBROS', (string) ($salesSummary['total_sales'] ?? '0.00'), $width, false, true);
+        $lines[] = $this->cashCloseCompactLine('Cantidad de ventas', (string) ($salesSummary['sales_count'] ?? 0), $width);
 
-        $cashExpenseCash = (float) ($cashSummary['cash_expense_operational'] ?? 0)
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('MOVIMIENTOS', $width);
+        $lines[] = $this->cashCloseAmountLine('Ingresos manuales', (string) ($cashSummary['cash_income_manual'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Egresos operativos', number_format(
+            (float) ($cashSummary['cash_expense_operational'] ?? 0)
             + (float) ($cashSummary['cash_expense_purchases'] ?? 0)
-            + (float) ($cashSummary['cash_expense_other'] ?? 0);
-        $lines = array_merge($lines, $this->sectionLines('CAJA FISICA', $width, [
-            ['Fondo inicial', ((string) ($cashSummary['opening_cash'] ?? '0.00')).' BOB'],
-            ['Ingresos manuales CASH', ((string) ($cashSummary['cash_income_manual'] ?? '0.00')).' BOB'],
-            ['Egresos CASH', number_format($cashExpenseCash, 2, '.', '').' BOB'],
-            ['Liquidaciones pagadas CASH', ((string) ($cashSummary['cash_expense_settlements'] ?? '0.00')).' BOB'],
-            ['Efectivo esperado', ((string) ($cashSummary['expected_cash'] ?? '0.00')).' BOB'],
-            ['Efectivo contado', (string) ($cashSummary['counted_cash'] !== null ? ((string) $cashSummary['counted_cash']).' BOB' : 'Sin arqueo')],
-            ['Diferencia', (string) ($cashSummary['cash_difference'] !== null ? ((string) $cashSummary['cash_difference']).' BOB' : 'Sin arqueo')],
-        ]));
+            + (float) ($cashSummary['cash_expense_other'] ?? 0),
+            2,
+            '.',
+            '',
+        ), $width);
+        $lines[] = $this->cashCloseAmountLine('Liquidaciones pagadas', (string) ($cashSummary['cash_expense_settlements'] ?? '0.00'), $width);
 
-        $paidWaiters = $settlementSummary['waiters']['paid_count'] ?? 0;
-        $paidGirls = $settlementSummary['girls']['paid_count'] ?? 0;
-        $paidCleaning = $settlementSummary['cleaning']['paid_count'] ?? 0;
-        $pendingCritical = (string) ($settlementSummary['totals']['pending_total_net'] ?? '0.00');
-        $lines = array_merge($lines, $this->sectionLines('LIQUIDACIONES', $width, [
-            ['Chicas pagadas', (string) $paidGirls.' / '.((string) ($settlementSummary['girls']['paid_net_amount'] ?? '0.00')).' BOB'],
-            ['Garzones pagados', (string) $paidWaiters.' / '.((string) ($settlementSummary['waiters']['paid_net_amount'] ?? '0.00')).' BOB'],
-            ['Limpieza pagada', (string) $paidCleaning.' / '.((string) ($settlementSummary['cleaning']['paid_net_amount'] ?? '0.00')).' BOB'],
-            ['Total liquidaciones pagadas', ((string) ($settlementSummary['totals']['paid_total_net'] ?? '0.00')).' BOB'],
-            ['Total pendiente critico', $pendingCritical.' BOB'],
-        ]));
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('EFECTIVO', $width);
+        $lines[] = $this->cashCloseAmountLine('Efectivo esperado', (string) ($cashSummary['expected_cash'] ?? '0.00'), $width);
+        $lines[] = $this->cashCloseAmountLine('Efectivo contado', (string) ($cashSummary['counted_cash'] ?? '0.00'), $width);
+        $differenceAmount = (string) ($cashSummary['cash_difference'] ?? '0.00');
+        $lines[] = str_repeat('*', $width);
+        $lines[] = $this->cashCloseAmountLine('DIFERENCIA', $differenceAmount, $width, false, true);
+        $lines[] = str_repeat('*', $width);
 
         $productRows = [];
-        $totalUnits = 0;
         $sortedProducts = array_values(array_filter(
             $productsSold,
             static fn (array $row): bool => (int) ($row['quantity_sold'] ?? 0) > 0,
@@ -682,45 +672,63 @@ final class PrintTicketContentBuilder
             return strcmp((string) ($left['product_name'] ?? ''), (string) ($right['product_name'] ?? ''));
         });
 
-        foreach (array_slice($sortedProducts, 0, 10) as $row) {
+        foreach ($sortedProducts as $row) {
             $quantity = (int) ($row['quantity_sold'] ?? 0);
-            $totalUnits += $quantity;
-            $productRows[] = [
-                $this->truncate((string) ($row['product_name'] ?? 'Producto'), $width - 14),
-                $quantity.' / '.((string) ($row['total_amount'] ?? '0.00')).' BOB',
-            ];
-        }
-
-        if ($productRows !== []) {
-            $lines = array_merge($lines, $this->sectionLines('PRODUCTOS VENDIDOS', $width, $productRows));
-            $lines[] = $this->row('Total unidades', (string) $totalUnits, $width);
-        }
-
-        $observations = [];
-        if (! empty($session['closing_notes'])) {
-            $observations[] = ['label' => 'Observacion cierre', 'text' => (string) $session['closing_notes']];
-        }
-        if ($observations !== []) {
-            $observationRows = [];
-            foreach ($observations as $row) {
-                $observationRows[] = [$row['label'], $this->truncate($row['text'], $width - 8)];
-            }
-            $lines = array_merge($lines, $this->sectionLines('CIERRE', $width, array_merge($observationRows, [
-                ['Firma cajera', '________________'],
-                ['Firma supervisor', '________________'],
-                ['Codigo cierre', '#'.(string) ($session['id'] ?? '—')],
-            ])));
-        } else {
-            $lines = array_merge($lines, $this->sectionLines('CIERRE', $width, [
-                ['Observacion cierre', '—'],
-                ['Firma cajera', '________________'],
-                ['Firma supervisor', '________________'],
-                ['Codigo cierre', '#'.(string) ($session['id'] ?? '—')],
-            ]));
+            $productRows[] = $this->cashCloseProductLine(
+                $quantity,
+                (string) ($row['product_name'] ?? 'Producto'),
+                $width,
+            );
         }
 
         $lines[] = str_repeat('-', $width);
-        $lines[] = $this->row('Impresa', $this->formatTime((string) ($printedAt ?? now()->toIso8601String())), $width);
+        $lines[] = $this->center('VENTAS TOTALES / PRODUCTOS', $width);
+        $lines[] = $this->cashCloseProductHeader($width);
+        foreach ($productRows as $productLine) {
+            $lines[] = $productLine;
+        }
+        $totalUnits = (int) ($payload['products_sold_total_units'] ?? array_sum(array_map(
+            static fn (array $row): int => (int) ($row['quantity_sold'] ?? 0),
+            $sortedProducts,
+        )));
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->cashCloseCompactLine('TOTAL ITEMS VENDIDOS', (string) $totalUnits, $width);
+        $lines[] = $this->cashCloseAmountLine('OTROS PRODUCTOS', '0 unidades', $width, false);
+
+        $pendingGirls = (string) ($settlementSummary['girls']['pending_net_amount'] ?? '0.00');
+        $pendingWaiters = (string) ($settlementSummary['waiters']['pending_net_amount'] ?? '0.00');
+        $pendingCleaning = (string) ($settlementSummary['cleaning']['pending_net_amount'] ?? '0.00');
+        $pendingTotal = (string) ($settlementSummary['totals']['pending_total_net'] ?? '0.00');
+        $hasPending = ((float) $pendingGirls !== 0.0) || ((float) $pendingWaiters !== 0.0) || ((float) $pendingCleaning !== 0.0);
+
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('PENDIENTES', $width);
+        if ($hasPending) {
+            $lines[] = str_repeat('*', $width);
+            $lines[] = $this->cashCloseAmountLine('Chicas', $pendingGirls, $width, false, true);
+            $lines[] = $this->cashCloseAmountLine('Garzones', $pendingWaiters, $width, false, true);
+            $lines[] = $this->cashCloseAmountLine('Limpieza', $pendingCleaning, $width, false, true);
+            $lines[] = $this->cashCloseAmountLine('TOTAL PENDIENTE', $pendingTotal, $width, false, true);
+            $lines[] = str_repeat('*', $width);
+        } else {
+            $lines[] = $this->cashCloseCompactLine('Chicas', '0', $width);
+            $lines[] = $this->cashCloseCompactLine('Garzones', '0', $width);
+            $lines[] = $this->cashCloseCompactLine('Limpieza', '0', $width);
+            $lines[] = $this->cashCloseCompactLine('Total pendiente', '0', $width);
+        }
+
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('OBSERVACIONES', $width);
+        $lines[] = str_repeat('_', $width);
+        $lines[] = str_repeat('_', $width);
+        $lines[] = str_repeat('_', $width);
+
+        $lines[] = str_repeat('-', $width);
+        $lines[] = $this->center('FIRMA CAJERA', $width);
+        $lines[] = str_repeat('_', $width);
+
+        $lines[] = str_repeat('-', $width);
+        $lines[] = 'Impreso: '.$this->formatDateTimeLong((string) ($printedAt ?? now()->toIso8601String()));
         $footer = (string) config('nightpos.printing.ticket_footer', 'Powered by Ribersoft - WhatsApp 67369293');
         foreach ($this->wrap($footer, $width) as $line) {
             $lines[] = $this->center($line, $width);
@@ -1213,6 +1221,57 @@ final class PrintTicketContentBuilder
         }
 
         return $lines === [] ? [''] : $lines;
+    }
+
+    private function cashCloseKeyValueLine(string $label, string $value, int $width): string
+    {
+        return $label.': '.$value;
+    }
+
+    private function cashCloseAmountLine(string $label, string $value, int $width, bool $compact = false, bool $highlight = false): string
+    {
+        $formattedValue = is_numeric(str_replace([',', ' '], '', $value))
+            ? number_format((float) $value, 2, '.', ',')
+            : $value;
+
+        $labelText = $compact ? $label.': ' : $label;
+        $targetWidth = $compact ? 24 : 26;
+        $dots = max(2, $targetWidth - strlen($labelText) - strlen((string) $formattedValue));
+        $line = $labelText.str_repeat('.', $dots).' '.$formattedValue;
+
+        if ($highlight) {
+            return $line;
+        }
+
+        return $line;
+    }
+
+    private function cashCloseCompactLine(string $label, string $value, int $width): string
+    {
+        return $label.': '.$value;
+    }
+
+    private function cashCloseProductHeader(int $width): string
+    {
+        return 'Cantidad - Producto';
+    }
+
+    private function cashCloseProductLine(int $quantity, string $productName, int $width): string
+    {
+        return str_pad((string) $quantity, 2, ' ', STR_PAD_LEFT).' - '.strtoupper($this->truncate($productName, $width - 5));
+    }
+
+    private function formatDateTimeLong(string $value): string
+    {
+        if ($value === '') {
+            return '-';
+        }
+
+        try {
+            return (new \DateTimeImmutable($value))->format('d/m/Y H:i');
+        } catch (\Throwable) {
+            return $value;
+        }
     }
 
     private function formatTime(string $value): string

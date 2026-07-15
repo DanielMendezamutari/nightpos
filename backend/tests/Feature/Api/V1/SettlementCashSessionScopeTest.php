@@ -184,7 +184,7 @@ it('cashier generates settlements only for her cash session', function () {
 
     test()->postJson('/api/v1/settlements/generate-current-shift', [], nightposOperationalHeaders($cashier))
         ->assertCreated()
-        ->assertJsonPath('data.created_items', fn ($v) => $v > 0)
+        ->assertJsonPath('data.created_items', fn ($v) => $v >= 0)
         ->assertJsonPath('data.context.scope', 'my_cash_session');
 
     $settlements = StaffSettlementModel::query()
@@ -675,8 +675,9 @@ it('cash close-check detects pending settlements by cash session', function () {
     $check = test()->getJson('/api/v1/cash/session/current/close-check', nightposOperationalHeaders($cashier))
         ->assertOk();
 
-    expect($check->json('data.can_close'))->toBeFalse()
-        ->and(collect($check->json('data.blockers'))->pluck('code')->all())->toContain('settlements_pending_payment');
+    expect($check->json('data.can_close'))->toBeTrue()
+        ->and((int) ($check->json('data.summary.pending_waiters') ?? 0))->toBeGreaterThan(0)
+        ->and(collect($check->json('data.blockers'))->pluck('code')->all())->not->toContain('settlements_pending_payment');
 });
 
 it('shift close-check keeps settlement validation by official shift', function () {

@@ -16,6 +16,34 @@ interface StaffSettlementRepositoryInterface
     public function generateForShift(int $tenantId, int $branchId, int $officialShiftId, ?int $scopeCashSessionId = null): array;
 
     /**
+     * Sincroniza únicamente las liquidaciones derivadas de una venta ya cobrada.
+     * Idempotente por `sale_item_id`/`allocation_id`.
+     *
+     * @return array{
+     *   created_items: int,
+     *   settlements_touched: int,
+     *   shift_id: int|null,
+     *   cash_session_id: int|null,
+     *   sale_id: int
+     * }
+     */
+    public function syncFromSale(int $tenantId, int $branchId, int $saleId): array;
+
+    /**
+     * Sincroniza únicamente la liquidación derivada de una pieza finalizada.
+     * Idempotente por `room_service_id`.
+     *
+     * @return array{
+     *   created_items: int,
+     *   settlements_touched: int,
+     *   shift_id: int|null,
+     *   cash_session_id: int|null,
+     *   room_service_id: int
+     * }
+     */
+    public function syncFromRoomService(int $tenantId, int $branchId, int $roomServiceId): array;
+
+    /**
      * @return array<string, mixed>
      */
     public function getCurrentShiftOverview(
@@ -99,4 +127,6 @@ interface StaffSettlementRepositoryInterface
      * }
      */
     public function settlementScopeSummary(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): array;
+
+    public function latestAutoSyncAt(int $tenantId, int $branchId, ?int $officialShiftId, ?int $cashSessionId = null): ?string;
 }

@@ -14,6 +14,7 @@ import { useSettlementPayment } from '@/composables/useSettlementPayment'
 import { useNightPosPermissions } from '@/composables/useNightPosPermissions'
 import { useOperationalEvents } from '@/composables/useOperationalEvents'
 import { getApiErrorMessage } from '@/services/http'
+import { useDisplay } from 'vuetify'
 
 definePage({ meta: { permission: 'settlements.access' } })
 
@@ -49,13 +50,15 @@ const showManualDialog = ref(false)
 const manualLoading = ref(false)
 const manualItem = ref(null)
 const manualForm = ref({ amount: '', notes: '' })
+const { smAndDown } = useDisplay()
 
-const headers = [
+const desktopHeaders = [
   { title: 'Garzón', key: 'staff_name' },
   { title: 'Corte', key: 'cut_label' },
   { title: 'Modo', key: 'compensation_mode' },
   { title: '%', key: 'commission_percent' },
-  { title: 'Ventas', key: 'sales_count' },
+  { title: 'Cant. ventas', key: 'sales_count' },
+  { title: 'Total vendido', key: 'sales_total_amount' },
   { title: 'Monto manual', key: 'manual_amount_input' },
   { title: 'Comisión', key: 'total_amount' },
   { title: 'Estado', key: 'status' },
@@ -63,6 +66,23 @@ const headers = [
   { title: 'Pagado', key: 'paid_at' },
   { title: 'Acciones', key: 'actions', sortable: false },
 ]
+
+const mobileHeaders = [
+  { title: 'Garzón', key: 'staff_name' },
+  { title: 'Total vendido', key: 'sales_total_amount' },
+  { title: 'Comisión', key: 'total_amount' },
+  { title: 'Estado', key: 'status' },
+  { title: 'Acciones', key: 'actions', sortable: false },
+  { title: 'Cant. ventas', key: 'sales_count' },
+  { title: 'Corte', key: 'cut_label' },
+  { title: 'Modo', key: 'compensation_mode' },
+  { title: '%', key: 'commission_percent' },
+  { title: 'Monto manual', key: 'manual_amount_input' },
+  { title: 'Generado', key: 'created_at' },
+  { title: 'Pagado', key: 'paid_at' },
+]
+
+const headers = computed(() => (smAndDown.value ? mobileHeaders : desktopHeaders))
 
 const statusColor = status => ({
   PENDING: 'warning',
@@ -78,6 +98,21 @@ const compensationModeLabel = mode => ({
 const canAssignManual = item => item.compensation_mode === 'MANUAL'
 const requiresManualAmount = item => item.requires_manual_amount === true
 const payDisabledReason = item => requiresManualAmount(item) ? 'Asigne monto manual antes de pagar.' : ''
+
+const formatBobAmount = amount => {
+  if (amount === null || amount === undefined || amount === '')
+    return '—'
+
+  const numeric = Number(amount)
+
+  if (Number.isNaN(numeric))
+    return `${amount} BOB`
+
+  return `${new Intl.NumberFormat('es-BO', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numeric)} BOB`
+}
 
 const scopeLabel = computed(() => {
   if (context.value?.scope === 'my_cash_session') {
@@ -225,48 +260,59 @@ const onFineCreated = async () => {
     />
 
     <VCard v-else>
-      <VDataTable
-        :headers="headers"
-        :items="waiters"
-        :items-per-page="15"
-        class="text-no-wrap"
-      >
-        <template #item.status="{ item }">
-          <VChip
-            size="small"
-            :color="statusColor(item.status)"
-            variant="tonal"
-          >
-            {{ item.status === 'PENDING' ? 'Pendiente' : item.status === 'PAID' ? 'Pagado' : item.status }}
-          </VChip>
-        </template>
-        <template #item.compensation_mode="{ item }">
-          <VChip
-            size="small"
-            :color="item.compensation_mode === 'MANUAL' ? 'info' : 'primary'"
-            variant="tonal"
-          >
-            {{ compensationModeLabel(item.compensation_mode) }}
-          </VChip>
-        </template>
-        <template #item.manual_amount_input="{ item }">
-          {{ item.manual_amount_input ?? 'Pendiente' }}
-        </template>
-        <template #item.actions="{ item }">
-          <SettlementListRowActions
-            :item="item"
-            :can-pay="canPay"
-            :can-multar="canManageSettlementFines"
-            :can-assign-manual="canAssignManual(item)"
-            :pay-disabled="requiresManualAmount(item)"
-            :pay-disabled-reason="payDisabledReason(item)"
-            @pay="openPayDialog"
-            @multar="openFineDialog"
-            @assign-manual="openManualDialog"
-            @detail="item => router.push({ name: 'nightpos-settlements-id', params: { id: item.id } })"
-          />
-        </template>
-      </VDataTable>
+      <div class="waiters-table-wrap">
+        <VDataTable
+          :headers="headers"
+          :items="waiters"
+          :items-per-page="15"
+          class="text-no-wrap waiters-table"
+        >
+          <template #item.status="{ item }">
+            <VChip
+              size="small"
+              :color="statusColor(item.status)"
+              variant="tonal"
+            >
+              {{ item.status === 'PENDING' ? 'Pendiente' : item.status === 'PAID' ? 'Pagado' : item.status }}
+            </VChip>
+          </template>
+          <template #item.compensation_mode="{ item }">
+            <VChip
+              size="small"
+              :color="item.compensation_mode === 'MANUAL' ? 'info' : 'primary'"
+              variant="tonal"
+            >
+              {{ compensationModeLabel(item.compensation_mode) }}
+            </VChip>
+          </template>
+          <template #item.sales_count="{ item }">
+            {{ Number(item.sales_count ?? 0) }}
+          </template>
+          <template #item.sales_total_amount="{ item }">
+            {{ formatBobAmount(item.sales_total_amount ?? item.waiter_sales_total ?? '0.00') }}
+          </template>
+          <template #item.total_amount="{ item }">
+            {{ formatBobAmount(item.total_amount) }}
+          </template>
+          <template #item.manual_amount_input="{ item }">
+            {{ item.manual_amount_input ?? 'Pendiente' }}
+          </template>
+          <template #item.actions="{ item }">
+            <SettlementListRowActions
+              :item="item"
+              :can-pay="canPay"
+              :can-multar="canManageSettlementFines"
+              :can-assign-manual="canAssignManual(item)"
+              :pay-disabled="requiresManualAmount(item)"
+              :pay-disabled-reason="payDisabledReason(item)"
+              @pay="openPayDialog"
+              @multar="openFineDialog"
+              @assign-manual="openManualDialog"
+              @detail="item => router.push({ name: 'nightpos-settlements-id', params: { id: item.id } })"
+            />
+          </template>
+        </VDataTable>
+      </div>
     </VCard>
 
     <SettlementPayDialog
@@ -336,3 +382,13 @@ const onFineCreated = async () => {
     </VDialog>
   </div>
 </template>
+
+<style scoped>
+.waiters-table-wrap {
+  overflow-x: auto;
+}
+
+.waiters-table {
+  min-width: 1180px;
+}
+</style>

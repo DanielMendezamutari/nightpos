@@ -647,7 +647,7 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
         }
 
         if ($settlementsGenerated === 0) {
-            $blockers[] = [
+            $warnings[] = [
                 'code'    => 'no_settlements_generated',
                 'message' => 'No se han generado liquidaciones para este turno.',
                 'count'   => 0,
@@ -655,7 +655,7 @@ final class EloquentReportReadRepository implements ReportReadRepositoryInterfac
         }
 
         if ($unsettledSources > 0) {
-            $blockers[] = [
+            $warnings[] = [
                 'code'    => 'unsettled_settlement_sources',
                 'message' => $unsettledSources === 1
                     ? 'Hay 1 fuente pendiente de generar liquidación.'

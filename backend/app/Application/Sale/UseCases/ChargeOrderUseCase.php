@@ -19,6 +19,7 @@ use App\Application\Printing\UseCases\CreateSaleReceiptPrintJobUseCase;
 use App\Application\SSE\Services\OperationalEventEmitter;
 
 use App\Application\Sale\DTOs\ChargeOrderInput;
+use App\Application\StaffSettlement\UseCases\SyncSettlementsFromSaleUseCase;
 
 use App\Application\Sale\Support\SaleMapper;
 
@@ -89,6 +90,8 @@ final class ChargeOrderUseCase implements UseCaseInterface
         private readonly SaleRepositoryInterface $sales,
 
         private readonly SaleItemAllocationRepositoryInterface $saleAllocations,
+
+        private readonly SyncSettlementsFromSaleUseCase $syncSettlementsFromSale,
 
         private readonly WaiterCommissionResolver $waiterCommission,
 
@@ -486,6 +489,18 @@ final class ChargeOrderUseCase implements UseCaseInterface
 
         });
 
+        $syncWarning = null;
+        $syncResult = $this->syncSettlementsFromSale->execute((object) [
+            'tenantId' => $tenant->id,
+            'branchId' => $branch->id,
+            'saleId' => $sale->id,
+            'cashSessionId' => $cashSession->id,
+        ]);
+
+        if (! $syncResult->success) {
+            $syncWarning = $syncResult->message;
+        }
+
 
 
         $this->audit->record(
@@ -577,6 +592,14 @@ final class ChargeOrderUseCase implements UseCaseInterface
             order: $order,
         );
 
+        $operationWarning = $printResult['warning'];
+
+        if ($syncWarning !== null) {
+            $operationWarning = $operationWarning !== null
+                ? trim($operationWarning.' '.$syncWarning)
+                : $syncWarning;
+        }
+
 
 
         return OperationResult::ok('Comanda cobrada correctamente.', [
@@ -587,7 +610,9 @@ final class ChargeOrderUseCase implements UseCaseInterface
 
             'print_job' => $printResult['job'],
 
-            'print_warning' => $printResult['warning'],
+            'print_warning' => $operationWarning,
+
+            'sync_warning' => $syncWarning,
 
         ]);
 
