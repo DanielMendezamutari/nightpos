@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\SalonMesaController;
@@ -6,6 +6,10 @@ use App\Http\Controllers\Api\V1\ComandaController;
 use App\Http\Controllers\Api\V1\CajaFacturaController;
 use App\Http\Controllers\Api\V1\QrPagoController;
 use App\Http\Controllers\Api\V1\ClienteController;
+use App\Http\Controllers\Api\V1\InventarioController;
+use App\Http\Controllers\Api\V1\CompraController;
+use App\Http\Controllers\Api\V1\ProveedorController;
+use App\Http\Controllers\Api\V1\RecetaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -80,5 +84,42 @@ Route::prefix('v1')->group(function () {
         Route::post('{id}/abono', [ClienteController::class, 'registrarAbono']);
         Route::post('{id}/anticipos', [ClienteController::class, 'registrarAnticipo']);
         Route::get('{id}/anticipos-disponibles', [ClienteController::class, 'anticiposDisponibles']);
+    });
+    // ==========================================
+    // BUCLE 6: ALMACENES, INVENTARIO, COMPRAS & RECETAS
+    // ==========================================
+    Route::prefix('almacenes')->group(function () {
+        Route::get('/', [InventarioController::class, 'getAlmacenes']);
+        Route::post('/', [InventarioController::class, 'storeAlmacen']);
+        Route::put('{id}', [InventarioController::class, 'updateAlmacen']);
+        Route::delete('{id}', [InventarioController::class, 'deleteAlmacen']);
+    });
+
+    Route::prefix('insumos')->group(function () {
+        Route::get('/', [InventarioController::class, 'getInsumos']);
+        Route::post('/', [InventarioController::class, 'storeInsumo']);
+        Route::put('{id}', [InventarioController::class, 'updateInsumo']);
+        Route::delete('{id}', [InventarioController::class, 'deleteInsumo']);
+        Route::post('{id}/ajuste', [InventarioController::class, 'ajustarStock']);
+    });
+
+    Route::get('kardex', [InventarioController::class, 'getKardex']);
+
+    Route::prefix('compras')->group(function () {
+        Route::get('/', [CompraController::class, 'index']);
+        Route::post('/', [CompraController::class, 'store']);
+    });
+
+    Route::prefix('proveedores')->group(function () {
+        Route::get('/', [ProveedorController::class, 'index']);
+        Route::post('/', [ProveedorController::class, 'store']);
+        Route::put('{id}', [ProveedorController::class, 'update']);
+        Route::delete('{id}', [ProveedorController::class, 'delete']);
+        Route::post('{id}/pago', [ProveedorController::class, 'registrarPago']);
+    });
+
+    Route::prefix('recetas')->group(function () {
+        Route::get('producto/{productoId}', [RecetaController::class, 'getReceta']);
+        Route::post('producto/{productoId}', [RecetaController::class, 'guardarReceta']);
     });
 });

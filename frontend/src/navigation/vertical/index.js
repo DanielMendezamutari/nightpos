@@ -28,6 +28,16 @@ export default [
     icon: { icon: 'ri-user-star-line' },
   },
   {
+    heading: 'INVENTARIO & PRODUCCIÃ“N',
+  },
+  {
+    title: 'Inventario & Compras',
+    to: { name: 'inventario' },
+    icon: { icon: 'ri-archive-line' },
+    badgeContent: 'Stock',
+    badgeClass: 'bg-primary',
+  },
+  {
     heading: 'FACTURACIÃ“N & VENTAS',
   },
   {

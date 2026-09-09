@@ -105,6 +105,15 @@ class ComandaController extends Controller
         try {
             $resultado = $this->pedidoRepository->agregarItemsMesa($mesaId, $validated['items']);
 
+            // Descuento automÃ¡tico de stock de recetas / ingredientes
+            foreach ($validated['items'] as $item) {
+                \App\Http\Controllers\Api\V1\RecetaController::descontarInsumosPorVenta(
+                    (int) $item['producto_id'],
+                    (float) $item['cantidad'],
+                    "Comanda Mesa #{$mesaId}"
+                );
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Comanda enviada a cocina exitosamente',
