@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\SalonMesaController;
+use App\Http\Controllers\Api\V1\ComandaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -35,5 +36,14 @@ Route::prefix('v1')->group(function () {
         Route::post('{mesaId}/cambiar', [SalonMesaController::class, 'cambiarMesa']);
         Route::post('{mesaId}/precuenta', [SalonMesaController::class, 'solicitarPrecuenta']);
         Route::post('{mesaId}/liberar', [SalonMesaController::class, 'liberarMesa']);
+        Route::post('{mesaId}/comanda', [ComandaController::class, 'agregarComanda']);
     });
+
+    Route::prefix('menu')->group(function () {
+        Route::get('categorias', [ComandaController::class, 'getCategorias']);
+        Route::get('productos', [ComandaController::class, 'getProductos']);
+        Route::get('observaciones-cocina', [ComandaController::class, 'getObservacionesCocina']);
+    });
+
+    Route::delete('visita-detalles/{detalleId}', [ComandaController::class, 'eliminarItem']);
 });

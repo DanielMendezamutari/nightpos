@@ -1,14 +1,18 @@
 <script setup>
 import { useSalonMesaStore } from '@/stores/salonMesa'
 import { useAuthStore } from '@/stores/auth'
+import { useComandaStore } from '@/stores/comanda'
+import ComandaModal from '@/components/pos/ComandaModal.vue'
 
 const salonStore = useSalonMesaStore()
 const authStore = useAuthStore()
+const comandaStore = useComandaStore()
 
 // State
 const openTableDialog = ref(false)
 const changeTableDialog = ref(false)
 const tableDetailDialog = ref(false)
+const comandaModalOpen = ref(false)
 const targetMesa = ref(null)
 
 // Form data for opening table
@@ -48,7 +52,6 @@ const handleMesaClick = async (mesa) => {
 const submitOpenTable = async () => {
   if (!targetMesa.value) return
 
-  // Usar el usuario logueado o primer mesero
   const meseroId = authStore.user?.id
 
   const res = await salonStore.abrirMesa(targetMesa.value.id, {
@@ -60,7 +63,10 @@ const submitOpenTable = async () => {
 
   if (res.success) {
     openTableDialog.value = false
-    targetMesa.value = null
+    // Abrir automáticamente la toma de pedidos para la mesa recién abierta
+    const updatedMesa = salonStore.mesas.find(m => m.id === targetMesa.value.id)
+    targetMesa.value = updatedMesa || targetMesa.value
+    comandaModalOpen.value = true
   } else {
     alert(res.message || 'Error al abrir la mesa')
   }
@@ -101,6 +107,24 @@ const handleLiberarMesa = async () => {
       tableDetailDialog.value = false
       targetMesa.value = null
     }
+  }
+}
+
+// Delete existing item from order
+const handleEliminarItem = async (detalleId) => {
+  if (confirm('¿Eliminar este ítem de la comanda?')) {
+    const ok = await comandaStore.eliminarItemComandaExistente(detalleId)
+    if (ok && targetMesa.value) {
+      await salonStore.fetchMesaDetails(targetMesa.value.id)
+      await salonStore.fetchMesas(salonStore.activeSalonId)
+    }
+  }
+}
+
+// On comanda sent
+const onComandaEnviada = async () => {
+  if (targetMesa.value) {
+    await salonStore.fetchMesaDetails(targetMesa.value.id)
   }
 }
 
@@ -389,7 +413,7 @@ const freeTablesForMove = computed(() => {
             :loading="salonStore.loading"
             @click="submitOpenTable"
           >
-            Abrir Mesa
+            Abrir & Tomar Pedido
           </VBtn>
         </VCardActions>
       </VCard>
@@ -424,12 +448,19 @@ const freeTablesForMove = computed(() => {
 
         <VCardText class="pa-4">
           <!-- Detalle de Consumos -->
-          <h6 class="text-subtitle-1 font-weight-bold mb-2 d-flex align-center justify-space-between">
-            <span>ÍTEMS DE LA COMANDA</span>
-            <span class="text-primary font-weight-bold text-h6">
-              Total: Bs. {{ salonStore.selectedMesaDetails.visita?.total?.toFixed(2) }}
-            </span>
-          </h6>
+          <div class="d-flex align-center justify-space-between mb-2">
+            <h6 class="text-subtitle-1 font-weight-bold">ÍTEMS DE LA COMANDA</h6>
+            <VBtn
+              color="primary"
+              size="small"
+              variant="elevated"
+              prepend-icon="ri-add-circle-fill"
+              class="font-weight-bold"
+              @click="comandaModalOpen = true"
+            >
+              + Cargar Pedido
+            </VBtn>
+          </div>
 
           <VTable density="compact" class="border rounded mb-4">
             <thead>
@@ -438,6 +469,7 @@ const freeTablesForMove = computed(() => {
                 <th class="font-weight-bold">PRODUCTO</th>
                 <th class="text-end font-weight-bold">P. UNIT</th>
                 <th class="text-end font-weight-bold">SUBTOTAL</th>
+                <th class="text-center font-weight-bold" style="width: 50px;">ACCIÓN</th>
               </tr>
             </thead>
             <tbody>
@@ -448,15 +480,31 @@ const freeTablesForMove = computed(() => {
                 <td class="font-weight-bold">{{ item.cantidad }}x</td>
                 <td>
                   <div class="font-weight-medium">{{ item.producto_nombre }}</div>
-                  <div v-if="item.observaciones" class="text-caption text-disabled">
-                    {{ item.observaciones }}
+                  <div v-if="item.observaciones" class="text-caption text-warning">
+                    Nota: {{ item.observaciones }}
                   </div>
                 </td>
                 <td class="text-end">Bs. {{ item.precio_unitario.toFixed(2) }}</td>
                 <td class="text-end font-weight-bold">Bs. {{ item.subtotal.toFixed(2) }}</td>
+                <td class="text-center">
+                  <VBtn
+                    size="x-small"
+                    variant="text"
+                    color="error"
+                    icon="ri-delete-bin-line"
+                    @click="handleEliminarItem(item.id)"
+                  />
+                </td>
               </tr>
             </tbody>
           </VTable>
+
+          <!-- Total Consumo -->
+          <div class="d-flex justify-end mb-4">
+            <div class="text-h6 font-weight-bold">
+              Total Acumulado: <span class="text-primary">Bs. {{ salonStore.selectedMesaDetails.visita?.total?.toFixed(2) }}</span>
+            </div>
+          </div>
 
           <!-- Acciones Táctiles de Mesa (RestoTech Faithful) -->
           <div class="d-flex gap-2 flex-wrap">
@@ -546,6 +594,13 @@ const freeTablesForMove = computed(() => {
         </VCardActions>
       </VCard>
     </VDialog>
+
+    <!-- FULLSCREEN MODAL: Toma de Pedidos Táctil (frmOrdenesPedido) -->
+    <ComandaModal
+      v-model="comandaModalOpen"
+      :mesa="targetMesa"
+      @comanda-enviada="onComandaEnviada"
+    />
   </div>
 </template>
 
