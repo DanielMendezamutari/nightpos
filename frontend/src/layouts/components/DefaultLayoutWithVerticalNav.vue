@@ -29,7 +29,7 @@ watch([
 // !SECTION
 const configStore = useConfigStore()
 
-// ℹ️ Provide animation name for vertical nav collapse icon.
+// â„¹ï¸ Provide animation name for vertical nav collapse icon.
 const verticalNavHeaderActionAnimationName = ref(null)
 
 watch([
@@ -45,7 +45,7 @@ watch([
 
 <template>
   <VerticalNavLayout :nav-items="navItems">
-    <!-- 👉 navbar -->
+    <!-- ðŸ‘‰ navbar -->
     <template #navbar="{ toggleVerticalOverlayNavActive }">
       <div class="d-flex h-100 align-center">
         <IconBtn
@@ -70,7 +70,7 @@ watch([
 
     <AppLoadingIndicator ref="refLoadingIndicator" />
 
-    <!-- 👉 Pages -->
+    <!-- ðŸ‘‰ Pages -->
     <RouterView v-slot="{ Component }">
       <Suspense
         :timeout="0"
@@ -81,12 +81,12 @@ watch([
       </Suspense>
     </RouterView>
 
-    <!-- 👉 Footer -->
+    <!-- ðŸ‘‰ Footer -->
     <template #footer>
       <Footer />
     </template>
 
-    <!-- 👉 Customizer -->
+    <!-- ðŸ‘‰ Customizer -->
     <!-- <TheCustomizer /> -->
   </VerticalNavLayout>
 </template>

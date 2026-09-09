@@ -28,7 +28,7 @@ watch([
 
 <template>
   <HorizontalNavLayout :nav-items="navItems">
-    <!-- 👉 navbar -->
+    <!-- ðŸ‘‰ navbar -->
     <template #navbar>
       <RouterLink
         to="/"
@@ -53,7 +53,7 @@ watch([
 
     <AppLoadingIndicator ref="refLoadingIndicator" />
 
-    <!-- 👉 Pages -->
+    <!-- ðŸ‘‰ Pages -->
     <RouterView v-slot="{ Component }">
       <Suspense
         :timeout="0"
@@ -64,12 +64,12 @@ watch([
       </Suspense>
     </RouterView>
 
-    <!-- 👉 Footer -->
+    <!-- ðŸ‘‰ Footer -->
     <template #footer>
       <Footer />
     </template>
 
-    <!-- 👉 Customizer -->
+    <!-- ðŸ‘‰ Customizer -->
     <!-- <TheCustomizer /> -->
   </HorizontalNavLayout>
 </template>
