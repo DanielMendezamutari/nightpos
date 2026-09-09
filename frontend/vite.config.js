@@ -15,7 +15,7 @@ import svgLoader from 'vite-svg-loader'
 export default defineConfig({
   plugins: [
     // Docs: https://github.com/posva/unplugin-vue-router
-    // ℹ️ This plugin should be placed before vue plugin
+    // â„¹ï¸ This plugin should be placed before vue plugin
     VueRouter({
       getRouteName: routeNode => {
         // Convert pascal case to kebab case
@@ -71,7 +71,7 @@ export default defineConfig({
       ],
       vueTemplate: true,
 
-      // ℹ️ Disabled to avoid confusion & accidental usage
+      // â„¹ï¸ Disabled to avoid confusion & accidental usage
       ignore: ['useCookies', 'useStorage'],
       eslintrc: {
         enabled: true,
@@ -92,6 +92,15 @@ export default defineConfig({
       '@configured-variables': fileURLToPath(new URL('./src/assets/styles/variables/_template.scss', import.meta.url)),
       '@db': fileURLToPath(new URL('./src/plugins/fake-api/handlers/', import.meta.url)),
       '@api-utils': fileURLToPath(new URL('./src/plugins/fake-api/utils/', import.meta.url)),
+    },
+  },
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://nightpos.test',
+        changeOrigin: true,
+      },
     },
   },
   build: {
