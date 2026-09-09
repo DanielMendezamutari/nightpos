@@ -1,907 +1,401 @@
-<script setup>
-import { VForm } from 'vuetify/components/VForm'
-import { themeConfig } from '@themeConfig'
-import authV2LoginIllustrationBorderedDark from '@images/pages/auth-v2-login-illustration-bordered-dark.png'
-import authV2LoginIllustrationBorderedLight from '@images/pages/auth-v2-login-illustration-bordered-light.png'
-import authV2LoginIllustrationDark from '@images/pages/auth-v2-login-illustration-dark.png'
-import authV2LoginIllustrationLight from '@images/pages/auth-v2-login-illustration-light.png'
-import authV2LoginMaskDark from '@images/pages/auth-v2-login-mask-dark.png'
-import authV2LoginMaskLight from '@images/pages/auth-v2-login-mask-light.png'
-import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
-import { fetchLoginContextBranches, fetchLoginContextTenants } from '@/api/loginContext'
+﻿<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { resolveHomeRoute } from '@/utils/resolveHomeRoute'
-import { useContextStore } from '@/stores/context'
-import { getApiErrorMessage } from '@/services/http'
 
-const authThemeImg = useGenerateImageVariant(authV2LoginIllustrationLight, authV2LoginIllustrationDark, authV2LoginIllustrationBorderedLight, authV2LoginIllustrationBorderedDark, true)
-const authThemeMask = useGenerateImageVariant(authV2LoginMaskLight, authV2LoginMaskDark)
+definePage({ meta: { layout: 'blank' } })
 
-definePage({
-  meta: {
-    layout: 'blank',
-    public: true,
-    unauthenticatedOnly: true,
-  },
-})
-
-const REMEMBER_DAYS = 30
-const COOKIE_OPTS = { maxAge: 60 * 60 * 24 * REMEMBER_DAYS }
-
-const auth = useAuthStore()
-const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
-const sessionExpiredHint = computed(() =>
-  route.query.reason === 'session_expired'
-    ? 'Tu sesión expiró. Vuelve a ingresar.'
-    : '',
-)
-
-const loginMode = ref('pin')
-const errorMessage = ref('')
-const suggestContextChange = ref(false)
-const tenantsLoadFailed = ref(false)
-const refVForm = ref()
-
-const tenantSlugCookie = useCookie('tenantSlug', COOKIE_OPTS)
-const branchCodeCookie = useCookie('branchCode', COOKIE_OPTS)
-const tenantNameCookie = useCookie('tenantName', COOKIE_OPTS)
-const branchNameCookie = useCookie('branchName', COOKIE_OPTS)
-const lastOperatorNameCookie = useCookie('lastOperatorName', COOKIE_OPTS)
-
-/** 'pin' | 'select-context' | 'select-tenant' | 'select-branch' */
-const pinStep = ref('pin')
-
-const pinForm = ref({
-  tenant_slug: '',
-  branch_code: '',
-  tenant_name: '',
-  branch_name: '',
-  pin: '',
-})
-
-const passwordForm = ref({
-  username: '',
-  password: '',
-  tenant_slug: '',
-})
-
-const tenants = ref([])
-const branches = ref([])
-const loadingTenants = ref(false)
-const loadingBranches = ref(false)
-
-const selectedTenantSlug = ref(null)
-const selectedBranchCode = ref(null)
-
-const isPlatformLogin = computed(() =>
-  passwordForm.value.username?.trim().toLowerCase() === 'superadmin',
-)
-
+// State
+const loginMode = ref('pin') // 'pin' | 'password'
+const pinValue = ref('')
+const username = ref('admin.demo')
+const password = ref('AdminDemo123!')
 const isPasswordVisible = ref(false)
+const tenantSlug = ref(authStore.tenantSlug || 'casa-demo')
+const branchCode = ref(authStore.branchCode || 'CENTRO')
+const errorMessage = ref('')
+const successMessage = ref('')
 
-const requiredRule = v => !!v || 'Requerido'
+// Demo shortcuts — 100% RestoTech Restaurante
+const demoShortcuts = [
+  { name: 'Cajero', pin: '1234', role: 'Caja y Facturación', color: 'warning', icon: 'ri-bank-card-line' },
+  { name: 'Mesero / Garzón', pin: '5678', role: 'Toma de Pedidos y Salón', color: 'primary', icon: 'ri-user-smile-line' },
+  { name: 'Administrador', pin: '2468', role: 'Gerencia y Control', color: 'error', icon: 'ri-shield-user-line' },
+]
 
-const pinRules = computed(() => (loginMode.value === 'pin' && pinStep.value === 'pin' ? [requiredRule] : []))
-const passwordFieldRules = computed(() =>
-  loginMode.value === 'password' ? [requiredRule] : [],
-)
-const tenantSlugPasswordRules = computed(() =>
-  loginMode.value === 'password' && !isPlatformLogin.value
-    ? [v => !!v?.trim() || 'Requerido para usuarios de empresa']
-    : [],
-)
+const pinDisplay = computed(() => {
+  return pinValue.value ? '● '.repeat(pinValue.value.length).trim() : 'Ingrese PIN de 4 dígitos'
+})
 
-const hasSavedContext = computed(() =>
-  Boolean(tenantSlugCookie.value?.trim() && branchCodeCookie.value?.trim()),
-)
-
-const displayTenantName = computed(() =>
-  pinForm.value.tenant_name || tenantNameCookie.value || pinForm.value.tenant_slug || '—',
-)
-
-const displayBranchName = computed(() =>
-  pinForm.value.branch_name || branchNameCookie.value || pinForm.value.branch_code || '—',
-)
-
-const displayUserName = computed(() =>
-  lastOperatorNameCookie.value?.trim() || '—',
-)
-
-const hasSavedUser = computed(() => Boolean(lastOperatorNameCookie.value?.trim()))
-
-const tenantItems = computed(() =>
-  tenants.value.map(t => ({ title: t.name, value: t.slug, raw: t })),
-)
-
-const branchItems = computed(() =>
-  branches.value.map(b => ({ title: b.name, value: b.code, raw: b })),
-)
-
-const syncPinFormFromCookies = () => {
-  pinForm.value.tenant_slug = tenantSlugCookie.value || ''
-  pinForm.value.branch_code = branchCodeCookie.value || ''
-  pinForm.value.tenant_name = tenantNameCookie.value || ''
-  pinForm.value.branch_name = branchNameCookie.value || ''
-}
-
-const clearSavedContext = () => {
-  tenantSlugCookie.value = null
-  branchCodeCookie.value = null
-  tenantNameCookie.value = null
-  branchNameCookie.value = null
-  lastOperatorNameCookie.value = null
-  pinForm.value.tenant_slug = ''
-  pinForm.value.branch_code = ''
-  pinForm.value.tenant_name = ''
-  pinForm.value.branch_name = ''
-}
-
-const clearSavedUser = () => {
-  lastOperatorNameCookie.value = null
-}
-
-const loadTenants = async () => {
-  loadingTenants.value = true
-  tenantsLoadFailed.value = false
-  try {
-    tenants.value = await fetchLoginContextTenants()
-  }
-  catch (error) {
-    tenantsLoadFailed.value = true
-    errorMessage.value = getApiErrorMessage(error)
-    if (hasSavedContext.value) {
-      syncPinFormFromCookies()
-      suggestContextChange.value = true
+function appendPin(digit) {
+  if (pinValue.value.length < 6) {
+    pinValue.value += String(digit)
+    errorMessage.value = ''
+    if (pinValue.value.length === 4) {
+      handlePinSubmit()
     }
   }
-  finally {
-    loadingTenants.value = false
-  }
 }
 
-const retryLoadTenants = async () => {
+function clearPin() {
+  pinValue.value = ''
   errorMessage.value = ''
-  tenantsLoadFailed.value = false
-  await loadTenants()
 }
 
-const clearLocalContextAndRetry = async () => {
-  clearSavedContext()
-  useCookie('accessToken').value = null
-  useCookie('userData').value = null
-  selectedTenantSlug.value = null
-  selectedBranchCode.value = null
-  branches.value = []
-  suggestContextChange.value = false
-  pinStep.value = 'select-context'
-  await retryLoadTenants()
-}
-
-const useSavedContextOnPinStep = () => {
+function backspacePin() {
+  pinValue.value = pinValue.value.slice(0, -1)
   errorMessage.value = ''
-  tenantsLoadFailed.value = false
-  syncPinFormFromCookies()
-  pinStep.value = 'pin'
 }
 
-const loadBranches = async slug => {
-  if (!slug) {
-    branches.value = []
-    selectedBranchCode.value = null
+function selectDemo(demo) {
+  pinValue.value = demo.pin
+  handlePinSubmit()
+}
 
+async function handlePinSubmit() {
+  if (!pinValue.value || pinValue.value.length < 4) {
+    errorMessage.value = 'El PIN debe contener al menos 4 dígitos.'
     return
   }
 
-  loadingBranches.value = true
-  try {
-    branches.value = await fetchLoginContextBranches(slug)
-    if (branches.value.length === 1)
-      selectedBranchCode.value = branches.value[0].code
-  }
-  catch (error) {
-    branches.value = []
-    errorMessage.value = getApiErrorMessage(error)
-    suggestContextChange.value = true
-  }
-  finally {
-    loadingBranches.value = false
-  }
-}
+  errorMessage.value = ''
+  successMessage.value = ''
 
-const hydratePinStep = async () => {
-  syncPinFormFromCookies()
-  if (!hasSavedContext.value) {
-    pinStep.value = 'select-context'
-    await loadTenants()
-
-    return
-  }
-
-  try {
-    const list = await fetchLoginContextBranches(tenantSlugCookie.value)
-    const branch = list.find(b => b.code === branchCodeCookie.value)
-
-    if (!branch) {
-      throw new Error('Sucursal no disponible')
-    }
-
-    const tenant = tenants.value.length
-      ? tenants.value.find(t => t.slug === tenantSlugCookie.value)
-      : null
-
-    if (!tenant) {
-      const allTenants = await fetchLoginContextTenants()
-
-      tenants.value = allTenants
-      const found = allTenants.find(t => t.slug === tenantSlugCookie.value)
-      if (found) {
-        pinForm.value.tenant_name = found.name
-        tenantNameCookie.value = found.name
+  const result = await authStore.loginWithPin(pinValue.value, tenantSlug.value, branchCode.value)
+  if (result.success) {
+    successMessage.value = `¡Bienvenido(a), ${result.user.name}!`
+    const userRole = (result.user.role || '').toLowerCase()
+    setTimeout(() => {
+      if (userRole === 'cashier' || userRole === 'cajero') {
+        window.location.href = '/cashier/orders'
+      } else if (userRole === 'waiter' || userRole === 'mesero' || userRole === 'garzon') {
+        window.location.href = '/waiter/tables'
+      } else {
+        window.location.href = '/'
       }
-    }
-
-    pinForm.value.branch_name = branch.name
-    branchNameCookie.value = branch.name
-    pinStep.value = 'pin'
-  }
-  catch {
-    errorMessage.value = 'La empresa o sucursal guardada ya no está disponible. Elija de nuevo.'
-    suggestContextChange.value = true
-    clearSavedContext()
-    pinStep.value = 'select-context'
-    await loadTenants()
+    }, 400)
+  } else {
+    errorMessage.value = result.message || 'PIN incorrecto o no asignado en esta sucursal.'
+    pinValue.value = ''
   }
 }
 
-const startChangeContext = async () => {
-  auth.clearAuthOnly()
-  auth.loading = false
-  errorMessage.value = ''
-  suggestContextChange.value = false
-  tenantsLoadFailed.value = false
-  pinForm.value.pin = ''
-  selectedTenantSlug.value = null
-  selectedBranchCode.value = null
-  branches.value = []
-  clearSavedContext()
-  pinStep.value = 'select-context'
-  await loadTenants()
-}
-
-const startChangeTenant = async () => {
-  errorMessage.value = ''
-  suggestContextChange.value = false
-  pinForm.value.pin = ''
-  branchCodeCookie.value = null
-  branchNameCookie.value = null
-  tenantSlugCookie.value = null
-  tenantNameCookie.value = null
-  lastOperatorNameCookie.value = null
-  pinForm.value.branch_code = ''
-  pinForm.value.branch_name = ''
-  selectedTenantSlug.value = null
-  selectedBranchCode.value = null
-  branches.value = []
-  pinStep.value = 'select-tenant'
-  await loadTenants()
-}
-
-const startChangeBranch = async () => {
-  errorMessage.value = ''
-  suggestContextChange.value = false
-  pinForm.value.pin = ''
-  branchCodeCookie.value = null
-  branchNameCookie.value = null
-  lastOperatorNameCookie.value = null
-  pinForm.value.branch_code = ''
-  pinForm.value.branch_name = ''
-  selectedBranchCode.value = null
-  selectedTenantSlug.value = tenantSlugCookie.value || pinForm.value.tenant_slug || null
-  pinStep.value = 'select-branch'
-  if (selectedTenantSlug.value)
-    await loadBranches(selectedTenantSlug.value)
-}
-
-const startChangeUser = () => {
-  errorMessage.value = ''
-  clearSavedUser()
-  pinForm.value.pin = ''
-  pinStep.value = 'pin'
-}
-
-const confirmContextSelection = () => {
-  errorMessage.value = ''
-
-  const tenant = tenants.value.find(t => t.slug === selectedTenantSlug.value)
-  const branch = branches.value.find(b => b.code === selectedBranchCode.value)
-
-  if (!tenant || !branch) {
-    errorMessage.value = pinStep.value === 'select-branch'
-      ? 'Seleccione sucursal para continuar.'
-      : 'Seleccione empresa y sucursal para continuar.'
-
+async function handlePasswordSubmit() {
+  if (!username.value || !password.value) {
+    errorMessage.value = 'Ingrese usuario y contraseña.'
     return
   }
 
-  tenantSlugCookie.value = tenant.slug
-  branchCodeCookie.value = branch.code
-  tenantNameCookie.value = tenant.name
-  branchNameCookie.value = branch.name
-
-  pinForm.value.tenant_slug = tenant.slug
-  pinForm.value.branch_code = branch.code
-  pinForm.value.tenant_name = tenant.name
-  pinForm.value.branch_name = branch.name
-  pinForm.value.pin = ''
-  pinStep.value = 'pin'
-  suggestContextChange.value = false
-}
-
-const confirmTenantSelection = async () => {
-  const tenant = tenants.value.find(t => t.slug === selectedTenantSlug.value)
-  if (!tenant) {
-    errorMessage.value = 'Seleccione empresa para continuar.'
-
-    return
-  }
-
-  tenantSlugCookie.value = tenant.slug
-  tenantNameCookie.value = tenant.name
-  pinForm.value.tenant_slug = tenant.slug
-  pinForm.value.tenant_name = tenant.name
-  pinStep.value = 'select-branch'
-  await loadBranches(tenant.slug)
-}
-
-const confirmBranchSelection = () => {
-  const branch = branches.value.find(b => b.code === selectedBranchCode.value)
-  if (!branch) {
-    errorMessage.value = 'Seleccione sucursal para continuar.'
-
-    return
-  }
-
-  branchCodeCookie.value = branch.code
-  branchNameCookie.value = branch.name
-  pinForm.value.branch_code = branch.code
-  pinForm.value.branch_name = branch.name
-  pinForm.value.pin = ''
-  pinStep.value = 'pin'
-}
-
-const isContextRelatedError = (error, message) => {
-  const status = error?.response?.status
-  const lower = (message || '').toLowerCase()
-
-  return [403, 404, 422].includes(status)
-    || lower.includes('empresa')
-    || lower.includes('sucursal')
-    || lower.includes('tenant')
-    || lower.includes('branch')
-    || lower.includes('acceso')
-    || lower.includes('disponible')
-    || lower.includes('encontrad')
-}
-
-watch(selectedTenantSlug, slug => {
-  selectedBranchCode.value = null
-  if (slug)
-    loadBranches(slug)
-  else
-    branches.value = []
-})
-
-watch(loginMode, () => {
   errorMessage.value = ''
-  suggestContextChange.value = false
-  tenantsLoadFailed.value = false
-  refVForm.value?.resetValidation()
-  if (loginMode.value === 'pin')
-    hydratePinStep()
-})
+  successMessage.value = ''
+
+  const result = await authStore.loginWithPassword(username.value, password.value, tenantSlug.value)
+  if (result.success) {
+    successMessage.value = `¡Bienvenido(a), ${result.user.name}!`
+    setTimeout(() => {
+      window.location.href = '/'
+    }, 400)
+  } else {
+    errorMessage.value = result.message || 'Usuario o contraseña incorrectos.'
+  }
+}
 
 onMounted(() => {
-  auth.clearAuthOnly()
-  hydratePinStep()
+  window.addEventListener('keydown', handleKeydown)
 })
 
-const submit = async () => {
-  errorMessage.value = ''
-  suggestContextChange.value = false
-
-  if (loginMode.value === 'password' && isPlatformLogin.value) {
-    tenantSlugCookie.value = null
-    branchCodeCookie.value = null
-    tenantNameCookie.value = null
-    branchNameCookie.value = null
-  }
-
-  try {
-    if (loginMode.value === 'pin') {
-      await auth.loginWithPin({
-        pin: pinForm.value.pin,
-        tenantSlug: pinForm.value.tenant_slug,
-        branchCode: pinForm.value.branch_code,
-        tenantName: pinForm.value.tenant_name,
-        branchName: pinForm.value.branch_name,
-      })
-    }
-    else {
-      const slug = isPlatformLogin.value
-        ? null
-        : (passwordForm.value.tenant_slug?.trim() || tenantSlugCookie.value || null)
-
-      await auth.loginWithPassword({
-        username: passwordForm.value.username.trim(),
-        password: passwordForm.value.password,
-        tenantSlug: slug,
-      })
-    }
-
-    const contextStore = useContextStore()
-    const home = resolveHomeRoute(auth.user, {
-      tenantSlug: contextStore.tenantSlug,
-      branchCode: contextStore.branchCode,
-    })
-
-    await router.replace(route.query.to ? String(route.query.to) : home)
-  }
-  catch (error) {
-    auth.clearAuthOnly()
-    const raw = auth.error || getApiErrorMessage(error)
-
-    if (loginMode.value === 'pin' && isContextRelatedError(error, raw)) {
-      errorMessage.value = 'No se pudo ingresar con esta empresa/sucursal. Cambia la empresa o sucursal.'
-      suggestContextChange.value = true
-    }
-    else {
-      errorMessage.value = raw
+function handleKeydown(e) {
+  if (loginMode.value === 'pin') {
+    if (e.key >= '0' && e.key <= '9') {
+      appendPin(e.key)
+    } else if (e.key === 'Backspace') {
+      backspacePin()
+    } else if (e.key === 'Enter') {
+      handlePinSubmit()
+    } else if (e.key === 'Escape') {
+      clearPin()
     }
   }
 }
-
-const onSubmit = async () => {
-  if (loginMode.value === 'pin' && pinStep.value === 'select-context') {
-    confirmContextSelection()
-
-    return
-  }
-
-  if (loginMode.value === 'pin' && pinStep.value === 'select-tenant') {
-    await confirmTenantSelection()
-
-    return
-  }
-
-  if (loginMode.value === 'pin' && pinStep.value === 'select-branch') {
-    confirmBranchSelection()
-
-    return
-  }
-
-  const { valid } = await refVForm.value?.validate() ?? { valid: false }
-
-  if (!valid) {
-    errorMessage.value = loginMode.value === 'password'
-      ? 'Complete usuario y contraseña (y empresa si no es superadmin).'
-      : 'Ingrese su PIN.'
-
-    return
-  }
-
-  await submit()
-}
-
 </script>
 
 <template>
-  <RouterLink to="/">
-    <div class="auth-logo app-logo">
-      <VNodeRenderer :nodes="themeConfig.app.logo" />
-      <h1 class="app-logo-title">
-        {{ themeConfig.app.title }}
-      </h1>
-    </div>
-  </RouterLink>
-
-  <VRow
-    no-gutters
-    class="auth-wrapper"
-  >
-    <VCol
-      md="8"
-      class="d-none d-md-flex position-relative"
+  <div class="pos-auth-container min-vh-100 d-flex align-center justify-center pa-4">
+    <VCard
+      class="pos-auth-card w-100 elevation-12"
+      max-width="540"
+      rounded="xl"
     >
-      <div class="d-flex align-center justify-center w-100 h-100 pa-10">
-        <VImg
-          :src="authThemeImg"
-          class="auth-illustration"
-          max-width="700"
-        />
-      </div>
-      <img
-        class="auth-footer-mask"
-        :src="authThemeMask"
-        alt=""
-        height="280"
-      >
-    </VCol>
-
-    <VCol
-      cols="12"
-      md="4"
-      class="auth-card-v2 d-flex align-center justify-center"
-    >
-      <VCard
-        flat
-        :max-width="420"
-        class="mt-12 mt-sm-0 pa-6 login-card"
-      >
-        <VCardText>
-          <h4 class="text-h4 mb-1">
-            Bienvenido a {{ themeConfig.app.title }}
-          </h4>
-          <p class="mb-0">
-            Acceso operativo — PIN para caja/garzón o usuario para administración.
-          </p>
-        </VCardText>
-
-        <VCardText>
-          <VTabs
-            v-model="loginMode"
-            class="mb-4"
+      <!-- Header -->
+      <VCardItem class="text-center pt-8 pb-4">
+        <div class="d-flex align-center justify-center gap-2 mb-2">
+          <VAvatar
+            color="primary"
+            variant="flat"
+            size="48"
+            rounded="lg"
           >
-            <VTab value="pin">
-              PIN
-            </VTab>
-            <VTab value="password">
-              Usuario / contraseña
-            </VTab>
-          </VTabs>
+            <VIcon
+              icon="ri-restaurant-2-fill"
+              size="30"
+              color="white"
+            />
+          </VAvatar>
+          <div class="text-left">
+            <h2 class="text-h4 font-weight-bold text-primary mb-0">
+              RestoTech POS
+            </h2>
+            <span class="text-caption text-medium-emphasis">Punto de Venta para Restaurantes</span>
+          </div>
+        </div>
 
-          <VAlert
-            v-if="sessionExpiredHint"
-            type="warning"
+        <div class="d-flex align-center justify-center gap-2 mt-2">
+          <VChip
+            size="small"
+            color="success"
             variant="tonal"
-            class="mb-4"
+            prepend-icon="ri-shield-check-line"
           >
-            {{ sessionExpiredHint }}
-          </VAlert>
-
-          <VAlert
-            v-if="errorMessage"
-            type="error"
+            Local-First POS
+          </VChip>
+          <VChip
+            size="small"
+            color="info"
             variant="tonal"
-            class="mb-4"
+            prepend-icon="ri-store-2-line"
           >
-            {{ errorMessage }}
+            Sucursal: {{ branchCode }}
+          </VChip>
+        </div>
+      </VCardItem>
+
+      <VCardText class="px-6 pb-6">
+        <!-- Selector de Modo -->
+        <VBtnToggle
+          v-model="loginMode"
+          mandatory
+          color="primary"
+          variant="tonal"
+          density="comfortable"
+          class="w-100 mb-6 justify-center"
+        >
+          <VBtn
+            value="pin"
+            prepend-icon="ri-keypad-line"
+            class="flex-grow-1"
+          >
+            PIN Táctil (Rápido)
+          </VBtn>
+          <VBtn
+            value="password"
+            prepend-icon="ri-lock-password-line"
+            class="flex-grow-1"
+          >
+            Contraseña (Admin)
+          </VBtn>
+        </VBtnToggle>
+
+        <!-- Alerts -->
+        <VAlert
+          v-if="errorMessage"
+          type="error"
+          variant="tonal"
+          density="compact"
+          class="mb-4"
+          closable
+          @click:close="errorMessage = ''"
+        >
+          {{ errorMessage }}
+        </VAlert>
+
+        <VAlert
+          v-if="successMessage"
+          type="success"
+          variant="tonal"
+          density="compact"
+          class="mb-4"
+        >
+          {{ successMessage }}
+        </VAlert>
+
+        <!-- MODO 1: PIN TÁCTIL -->
+        <div v-if="loginMode === 'pin'">
+          <!-- Display PIN -->
+          <div class="pin-display-box rounded-lg pa-4 mb-4 text-center">
             <div
-              v-if="tenantsLoadFailed"
-              class="d-flex flex-wrap ga-2 mt-2"
+              class="text-h5 font-weight-bold letter-spacing-2"
+              :class="pinValue ? 'text-primary' : 'text-medium-emphasis'"
+            >
+              {{ pinDisplay }}
+            </div>
+            <div class="text-caption text-medium-emphasis mt-1">
+              Ingrese su código personal de 4 dígitos
+            </div>
+          </div>
+
+          <!-- Teclado Numérico -->
+          <div class="pin-keypad mb-4">
+            <div
+              v-for="row in [[1,2,3],[4,5,6],[7,8,9]]"
+              :key="row[0]"
+              class="d-flex gap-3 mb-3"
             >
               <VBtn
-                size="small"
-                variant="tonal"
-                :loading="loadingTenants"
-                @click="retryLoadTenants"
+                v-for="num in row"
+                :key="num"
+                size="x-large"
+                variant="outlined"
+                color="secondary"
+                class="flex-grow-1 keypad-btn text-h5 font-weight-bold"
+                :disabled="authStore.loading"
+                @click="appendPin(num)"
               >
-                Reintentar
-              </VBtn>
-              <VBtn
-                size="small"
-                variant="text"
-                @click="clearLocalContextAndRetry"
-              >
-                Limpiar contexto local
-              </VBtn>
-              <VBtn
-                v-if="hasSavedContext"
-                size="small"
-                variant="text"
-                @click="useSavedContextOnPinStep"
-              >
-                Usar contexto guardado
+                {{ num }}
               </VBtn>
             </div>
-            <VBtn
-              v-else-if="loginMode === 'pin' && suggestContextChange"
-              variant="text"
-              size="small"
-              class="mt-2"
-              @click="startChangeContext"
-            >
-              Cambiar empresa / sucursal
-            </VBtn>
-            <p
-              v-else-if="loginMode === 'pin'"
-              class="text-caption mb-0 mt-2"
-            >
-              Verifique PIN, empresa y sucursal. Si el problema continúa, cambie el contexto operativo.
-            </p>
-            <p
-              v-else
-              class="text-caption mb-0 mt-2"
-            >
-              Verifique usuario y contraseña. Los administradores de empresa deben indicar el slug correcto.
-            </p>
-          </VAlert>
+            <div class="d-flex gap-3">
+              <VBtn
+                size="x-large"
+                variant="text"
+                color="error"
+                class="flex-grow-1 keypad-btn"
+                :disabled="!pinValue || authStore.loading"
+                @click="clearPin"
+              >
+                <VIcon
+                  icon="ri-close-circle-line"
+                  size="24"
+                />
+              </VBtn>
+              <VBtn
+                size="x-large"
+                variant="outlined"
+                color="secondary"
+                class="flex-grow-1 keypad-btn text-h5 font-weight-bold"
+                :disabled="authStore.loading"
+                @click="appendPin(0)"
+              >
+                0
+              </VBtn>
+              <VBtn
+                size="x-large"
+                variant="text"
+                color="warning"
+                class="flex-grow-1 keypad-btn"
+                :disabled="!pinValue || authStore.loading"
+                @click="backspacePin"
+              >
+                <VIcon
+                  icon="ri-delete-back-2-line"
+                  size="24"
+                />
+              </VBtn>
+            </div>
+          </div>
 
-          <VForm
-            ref="refVForm"
-            @submit.prevent="onSubmit"
+          <!-- Botón de Envío -->
+          <VBtn
+            block
+            size="large"
+            color="primary"
+            class="mb-4"
+            :loading="authStore.loading"
+            :disabled="pinValue.length < 4"
+            prepend-icon="ri-login-box-line"
+            @click="handlePinSubmit"
           >
-            <VWindow v-model="loginMode">
-              <VWindowItem value="pin">
-                <template v-if="pinStep === 'pin'">
-                  <VCard
-                    variant="tonal"
-                    color="primary"
-                    class="mb-4"
-                  >
-                    <VCardText class="py-3">
-                      <div class="text-body-2">
-                        <strong>Empresa:</strong> {{ displayTenantName }}
-                      </div>
-                      <div class="text-body-2 mt-1">
-                        <strong>Sucursal:</strong> {{ displayBranchName }}
-                      </div>
-                      <div
-                        v-if="hasSavedUser"
-                        class="text-body-2 mt-1"
-                      >
-                        <strong>Usuario:</strong> {{ displayUserName }}
-                      </div>
-                      <div class="d-flex flex-wrap ga-1 mt-2">
-                        <VBtn
-                          variant="text"
-                          size="small"
-                          class="px-0"
-                          @click="startChangeTenant"
-                        >
-                          Cambiar empresa
-                        </VBtn>
-                        <VBtn
-                          variant="text"
-                          size="small"
-                          class="px-0"
-                          @click="startChangeBranch"
-                        >
-                          Cambiar sucursal
-                        </VBtn>
-                        <VBtn
-                          v-if="hasSavedUser"
-                          variant="text"
-                          size="small"
-                          class="px-0"
-                          @click="startChangeUser"
-                        >
-                          Cambiar usuario
-                        </VBtn>
-                      </div>
-                    </VCardText>
-                  </VCard>
+            Ingresar al POS
+          </VBtn>
 
-                  <VTextField
-                    v-model="pinForm.pin"
-                    label="PIN"
-                    type="password"
-                    inputmode="numeric"
-                    autocomplete="one-time-code"
-                    maxlength="6"
-                    class="login-pin-field"
-                    :rules="pinRules"
-                    autofocus
-                  />
-                </template>
+          <!-- Acceso Rápido Demo RestoTech -->
+          <VDivider class="my-4" />
+          <div class="text-caption text-medium-emphasis mb-2 text-center">
+            Perfiles de Restaurante:
+          </div>
+          <div class="d-flex gap-2 flex-wrap justify-center">
+            <VBtn
+              v-for="demo in demoShortcuts"
+              :key="demo.pin"
+              size="small"
+              :color="demo.color"
+              variant="tonal"
+              :prepend-icon="demo.icon"
+              @click="selectDemo(demo)"
+            >
+              {{ demo.name }} ({{ demo.pin }})
+            </VBtn>
+          </div>
+        </div>
 
-                <template v-else-if="pinStep === 'select-tenant'">
-                  <p class="text-body-2 mb-4">
-                    Elija la empresa donde va a operar.
-                  </p>
+        <!-- MODO 2: USUARIO Y CONTRASEÑA -->
+        <div v-else>
+          <VForm @submit.prevent="handlePasswordSubmit">
+            <VTextField
+              v-model="username"
+              label="Usuario / Correo"
+              prepend-inner-icon="ri-user-line"
+              placeholder="admin.demo"
+              class="mb-4"
+              :disabled="authStore.loading"
+            />
 
-                  <VSelect
-                    v-model="selectedTenantSlug"
-                    :items="tenantItems"
-                    label="Empresa"
-                    placeholder="Seleccione empresa"
-                    :loading="loadingTenants"
-                    :disabled="loadingTenants"
-                    class="mb-3"
-                  />
-
-                  <VBtn
-                    variant="text"
-                    size="small"
-                    class="mb-2"
-                    @click="pinStep = 'pin'; syncPinFormFromCookies()"
-                  >
-                    Volver al PIN
-                  </VBtn>
-                </template>
-
-                <template v-else-if="pinStep === 'select-branch'">
-                  <p class="text-body-2 mb-2">
-                    Empresa: <strong>{{ displayTenantName }}</strong>
-                  </p>
-                  <p class="text-body-2 mb-4">
-                    Elija la sucursal donde va a operar.
-                  </p>
-
-                  <VSelect
-                    v-model="selectedBranchCode"
-                    :items="branchItems"
-                    label="Sucursal"
-                    placeholder="Seleccione sucursal"
-                    :loading="loadingBranches"
-                    :disabled="loadingBranches"
-                    class="mb-2"
-                  />
-
-                  <VBtn
-                    variant="text"
-                    size="small"
-                    class="mb-2"
-                    @click="startChangeTenant"
-                  >
-                    Cambiar empresa
-                  </VBtn>
-                  <VBtn
-                    variant="text"
-                    size="small"
-                    class="mb-2 ms-2"
-                    @click="pinStep = 'pin'; syncPinFormFromCookies()"
-                  >
-                    Volver al PIN
-                  </VBtn>
-                </template>
-
-                <template v-else>
-                  <p class="text-body-2 mb-4">
-                    Elija la empresa y sucursal donde va a operar.
-                  </p>
-
-                  <VSelect
-                    v-model="selectedTenantSlug"
-                    :items="tenantItems"
-                    label="Empresa"
-                    placeholder="Seleccione empresa"
-                    :loading="loadingTenants"
-                    :disabled="loadingTenants && !tenantsLoadFailed"
-                    class="mb-3"
-                  />
-
-                  <VSelect
-                    v-model="selectedBranchCode"
-                    :items="branchItems"
-                    label="Sucursal"
-                    placeholder="Seleccione sucursal"
-                    :loading="loadingBranches"
-                    :disabled="!selectedTenantSlug || (loadingBranches && !branches.length)"
-                    class="mb-2"
-                  />
-
-                  <div
-                    v-if="hasSavedContext && tenantsLoadFailed"
-                    class="d-flex flex-wrap ga-1 mb-2"
-                  >
-                    <VBtn
-                      variant="text"
-                      size="small"
-                      class="px-0"
-                      @click="useSavedContextOnPinStep"
-                    >
-                      Continuar con contexto guardado
-                    </VBtn>
-                    <VBtn
-                      variant="text"
-                      size="small"
-                      class="px-0"
-                      @click="startChangeTenant"
-                    >
-                      Cambiar empresa
-                    </VBtn>
-                    <VBtn
-                      variant="text"
-                      size="small"
-                      class="px-0"
-                      @click="startChangeBranch"
-                    >
-                      Cambiar sucursal
-                    </VBtn>
-                  </div>
-
-                  <VBtn
-                    v-if="hasSavedContext"
-                    variant="text"
-                    size="small"
-                    class="mb-2"
-                    @click="pinStep = 'pin'; syncPinFormFromCookies()"
-                  >
-                    Volver al PIN
-                  </VBtn>
-                </template>
-              </VWindowItem>
-
-              <VWindowItem value="password">
-                <VRow>
-                  <VCol cols="12">
-                    <VTextField
-                      v-model="passwordForm.username"
-                      label="Usuario"
-                      :rules="passwordFieldRules"
-                    />
-                  </VCol>
-                  <VCol cols="12">
-                    <VTextField
-                      v-model="passwordForm.password"
-                      label="Contraseña"
-                      :type="isPasswordVisible ? 'text' : 'password'"
-                      :append-inner-icon="isPasswordVisible ? 'ri-eye-off-line' : 'ri-eye-line'"
-                      :rules="passwordFieldRules"
-                      @click:append-inner="isPasswordVisible = !isPasswordVisible"
-                    />
-                  </VCol>
-                  <VCol
-                    v-if="!isPlatformLogin"
-                    cols="12"
-                  >
-                    <VTextField
-                      v-model="passwordForm.tenant_slug"
-                      label="Empresa (slug)"
-                      placeholder="casa-demo"
-                      hint="Obligatorio para administradores de tenant"
-                      persistent-hint
-                      :rules="tenantSlugPasswordRules"
-                    />
-                  </VCol>
-                  <VCol
-                    v-else
-                    cols="12"
-                  >
-                    <VAlert
-                      type="info"
-                      variant="tonal"
-                      density="compact"
-                    >
-                      Acceso plataforma global — no requiere empresa ni sucursal.
-                    </VAlert>
-                  </VCol>
-                </VRow>
-              </VWindowItem>
-            </VWindow>
+            <VTextField
+              v-model="password"
+              label="Contraseña"
+              placeholder="••••••••••••"
+              prepend-inner-icon="ri-lock-line"
+              :type="isPasswordVisible ? 'text' : 'password'"
+              :append-inner-icon="isPasswordVisible ? 'ri-eye-off-line' : 'ri-eye-line'"
+              class="mb-6"
+              :disabled="authStore.loading"
+              @click:append-inner="isPasswordVisible = !isPasswordVisible"
+            />
 
             <VBtn
               block
-              type="submit"
               size="large"
-              class="mt-6 login-submit-btn"
-              :loading="auth.loading"
+              color="primary"
+              type="submit"
+              :loading="authStore.loading"
+              prepend-icon="ri-login-box-line"
             >
-              {{ loginMode === 'pin' && ['select-context', 'select-tenant', 'select-branch'].includes(pinStep) ? 'Continuar' : 'Ingresar' }}
+              Iniciar Sesión
             </VBtn>
           </VForm>
-        </VCardText>
-      </VCard>
-    </VCol>
-  </VRow>
+        </div>
+      </VCardText>
+    </VCard>
+  </div>
 </template>
 
-<style lang="scss">
-@use "@core/scss/template/pages/page-auth";
-
-.login-card {
-  inline-size: 100%;
+<style scoped>
+.pos-auth-container {
+  background: radial-gradient(circle at 50% 30%, rgba(var(--v-theme-primary), 0.08) 0%, rgba(0, 0, 0, 0.02) 100%);
 }
 
-.login-pin-field :deep(input) {
-  font-size: 1.75rem;
-  letter-spacing: 0.35em;
-  text-align: center;
+.pin-display-box {
+  background: rgba(var(--v-theme-surface), 0.6);
+  border: 2px dashed rgba(var(--v-theme-primary), 0.3);
+  min-height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-.login-submit-btn {
-  min-block-size: 3.25rem;
+.keypad-btn {
+  height: 62px !important;
+  border-radius: 12px;
+  transition: all 0.15s ease-in-out;
+}
+
+.keypad-btn:active {
+  transform: scale(0.95);
+}
+
+.letter-spacing-2 {
+  letter-spacing: 0.35rem;
 }
 </style>
