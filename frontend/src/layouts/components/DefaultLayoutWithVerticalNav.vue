@@ -1,17 +1,10 @@
 <script setup>
-import { useNightPosNavItems } from '@/composables/useNightPosNavItems'
+import navItems from '@/navigation/vertical'
 import { useConfigStore } from '@core/stores/config'
 import { themeConfig } from '@themeConfig'
 
 // Components
-import NightPosNavbarContext from '@/components/nightpos/NightPosNavbarContext.vue'
-import NightPosStabilityDebug from '@/components/nightpos/dev/NightPosStabilityDebug.vue'
-import { useNightPosShell } from '@/composables/useNightPosShell'
-import { useOperationalSseHost } from '@/composables/useOperationalSseHost'
 import Footer from '@/layouts/components/Footer.vue'
-import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
-import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
-import NavbarShortcuts from '@/layouts/components/NavbarShortcuts.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 import NavBarI18n from '@core/components/I18n.vue'
@@ -35,11 +28,6 @@ watch([
 
 // !SECTION
 const configStore = useConfigStore()
-const { showNightPosChrome } = useNightPosShell()
-const { navItems } = useNightPosNavItems()
-
-if (showNightPosChrome.value)
-  useOperationalSseHost()
 
 // ℹ️ Provide animation name for vertical nav collapse icon.
 const verticalNavHeaderActionAnimationName = ref(null)
@@ -53,7 +41,6 @@ watch([
   else
     verticalNavHeaderActionAnimationName.value = val[0] ? 'rotate-180' : 'rotate-back-180'
 }, { immediate: true })
-
 </script>
 
 <template>
@@ -69,24 +56,13 @@ watch([
           <VIcon icon="ri-menu-line" />
         </IconBtn>
 
-        <NavSearchBar
-          v-show="!showNightPosChrome"
-          class="ms-lg-n2"
-        />
-
-        <NightPosNavbarContext v-if="showNightPosChrome" />
+        <NavbarThemeSwitcher />
 
         <VSpacer />
 
         <NavBarI18n
-          v-if="!showNightPosChrome && themeConfig.app.i18n.enable && themeConfig.app.i18n.langConfig?.length"
+          v-if="themeConfig.app.i18n.enable && themeConfig.app.i18n.langConfig?.length"
           :languages="themeConfig.app.i18n.langConfig"
-        />
-        <NavbarThemeSwitcher v-show="!showNightPosChrome" />
-        <NavbarShortcuts v-show="!showNightPosChrome" />
-        <NavBarNotifications
-          v-show="!showNightPosChrome"
-          class="me-2"
         />
         <UserProfile />
       </div>
@@ -97,11 +73,11 @@ watch([
     <!-- 👉 Pages -->
     <RouterView v-slot="{ Component }">
       <Suspense
-        :timeout="20000"
+        :timeout="0"
         @fallback="isFallbackStateActive = true"
         @resolve="isFallbackStateActive = false"
       >
-        <component :is="Component" />
+        <Component :is="Component" />
       </Suspense>
     </RouterView>
 
@@ -110,7 +86,8 @@ watch([
       <Footer />
     </template>
 
-    <NightPosStabilityDebug v-if="showNightPosChrome" />
+    <!-- 👉 Customizer -->
+    <!-- <TheCustomizer /> -->
   </VerticalNavLayout>
 </template>
 

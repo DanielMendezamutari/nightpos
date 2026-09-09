@@ -9,12 +9,9 @@ lerna-debug.log*
 
 node_modules
 .DS_Store
+dist
 dist-ssr
 *.local
-
-# 👉 dist se versiona a propósito (deploy del compilado a nightpos.ribersoft.com)
-# NO ignorar la carpeta dist/
-!dist/
 
 /cypress/videos/
 /cypress/screenshots/
@@ -44,4 +41,3 @@ public/mockServiceWorker.js
 # Env files
 .env*
 !.env.example
-!.env.production

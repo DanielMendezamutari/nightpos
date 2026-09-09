@@ -1,12 +1,5 @@
 <script setup>
-import { useRoute } from 'vue-router'
-import { useOperationalSseHost } from '@/composables/useOperationalSseHost'
-
 const { injectSkinClasses } = useSkins()
-const route = useRoute()
-
-if (route.path.startsWith('/nightpos'))
-  useOperationalSseHost()
 
 // ℹ️ This will inject classes in body tag for accurate styling
 injectSkinClasses()
@@ -31,13 +24,13 @@ watch([
   <AppLoadingIndicator ref="refLoadingIndicator" />
 
   <div class="layout-wrapper layout-blank">
-    <RouterView v-slot="{ Component }">
+    <RouterView #="{Component}">
       <Suspense
-        :timeout="20000"
+        :timeout="0"
         @fallback="isFallbackStateActive = true"
         @resolve="isFallbackStateActive = false"
       >
-        <component :is="Component" />
+        <Component :is="Component" />
       </Suspense>
     </RouterView>
   </div>

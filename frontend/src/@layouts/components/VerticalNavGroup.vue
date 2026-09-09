@@ -10,7 +10,6 @@ import { useLayoutConfigStore } from '@layouts/stores/config'
 import { injectionKeyIsVerticalNavHovered } from '@layouts/symbols'
 import {
   getDynamicI18nProps,
-  getI18nComponentForKey,
   isNavGroupActive,
   openGroups,
 } from '@layouts/utils'
@@ -153,7 +152,7 @@ const isMounted = useMounted()
       >
         <!-- 👉 Title -->
         <Component
-          :is="getI18nComponentForKey(item.title)"
+          :is=" layoutConfig.app.i18n.enable ? 'i18n-t' : 'span'"
           v-bind="getDynamicI18nProps(item.title, 'span')"
           v-show="!hideTitleAndBadge"
           key="title"
@@ -164,7 +163,7 @@ const isMounted = useMounted()
 
         <!-- 👉 Badge -->
         <Component
-          :is="getI18nComponentForKey(item.badgeContent)"
+          :is="layoutConfig.app.i18n.enable ? 'i18n-t' : 'span'"
           v-bind="getDynamicI18nProps(item.badgeContent, 'span')"
           v-show="!hideTitleAndBadge"
           v-if="item.badgeContent"

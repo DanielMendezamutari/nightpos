@@ -4,7 +4,6 @@ import { can } from '@layouts/plugins/casl'
 import {
   getComputedNavLinkToProp,
   getDynamicI18nProps,
-  getI18nComponentForKey,
   isNavLinkActive,
 } from '@layouts/utils'
 
@@ -41,7 +40,7 @@ const props = defineProps({
         v-bind="item.icon || layoutConfig.verticalNav.defaultNavItemIconProps"
       />
       <Component
-        :is="getI18nComponentForKey(item.title)"
+        :is="layoutConfig.app.i18n.enable ? 'i18n-t' : 'span'"
         class="nav-item-title"
         v-bind="getDynamicI18nProps(item.title, 'span')"
       >

@@ -3,12 +3,7 @@ import navItems from '@/navigation/horizontal'
 import { themeConfig } from '@themeConfig'
 
 // Components
-import { useNightPosShell } from '@/composables/useNightPosShell'
-import { useOperationalSseHost } from '@/composables/useOperationalSseHost'
 import Footer from '@/layouts/components/Footer.vue'
-import NavBarNotifications from '@/layouts/components/NavBarNotifications.vue'
-import NavSearchBar from '@/layouts/components/NavSearchBar.vue'
-import NavbarShortcuts from '@/layouts/components/NavbarShortcuts.vue'
 import NavbarThemeSwitcher from '@/layouts/components/NavbarThemeSwitcher.vue'
 import UserProfile from '@/layouts/components/UserProfile.vue'
 import NavBarI18n from '@core/components/I18n.vue'
@@ -29,10 +24,6 @@ watch([
     refLoadingIndicator.value.resolveHandle()
 }, { immediate: true })
 // !SECTION
-const { showNightPosChrome } = useNightPosShell()
-
-if (showNightPosChrome.value)
-  useOperationalSseHost()
 </script>
 
 <template>
@@ -51,16 +42,12 @@ if (showNightPosChrome.value)
       </RouterLink>
       <VSpacer />
 
-      <NavSearchBar />
-
       <NavBarI18n
         v-if="themeConfig.app.i18n.enable && themeConfig.app.i18n.langConfig?.length"
         :languages="themeConfig.app.i18n.langConfig"
       />
 
-      <NavbarThemeSwitcher />
-      <NavbarShortcuts />
-      <NavBarNotifications class="me-2" />
+      <NavbarThemeSwitcher class="me-2" />
       <UserProfile />
     </template>
 
@@ -69,11 +56,11 @@ if (showNightPosChrome.value)
     <!-- 👉 Pages -->
     <RouterView v-slot="{ Component }">
       <Suspense
-        :timeout="20000"
+        :timeout="0"
         @fallback="isFallbackStateActive = true"
         @resolve="isFallbackStateActive = false"
       >
-        <component :is="Component" />
+        <Component :is="Component" />
       </Suspense>
     </RouterView>
 
@@ -82,6 +69,8 @@ if (showNightPosChrome.value)
       <Footer />
     </template>
 
+    <!-- 👉 Customizer -->
+    <!-- <TheCustomizer /> -->
   </HorizontalNavLayout>
 </template>
 

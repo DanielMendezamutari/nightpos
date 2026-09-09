@@ -1,251 +1,113 @@
-import { defineStore } from 'pinia'
-import { ability } from '@/plugins/casl/ability'
-import api, { getApiErrorMessage, unwrapNightPosResponse } from '@/services/http'
-import { useContextStore } from '@/stores/context'
-
-const TOKEN_COOKIE = 'accessToken'
-const USER_COOKIE = 'userData'
-const TENANT_SLUG_COOKIE = 'tenantSlug'
-const BRANCH_CODE_COOKIE = 'branchCode'
-const TENANT_NAME_COOKIE = 'tenantName'
-const BRANCH_NAME_COOKIE = 'branchName'
-const LAST_OPERATOR_NAME_COOKIE = 'lastOperatorName'
-/** Alineado con JWT_REFRESH_TTL (14 días) para permitir renovación silenciosa. */
-const SESSION_COOKIE_MAX_AGE = 60 * 60 * 24 * 14
+﻿import { defineStore } from 'pinia'
+import { $api } from '@/utils/api'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null,
-    token: null,
+    token: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null,
+    user: typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('userData') || 'null') : null,
+    tenantSlug: typeof window !== 'undefined' ? (localStorage.getItem('riberresto_tenant_slug') || 'casa-demo') : 'casa-demo',
+    branchCode: typeof window !== 'undefined' ? (localStorage.getItem('riberresto_branch_code') || 'CENTRO') : 'CENTRO',
     loading: false,
     error: null,
   }),
 
   getters: {
-    isAuthenticated: state => Boolean(state.token && state.user),
-    permissions: state => state.user?.permissions ?? [],
-    role: state => state.user?.role ?? null,
-    staffRole: state => state.user?.staff_role ?? null,
-    hasPermission: state => permission => {
-      if (!permission)
-        return true
-
-      return (state.user?.permissions ?? []).includes(permission)
-    },
+    isAuthenticated: state => !!state.token,
+    userName: state => state.user?.name || 'Invitado',
+    userRole: state => state.user?.role || 'cajero',
   },
 
   actions: {
-    syncAbilitiesFromUser(user) {
-      if (!user?.permissions?.length) {
-        ability.update([])
-
-        return
-      }
-
-      const rules = user.permissions.map(slug => ({
-        action: 'access',
-        subject: slug,
-      }))
-
-      useCookie('userAbilityRules').value = rules
-      ability.update(rules)
-    },
-
-    hydrateFromCookies() {
-      this.token = useCookie(TOKEN_COOKIE).value || null
-      this.user = useCookie(USER_COOKIE).value || null
-
-      if ((this.token && !this.user) || (!this.token && this.user)) {
-        this.clearSession()
-
-        return
-      }
-
-      if (this.user)
-        this.syncAbilitiesFromUser(this.user)
-    },
-
-    persistSession(token, user, tenantSlug, branchCode, tenantName = null, branchName = null) {
+    setSession(token, user, tenantSlug, branchCode) {
       this.token = token
       this.user = user
+      this.tenantSlug = tenantSlug
+      this.branchCode = branchCode
 
-      const tokenCookie = useCookie(TOKEN_COOKIE, { maxAge: SESSION_COOKIE_MAX_AGE })
-      const userCookie = useCookie(USER_COOKIE, { maxAge: SESSION_COOKIE_MAX_AGE })
-
-      tokenCookie.value = token
-      userCookie.value = user
-
-      if (tenantSlug) {
-        const slugCookie = useCookie(TENANT_SLUG_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
-
-        slugCookie.value = tenantSlug
-      }
-
-      if (branchCode) {
-        const branchCookie = useCookie(BRANCH_CODE_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
-
-        branchCookie.value = branchCode
-      }
-
-      if (tenantName) {
-        const nameCookie = useCookie(TENANT_NAME_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
-
-        nameCookie.value = tenantName
-      }
-
-      if (branchName) {
-        const branchNameCookie = useCookie(BRANCH_NAME_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
-
-        branchNameCookie.value = branchName
-      }
-
-      if (user?.name) {
-        const operatorCookie = useCookie(LAST_OPERATOR_NAME_COOKIE, { maxAge: 60 * 60 * 24 * 30 })
-
-        operatorCookie.value = user.name
-      }
-
-      this.syncAbilitiesFromUser(user)
-    },
-
-    persistToken(token) {
-      this.token = token
-      useCookie(TOKEN_COOKIE, { maxAge: SESSION_COOKIE_MAX_AGE }).value = token
-    },
-
-    clearAuthOnly() {
-      this.token = null
-      this.user = null
-      this.error = null
-      useCookie(TOKEN_COOKIE).value = null
-      useCookie(USER_COOKIE).value = null
-      useCookie('userAbilityRules').value = null
-      ability.update([])
-    },
-
-    clearSession() {
-      this.token = null
-      this.user = null
-      useCookie(TOKEN_COOKIE).value = null
-      useCookie(USER_COOKIE).value = null
-      useCookie('userAbilityRules').value = null
-      useCookie(TENANT_SLUG_COOKIE).value = null
-      useCookie(BRANCH_CODE_COOKIE).value = null
-      ability.update([])
-
-      try {
-        useContextStore().clearContext()
-      }
-      catch {
-        // Pinia no inicializado
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('accessToken', token)
+        localStorage.setItem('userData', JSON.stringify(user))
+        localStorage.setItem('riberresto_tenant_slug', tenantSlug)
+        localStorage.setItem('riberresto_branch_code', branchCode)
+        useCookie('accessToken').value = token
       }
     },
 
-    async loginWithPin({ pin, tenantSlug, branchCode, tenantName, branchName }) {
+    async loginWithPin(pin, tenantSlug = null, branchCode = null) {
       this.loading = true
       this.error = null
 
+      const tenant = tenantSlug || this.tenantSlug
+      const branch = branchCode || this.branchCode
+
       try {
-        const response = await api.post('/auth/login-pin', {
-          pin,
-          tenant_slug: tenantSlug,
-          branch_code: branchCode,
+        const response = await $api('/api/v1/auth/login-pin', {
+          method: 'POST',
+          body: {
+            pin: String(pin).trim(),
+            tenant_slug: tenant,
+            branch_code: branch,
+          },
         })
 
-        const data = unwrapNightPosResponse(response)
+        if (response.success && response.data?.token) {
+          this.setSession(response.data.token, response.data.user, tenant, branch)
+          return { success: true, user: response.data.user }
+        }
 
-        this.persistSession(data.token, data.user, tenantSlug, branchCode, tenantName, branchName)
-        await useContextStore().applyContext({
-          tenantSlug,
-          branchCode,
-          tenantName,
-          branchName,
-        })
-
-        return data
-      }
-      catch (error) {
-        this.error = getApiErrorMessage(error)
-        throw error
-      }
-      finally {
+        const msg = response.message || 'Error al autenticar con PIN'
+        this.error = msg
+        return { success: false, message: msg }
+      } catch (err) {
+        const msg = err.data?.message || err.message || 'Error de conexion con el servidor'
+        this.error = msg
+        return { success: false, message: msg }
+      } finally {
         this.loading = false
       }
     },
 
-    async loginWithPassword({ username, password, tenantSlug }) {
+    async loginWithPassword(username, password, tenantSlug = null) {
       this.loading = true
       this.error = null
 
+      const tenant = tenantSlug || this.tenantSlug
+
       try {
-        const normalizedUsername = username?.trim().toLowerCase() ?? ''
-        const body = {
-          username: normalizedUsername,
-          password,
-        }
-        const slug = tenantSlug?.trim() || null
-        const isPlatformUser = normalizedUsername === 'superadmin'
+        const response = await $api('/api/v1/auth/login-password', {
+          method: 'POST',
+          body: {
+            username: String(username).trim(),
+            password: String(password),
+            tenant_slug: tenant,
+          },
+        })
 
-        if (slug && !isPlatformUser)
-          body.tenant_slug = slug
-
-        const response = await api.post('/auth/login-password', body)
-        const data = unwrapNightPosResponse(response)
-
-        if (data.user?.role === 'super_admin' || isPlatformUser) {
-          useCookie(TENANT_SLUG_COOKIE).value = null
-          useCookie(BRANCH_CODE_COOKIE).value = null
-          useContextStore().clearContext()
-          this.persistSession(data.token, data.user, null, null)
-        }
-        else {
-          const branchCode = useCookie(BRANCH_CODE_COOKIE).value
-
-          this.persistSession(data.token, data.user, slug, branchCode)
-          await useContextStore().applyContext({ tenantSlug: slug, branchCode })
+        if (response.success && response.data?.token) {
+          this.setSession(response.data.token, response.data.user, tenant, this.branchCode)
+          return { success: true, user: response.data.user }
         }
 
-        return data
-      }
-      catch (error) {
-        this.error = getApiErrorMessage(error)
-        throw error
-      }
-      finally {
+        const msg = response.message || 'Credenciales invalidas'
+        this.error = msg
+        return { success: false, message: msg }
+      } catch (err) {
+        const msg = err.data?.message || err.message || 'Error al iniciar sesion'
+        this.error = msg
+        return { success: false, message: msg }
+      } finally {
         this.loading = false
       }
     },
 
-    async fetchMe() {
-      const response = await api.get('/auth/me')
-      const data = unwrapNightPosResponse(response)
-
-      this.user = data.user
-      useCookie(USER_COOKIE, { maxAge: SESSION_COOKIE_MAX_AGE }).value = data.user
-      this.syncAbilitiesFromUser(data.user)
-
-      return data.user
-    },
-
-    async refreshSession() {
-      const response = await api.post('/auth/refresh', null, { _skipAuthRefresh: true })
-      const data = unwrapNightPosResponse(response)
-
-      if (data?.token)
-        this.persistToken(data.token)
-
-      return data?.token ?? null
-    },
-
-    async logout() {
-      try {
-        await api.post('/auth/logout')
-      }
-      catch {
-        // ignore
-      }
-      finally {
-        this.clearSession()
+    logout() {
+      this.token = null
+      this.user = null
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken')
+        localStorage.removeItem('userData')
+        useCookie('accessToken').value = null
+        window.location.href = '/login'
       }
     },
   },

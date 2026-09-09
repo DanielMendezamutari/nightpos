@@ -1,15 +1,22 @@
 import { useAbility } from '@casl/vue'
-import { ability as globalAbility } from '@/plugins/casl/ability'
 
 /**
- * Comprueba permiso de menú / UI usando la instancia global de CASL
- * (evita depender de getCurrentInstance, que falla al renderizar el nav).
+ * Returns ability result if ACL is configured or else just return true
+ * We should allow passing string | undefined to can because for admin ability we omit defining action & subject
+ *
+ * Useful if you don't know if ACL is configured or not
+ * Used in @core files to handle absence of ACL without errors
+ *
+ * @param {string} action CASL Actions // https://casl.js.org/v4/en/guide/intro#basics
+ * @param {string} subject CASL Subject // https://casl.js.org/v4/en/guide/intro#basics
  */
 export const can = (action, subject) => {
-  if (!action && !subject)
-    return true
-
-  return globalAbility.can(action, subject)
+  const vm = getCurrentInstance()
+  if (!vm)
+    return false
+  const localCan = vm.proxy && '$can' in vm.proxy
+    
+  return localCan ? vm.proxy?.$can(action, subject) : true
 }
 
 /**

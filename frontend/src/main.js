@@ -1,14 +1,10 @@
 import { createApp } from 'vue'
 import App from '@/App.vue'
 import { registerPlugins } from '@core/utils/plugins'
-import { unregisterServiceWorkersIfDisabled } from '@/utils/pwaEnabled'
 
 // Styles
 import '@core/scss/template/index.scss'
 import '@styles/styles.scss'
-
-// Drop legacy service workers when PWA is disabled (production rollback).
-unregisterServiceWorkersIfDisabled()
 
 // Create vue app
 const app = createApp(App)
@@ -19,8 +15,3 @@ registerPlugins(app)
 
 // Mount vue app
 app.mount('#app')
-
-// Quitar splash HTML inicial (evita pantalla cargando infinita si Vue ya montó)
-const loaderEl = document.getElementById('loading-bg')
-if (loaderEl)
-  loaderEl.remove()

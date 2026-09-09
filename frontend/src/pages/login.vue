@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { VNodeRenderer } from '@layouts/components/VNodeRenderer'
+import { themeConfig } from '@themeConfig'
 
 definePage({ meta: { layout: 'blank' } })
 
@@ -19,10 +21,11 @@ const branchCode = ref(authStore.branchCode || 'CENTRO')
 const errorMessage = ref('')
 const successMessage = ref('')
 
-// Demo shortcuts — 100% RestoTech Restaurante
+// Accesos rapidos del Restaurante RiberResto POS
 const demoShortcuts = [
   { name: 'Cajero', pin: '1234', role: 'Caja y Facturación', color: 'warning', icon: 'ri-bank-card-line' },
-  { name: 'Mesero / Garzón', pin: '5678', role: 'Toma de Pedidos y Salón', color: 'primary', icon: 'ri-user-smile-line' },
+  { name: 'Mesero', pin: '5678', role: 'Toma de Pedidos y Salón', color: 'primary', icon: 'ri-user-smile-line' },
+  { name: 'Chef Cocina', pin: '4001', role: 'KDS Cocina', color: 'success', icon: 'ri-restaurant-line' },
   { name: 'Administrador', pin: '2468', role: 'Gerencia y Control', color: 'error', icon: 'ri-shield-user-line' },
 ]
 
@@ -67,18 +70,11 @@ async function handlePinSubmit() {
   const result = await authStore.loginWithPin(pinValue.value, tenantSlug.value, branchCode.value)
   if (result.success) {
     successMessage.value = `¡Bienvenido(a), ${result.user.name}!`
-    const userRole = (result.user.role || '').toLowerCase()
     setTimeout(() => {
-      if (userRole === 'cashier' || userRole === 'cajero') {
-        window.location.href = '/cashier/orders'
-      } else if (userRole === 'waiter' || userRole === 'mesero' || userRole === 'garzon') {
-        window.location.href = '/waiter/tables'
-      } else {
-        window.location.href = '/'
-      }
+      window.location.href = '/'
     }, 400)
   } else {
-    errorMessage.value = result.message || 'PIN incorrecto o no asignado en esta sucursal.'
+    errorMessage.value = result.message || 'PIN incorrecto o no asignado a este personal.'
     pinValue.value = ''
   }
 }
@@ -123,32 +119,32 @@ function handleKeydown(e) {
 </script>
 
 <template>
-  <div class="pos-auth-container min-vh-100 d-flex align-center justify-center pa-4">
+  <div class="auth-wrapper d-flex align-center justify-center pa-4">
     <VCard
-      class="pos-auth-card w-100 elevation-12"
-      max-width="540"
+      class="auth-card pa-2 pa-sm-6 elevation-10"
+      max-width="500"
       rounded="xl"
     >
-      <!-- Header -->
-      <VCardItem class="text-center pt-8 pb-4">
+      <!-- Logo y Encabezado RiberResto POS -->
+      <VCardItem class="justify-center pb-2 text-center">
         <div class="d-flex align-center justify-center gap-2 mb-2">
           <VAvatar
             color="primary"
             variant="flat"
-            size="48"
+            size="46"
             rounded="lg"
           >
             <VIcon
               icon="ri-restaurant-2-fill"
-              size="30"
+              size="28"
               color="white"
             />
           </VAvatar>
           <div class="text-left">
             <h2 class="text-h4 font-weight-bold text-primary mb-0">
-              RestoTech POS
+              RiberResto POS
             </h2>
-            <span class="text-caption text-medium-emphasis">Punto de Venta para Restaurantes</span>
+            <span class="text-caption text-medium-emphasis">by Ribersoft • Sistema Gastronómico</span>
           </div>
         </div>
 
@@ -172,8 +168,8 @@ function handleKeydown(e) {
         </div>
       </VCardItem>
 
-      <VCardText class="px-6 pb-6">
-        <!-- Selector de Modo -->
+      <VCardText class="pt-2">
+        <!-- Selector de Modo de Autenticación -->
         <VBtnToggle
           v-model="loginMode"
           mandatory
@@ -187,18 +183,18 @@ function handleKeydown(e) {
             prepend-icon="ri-keypad-line"
             class="flex-grow-1"
           >
-            PIN Táctil (Rápido)
+            PIN Táctil (Personal)
           </VBtn>
           <VBtn
             value="password"
             prepend-icon="ri-lock-password-line"
             class="flex-grow-1"
           >
-            Contraseña (Admin)
+            Contraseña (Gerencia)
           </VBtn>
         </VBtnToggle>
 
-        <!-- Alerts -->
+        <!-- Mensajes de Estado -->
         <VAlert
           v-if="errorMessage"
           type="error"
@@ -221,44 +217,44 @@ function handleKeydown(e) {
           {{ successMessage }}
         </VAlert>
 
-        <!-- MODO 1: PIN TÁCTIL -->
+        <!-- MODO 1: PIN TÁCTIL (Restaurante) -->
         <div v-if="loginMode === 'pin'">
-          <!-- Display PIN -->
-          <div class="pin-display-box rounded-lg pa-4 mb-4 text-center">
+          <div class="pin-display-box rounded-lg pa-3 mb-4 text-center">
             <div
-              class="text-h5 font-weight-bold letter-spacing-2"
+              class="text-h5 font-weight-bold"
               :class="pinValue ? 'text-primary' : 'text-medium-emphasis'"
+              style="letter-spacing: 0.35rem;"
             >
               {{ pinDisplay }}
             </div>
             <div class="text-caption text-medium-emphasis mt-1">
-              Ingrese su código personal de 4 dígitos
+              Ingrese su código numérico personal
             </div>
           </div>
 
           <!-- Teclado Numérico -->
-          <div class="pin-keypad mb-4">
+          <div class="mb-4">
             <div
               v-for="row in [[1,2,3],[4,5,6],[7,8,9]]"
               :key="row[0]"
-              class="d-flex gap-3 mb-3"
+              class="d-flex gap-2 mb-2"
             >
               <VBtn
                 v-for="num in row"
                 :key="num"
-                size="x-large"
+                size="large"
                 variant="outlined"
                 color="secondary"
-                class="flex-grow-1 keypad-btn text-h5 font-weight-bold"
+                class="flex-grow-1 keypad-btn text-h6 font-weight-bold"
                 :disabled="authStore.loading"
                 @click="appendPin(num)"
               >
                 {{ num }}
               </VBtn>
             </div>
-            <div class="d-flex gap-3">
+            <div class="d-flex gap-2">
               <VBtn
-                size="x-large"
+                size="large"
                 variant="text"
                 color="error"
                 class="flex-grow-1 keypad-btn"
@@ -271,17 +267,17 @@ function handleKeydown(e) {
                 />
               </VBtn>
               <VBtn
-                size="x-large"
+                size="large"
                 variant="outlined"
                 color="secondary"
-                class="flex-grow-1 keypad-btn text-h5 font-weight-bold"
+                class="flex-grow-1 keypad-btn text-h6 font-weight-bold"
                 :disabled="authStore.loading"
                 @click="appendPin(0)"
               >
                 0
               </VBtn>
               <VBtn
-                size="x-large"
+                size="large"
                 variant="text"
                 color="warning"
                 class="flex-grow-1 keypad-btn"
@@ -296,7 +292,7 @@ function handleKeydown(e) {
             </div>
           </div>
 
-          <!-- Botón de Envío -->
+          <!-- Botón de Ingreso -->
           <VBtn
             block
             size="large"
@@ -307,13 +303,12 @@ function handleKeydown(e) {
             prepend-icon="ri-login-box-line"
             @click="handlePinSubmit"
           >
-            Ingresar al POS
+            Acceder al Sistema
           </VBtn>
 
-          <!-- Acceso Rápido Demo RestoTech -->
-          <VDivider class="my-4" />
+          <VDivider class="my-3" />
           <div class="text-caption text-medium-emphasis mb-2 text-center">
-            Perfiles de Restaurante:
+            Perfiles de Restaurante (Demostración):
           </div>
           <div class="d-flex gap-2 flex-wrap justify-center">
             <VBtn
@@ -372,30 +367,17 @@ function handleKeydown(e) {
 </template>
 
 <style scoped>
-.pos-auth-container {
-  background: radial-gradient(circle at 50% 30%, rgba(var(--v-theme-primary), 0.08) 0%, rgba(0, 0, 0, 0.02) 100%);
-}
-
 .pin-display-box {
   background: rgba(var(--v-theme-surface), 0.6);
   border: 2px dashed rgba(var(--v-theme-primary), 0.3);
-  min-height: 80px;
+  min-height: 70px;
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
 .keypad-btn {
-  height: 62px !important;
-  border-radius: 12px;
-  transition: all 0.15s ease-in-out;
-}
-
-.keypad-btn:active {
-  transform: scale(0.95);
-}
-
-.letter-spacing-2 {
-  letter-spacing: 0.35rem;
+  height: 54px !important;
+  border-radius: 10px;
 }
 </style>

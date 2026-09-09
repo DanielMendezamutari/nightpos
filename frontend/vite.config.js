@@ -1,25 +1,19 @@
 import { fileURLToPath } from 'node:url'
-import { readdirSync, unlinkSync } from 'node:fs'
-import { join } from 'node:path'
-import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { VueRouterAutoImports, getPascalCaseRouteName } from 'unplugin-vue-router'
 import VueRouter from 'unplugin-vue-router/vite'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
+import VueDevTools from 'vite-plugin-vue-devtools'
 import Layouts from 'vite-plugin-vue-layouts'
-import { VitePWA } from 'vite-plugin-pwa'
 import vuetify from 'vite-plugin-vuetify'
 import svgLoader from 'vite-svg-loader'
 
 // https://vitejs.dev/config/
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '')
-  const pwaEnabled = env.VITE_PWA_ENABLED !== 'false'
-
-  const plugins = [
+export default defineConfig({
+  plugins: [
     // Docs: https://github.com/posva/unplugin-vue-router
     // ℹ️ This plugin should be placed before vue plugin
     VueRouter({
@@ -29,10 +23,6 @@ export default defineConfig(({ mode }) => {
           .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
           .toLowerCase()
       },
-      beforeWriteFiles: root => {
-        root.insert('/apps/email/:filter', '/src/pages/apps/email/index.vue')
-        root.insert('/apps/email/:label', '/src/pages/apps/email/index.vue')
-      },
     }),
     vue({
       template: {
@@ -41,6 +31,7 @@ export default defineConfig(({ mode }) => {
         },
       },
     }),
+    VueDevTools(),
     vueJsx(),
 
     // Docs: https://github.com/vuetifyjs/vuetify-loader/tree/master/packages/vite-plugin
@@ -76,7 +67,6 @@ export default defineConfig(({ mode }) => {
         './src/@core/composable/',
         './src/composables/',
         './src/utils/',
-        './src/stores/',
         './src/plugins/*/composables/*',
       ],
       vueTemplate: true,
@@ -88,120 +78,8 @@ export default defineConfig(({ mode }) => {
         filepath: './.eslintrc-auto-import.json',
       },
     }),
-
-    // Docs: https://github.com/intlify/bundle-tools/tree/main/packages/unplugin-vue-i18n#intlifyunplugin-vue-i18n
-    VueI18nPlugin({
-      runtimeOnly: true,
-      compositionOnly: true,
-      include: [
-        fileURLToPath(new URL('./src/plugins/i18n/locales/**', import.meta.url)),
-      ],
-    }),
     svgLoader(),
-  ]
-
-  if (pwaEnabled) {
-    plugins.push(VitePWA({
-      registerType: 'prompt',
-      injectRegister: 'script',
-      // Manifests are managed in public/ and injected dynamically per context.
-      manifest: false,
-      devOptions: {
-        enabled: false,
-      },
-      workbox: {
-        // Precache all build artifacts.
-        globPatterns: ['**/*.{js,css,html,woff2,svg,png,ico,webmanifest}'],
-        // SPA: serve cached shell for any navigation when offline.
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [
-          /^\/api\//,
-          /^\/backend\/public\/api\//,
-          /\/manifest.*\.webmanifest$/,
-          /^\/events\//,
-          /\/sanctum\//,
-          /\/broadcasting\//,
-          /\/storage\//,
-        ],
-        runtimeCaching: [
-          {
-            // API: always network — never cache responses.
-            urlPattern: ({ url }) => {
-              const path = url.pathname
-
-              return path.includes('/api/')
-                || path.includes('/sanctum/')
-                || path.includes('/broadcasting/')
-                || path.includes('/events/')
-            },
-            handler: 'NetworkOnly',
-          },
-          {
-            // Versioned assets already in precache; this catches unversioned ones.
-            urlPattern: /\.(png|jpg|jpeg|webp|ico|gif)(\?.*)?$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'nightpos-images',
-              expiration: { maxEntries: 80, maxAgeSeconds: 60 * 60 * 24 * 30 },
-            },
-          },
-          {
-            // Fonts from CDN if any.
-            urlPattern: /\.(woff|woff2|ttf|eot)(\?.*)?$/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'nightpos-fonts',
-              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
-            },
-          },
-        ],
-        skipWaiting: false,
-        clientsClaim: false,
-      },
-    }))
-  }
-  else {
-    plugins.push({
-      name: 'nightpos-strip-pwa-html',
-      transformIndexHtml(html) {
-        return html
-          .replace(/<!--\s*[\s\S]*?Manifest caja[\s\S]*?-->\s*/i, '')
-          .replace(/<link id="pwa-manifest"[^>]*>\s*/i, '')
-          .replace(/<!-- Progressive Web App metadata -->[\s\S]*?<!-- Microsoft tiles -->[\s\S]*?<meta name="msapplication-TileImage"[^>]*>\s*/i, '')
-      },
-    })
-  }
-
-  if (!pwaEnabled || env.VITE_USE_MSW !== 'true') {
-    plugins.push({
-      name: 'nightpos-strip-pwa-msw-artifacts',
-      closeBundle() {
-        const distDir = join(process.cwd(), 'dist')
-
-        for (const name of ['mockServiceWorker.js', 'sw.js', 'registerSW.js']) {
-          try {
-            unlinkSync(join(distDir, name))
-          }
-          catch {
-            // absent — OK
-          }
-        }
-
-        try {
-          for (const name of readdirSync(distDir)) {
-            if (/^workbox-.*\.js$/i.test(name))
-              unlinkSync(join(distDir, name))
-          }
-        }
-        catch {
-          // dist/ missing — OK
-        }
-      },
-    })
-  }
-
-  return {
-  plugins,
+  ],
   define: { 'process.env': {} },
   resolve: {
     alias: {
@@ -214,20 +92,6 @@ export default defineConfig(({ mode }) => {
       '@configured-variables': fileURLToPath(new URL('./src/assets/styles/variables/_template.scss', import.meta.url)),
       '@db': fileURLToPath(new URL('./src/plugins/fake-api/handlers/', import.meta.url)),
       '@api-utils': fileURLToPath(new URL('./src/plugins/fake-api/utils/', import.meta.url)),
-      ...(pwaEnabled
-        ? {}
-        : {
-            'virtual:pwa-register/vue': fileURLToPath(new URL('./src/utils/pwaRegisterStub.js', import.meta.url)),
-          }),
-    },
-  },
-  server: {
-    proxy: {
-      '/api': {
-        target: process.env.VITE_BACKEND_URL || 'http://nightpos.test',
-        changeOrigin: true,
-        secure: false,
-      },
     },
   },
   build: {
@@ -239,5 +103,4 @@ export default defineConfig(({ mode }) => {
       './src/**/*.vue',
     ],
   },
-  }
 })

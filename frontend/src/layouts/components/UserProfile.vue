@@ -1,97 +1,50 @@
 <script setup>
 import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
-import BranchChangeDialog from '@/components/nightpos/BranchChangeDialog.vue'
-import { useNightPosShell } from '@/composables/useNightPosShell'
-import { useAuthStore } from '@/stores/auth'
-import { useContextStore } from '@/stores/context'
-import { useOperationalStore } from '@/stores/operational'
+import avatar1 from '@images/avatars/avatar-1.png'
 
-const router = useRouter()
-const auth = useAuthStore()
-const contextStore = useContextStore()
-const operational = useOperationalStore()
-const { isMaterializeDemoRoute } = useNightPosShell()
-
-const userData = computed(() => auth.user || useCookie('userData').value)
-
-const showBranchDialog = ref(false)
-
-const logout = async () => {
-  await auth.logout()
-  await router.push('/login')
-}
-
-/** Menú demo Materialize — conservado, solo visible en rutas demo. */
-const userProfileListDemo = [
+const userProfileList = [
   { type: 'divider' },
   {
     type: 'navItem',
     icon: 'ri-user-line',
     title: 'Profile',
-    to: { name: 'apps-user-view-id', params: { id: 21 } },
+    href: '#',
   },
   {
     type: 'navItem',
     icon: 'ri-settings-4-line',
     title: 'Settings',
-    to: { name: 'pages-account-settings-tab', params: { tab: 'account' } },
+    href: '#',
   },
   {
     type: 'navItem',
     icon: 'ri-file-text-line',
     title: 'Billing Plan',
-    to: { name: 'pages-account-settings-tab', params: { tab: 'billing-plans' } },
-    chipsProps: { color: 'error', text: '4', size: 'small' },
+    href: '#',
+    chipsProps: {
+      color: 'error',
+      text: '4',
+      size: 'small',
+    },
   },
   { type: 'divider' },
   {
     type: 'navItem',
     icon: 'ri-money-dollar-circle-line',
     title: 'Pricing',
-    to: { name: 'pages-pricing' },
+    href: '#',
   },
   {
     type: 'navItem',
     icon: 'ri-question-line',
     title: 'FAQ',
-    to: { name: 'pages-faq' },
+    href: '#',
   },
 ]
-
-const userProfileListNightPos = computed(() => [
-  { type: 'divider' },
-  {
-    type: 'navItem',
-    icon: 'ri-user-line',
-    title: 'Mi perfil',
-    action: 'profile',
-  },
-  {
-    type: 'navItem',
-    icon: 'ri-store-2-line',
-    title: 'Cambiar sucursal',
-    action: 'branch',
-  },
-])
-
-const displayName = computed(() => userData.value?.name || userData.value?.username || 'Usuario')
-
-const onMenuAction = item => {
-  if (item.action === 'branch')
-    showBranchDialog.value = true
-  else if (item.action === 'profile') {
-    router.push({ name: 'nightpos-account-profile' })
-  }
-}
-
-const menuItems = computed(() =>
-  isMaterializeDemoRoute.value ? userProfileListDemo : userProfileListNightPos.value,
-)
 </script>
 
 <template>
   <VBadge
-    v-if="userData"
     dot
     bordered
     location="bottom right"
@@ -103,60 +56,29 @@ const menuItems = computed(() =>
     <VAvatar
       class="cursor-pointer"
       size="38"
-      :color="!(userData && userData.avatar) ? 'primary' : undefined"
-      :variant="!(userData && userData.avatar) ? 'tonal' : undefined"
     >
-      <VImg
-        v-if="userData && userData.avatar"
-        :src="userData.avatar"
-      />
-      <VIcon
-        v-else
-        icon="ri-user-line"
-      />
+      <VImg :src="avatar1" />
 
+      <!-- SECTION Menu -->
       <VMenu
         activator="parent"
-        width="260"
+        width="230"
         location="bottom end"
         offset="15px"
       >
         <VList>
           <VListItem class="px-4">
             <div class="d-flex gap-x-2 align-center">
-              <VAvatar
-                :color="!(userData && userData.avatar) ? 'primary' : undefined"
-                :variant="!(userData && userData.avatar) ? 'tonal' : undefined"
-              >
-                <VImg
-                  v-if="userData && userData.avatar"
-                  :src="userData.avatar"
-                />
-                <VIcon
-                  v-else
-                  icon="ri-user-line"
-                />
+              <VAvatar>
+                <VImg :src="avatar1" />
               </VAvatar>
 
               <div>
                 <div class="text-body-2 font-weight-medium text-high-emphasis">
-                  {{ displayName }}
+                  John Doe
                 </div>
-                <div class="text-caption text-disabled">
-                  {{ userData.role }}
-                  <span v-if="userData.staff_role"> · {{ userData.staff_role }}</span>
-                </div>
-                <div
-                  v-if="!isMaterializeDemoRoute && operational.tenant?.name"
-                  class="text-caption"
-                >
-                  {{ operational.tenant.name }}
-                </div>
-                <div
-                  v-if="!isMaterializeDemoRoute && operational.branch?.code"
-                  class="text-caption"
-                >
-                  Sucursal {{ operational.branch.code }}
+                <div class="text-capitalize text-caption text-disabled">
+                  Admin
                 </div>
               </div>
             </div>
@@ -164,12 +86,12 @@ const menuItems = computed(() =>
 
           <PerfectScrollbar :options="{ wheelPropagation: false }">
             <template
-              v-for="(item, index) in menuItems"
-              :key="item.title || `div-${index}`"
+              v-for="item in userProfileList"
+              :key="item.title"
             >
               <VListItem
-                v-if="item.type === 'navItem' && item.to"
-                :to="item.to"
+                v-if="item.type === 'navItem'"
+                :href="item.href"
                 class="px-4"
               >
                 <template #prepend>
@@ -178,7 +100,9 @@ const menuItems = computed(() =>
                     size="22"
                   />
                 </template>
+
                 <VListItemTitle>{{ item.title }}</VListItemTitle>
+
                 <template
                   v-if="item.chipsProps"
                   #append
@@ -190,22 +114,8 @@ const menuItems = computed(() =>
                 </template>
               </VListItem>
 
-              <VListItem
-                v-else-if="item.type === 'navItem' && item.action"
-                class="px-4"
-                @click="onMenuAction(item)"
-              >
-                <template #prepend>
-                  <VIcon
-                    :icon="item.icon"
-                    size="22"
-                  />
-                </template>
-                <VListItemTitle>{{ item.title }}</VListItemTitle>
-              </VListItem>
-
               <VDivider
-                v-else-if="item.type === 'divider'"
+                v-else
                 class="my-1"
               />
             </template>
@@ -216,18 +126,17 @@ const menuItems = computed(() =>
                 color="error"
                 size="small"
                 append-icon="ri-logout-box-r-line"
-                @click="logout"
+                :to="{ name: 'login' }"
               >
-                Cerrar sesión
+                Logout
               </VBtn>
             </VListItem>
           </PerfectScrollbar>
         </VList>
       </VMenu>
+      <!-- !SECTION -->
     </VAvatar>
   </VBadge>
-
-  <BranchChangeDialog v-model="showBranchDialog" />
 </template>
 
 <style lang="scss">

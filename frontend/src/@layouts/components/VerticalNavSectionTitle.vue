@@ -1,7 +1,8 @@
 <script setup>
 import { layoutConfig } from '@layouts'
+import { can } from '@layouts/plugins/casl'
 import { useLayoutConfigStore } from '@layouts/stores/config'
-import { getDynamicI18nProps, getI18nComponentForKey } from '@layouts/utils'
+import { getDynamicI18nProps } from '@layouts/utils'
 
 const props = defineProps({
   item: {
@@ -15,14 +16,17 @@ const shallRenderIcon = configStore.isVerticalNavMini()
 </script>
 
 <template>
-  <li class="nav-section-title">
+  <li
+    v-if="can(item.action, item.subject)"
+    class="nav-section-title"
+  >
     <div class="title-wrapper">
       <Transition
         name="vertical-nav-section-title"
         mode="out-in"
       >
         <Component
-          :is="shallRenderIcon ? layoutConfig.app.iconRenderer : getI18nComponentForKey(item.heading)"
+          :is="shallRenderIcon ? layoutConfig.app.iconRenderer : layoutConfig.app.i18n.enable ? 'i18n-t' : 'span'"
           :key="shallRenderIcon"
           :class="shallRenderIcon ? 'placeholder-icon' : 'title-text'"
           v-bind="{ ...layoutConfig.icons.sectionTitlePlaceholder, ...getDynamicI18nProps(item.heading, 'span') }"

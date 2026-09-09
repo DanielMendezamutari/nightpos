@@ -1,68 +1,41 @@
-<script setup>
-const year = new Date().getFullYear()
-</script>
-
 <template>
-  <footer class="nightpos-footer w-100">
-    <div class="nightpos-footer__inner d-flex flex-wrap align-center justify-space-between gap-x-6 gap-y-2">
-      <div class="d-flex align-center gap-2">
-        <VIcon
-          icon="ri-building-2-line"
-          size="20"
-          class="text-primary"
-        />
-        <div>
-          <div class="text-body-1 font-weight-medium">
-            Ribersoft
-          </div>
-          <div class="text-caption text-medium-emphasis">
-            NightPOS — Sistemas para boliches
-          </div>
-        </div>
-      </div>
-
-      <div class="d-flex flex-wrap align-center gap-x-4 gap-y-1 text-body-2">
-        <span class="d-inline-flex align-center gap-1 text-medium-emphasis">
-          <VIcon
-            icon="ri-user-line"
-            size="16"
-          />
-          Ing. Daniel Méndez
-        </span>
-        <a
-          href="tel:+59167369293"
-          class="d-inline-flex align-center gap-1 text-primary text-decoration-none"
-        >
-          <VIcon
-            icon="ri-phone-line"
-            size="16"
-          />
-          6736 9293
-        </a>
-      </div>
-
-      <div class="text-caption text-medium-emphasis">
-        © {{ year }} Ribersoft. Todos los derechos reservados.
-      </div>
+  <div class="h-100 d-flex align-center justify-space-between text-medium-emphasis">
+    <!-- 👉 Footer: left content -->
+    <div class="d-flex align-center text-base">
+      &copy;
+      {{ new Date().getFullYear() }},
+      Made With
+      <VIcon
+        icon="ri-heart-fill"
+        color="error"
+        size="1.25rem"
+        class="mx-1"
+      />
+      By <a
+        href="https://pixinvent.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-primary ms-1"
+      >Pixinvent</a>
     </div>
-  </footer>
+    <!-- 👉 Footer: right content -->
+    <span class="d-md-flex gap-x-4 text-primary d-none">
+      <a
+        href="https://themeforest.net/licenses/standard"
+        target="noopener noreferrer"
+      >License</a>
+      <a
+        href="https://1.envato.market/pixinvent_portfolio"
+        target="noopener noreferrer"
+      >More Themes</a>
+      <a
+        href="https://demos.pixinvent.com/materialize-vuejs-admin-template/documentation/"
+        target="noopener noreferrer"
+      >Documentation</a>
+      <a
+        href="https://pixinvent.ticksy.com/"
+        target="noopener noreferrer"
+      >Support</a>
+    </span>
+  </div>
 </template>
-
-<style scoped lang="scss">
-.nightpos-footer {
-  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-  padding-block: 0.75rem;
-  padding-inline: 0.25rem;
-}
-
-.nightpos-footer__inner {
-  min-height: 2.5rem;
-}
-
-@media (max-width: 600px) {
-  .nightpos-footer__inner {
-    flex-direction: column;
-    align-items: flex-start !important;
-  }
-}
-</style>
