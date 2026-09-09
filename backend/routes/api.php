@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\SalonMesaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -21,5 +22,18 @@ Route::prefix('v1')->group(function () {
             Route::get('me', [AuthController::class, 'me']);
             Route::post('logout', [AuthController::class, 'logout']);
         });
+    });
+
+    Route::prefix('salones')->group(function () {
+        Route::get('/', [SalonMesaController::class, 'getSalones']);
+        Route::get('{salonId}/mesas', [SalonMesaController::class, 'getMesasBySalon']);
+    });
+
+    Route::prefix('mesas')->group(function () {
+        Route::get('{mesaId}', [SalonMesaController::class, 'getMesaDetails']);
+        Route::post('{mesaId}/abrir', [SalonMesaController::class, 'abrirMesa']);
+        Route::post('{mesaId}/cambiar', [SalonMesaController::class, 'cambiarMesa']);
+        Route::post('{mesaId}/precuenta', [SalonMesaController::class, 'solicitarPrecuenta']);
+        Route::post('{mesaId}/liberar', [SalonMesaController::class, 'liberarMesa']);
     });
 });

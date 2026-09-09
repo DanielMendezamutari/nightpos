@@ -1,309 +1,598 @@
 <script setup>
+import { useSalonMesaStore } from '@/stores/salonMesa'
 import { useAuthStore } from '@/stores/auth'
 
+const salonStore = useSalonMesaStore()
 const authStore = useAuthStore()
 
-const currentTime = ref(new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }))
+// State
+const openTableDialog = ref(false)
+const changeTableDialog = ref(false)
+const tableDetailDialog = ref(false)
+const targetMesa = ref(null)
 
-setInterval(() => {
-  currentTime.value = new Date().toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })
-}, 10000)
+// Form data for opening table
+const openTableForm = ref({
+  personas: 2,
+  cliente_nombre: '',
+  notas: '',
+})
 
-const kpis = [
-  {
-    title: 'Ventas del Turno',
-    value: 'Bs. 3,450.00',
-    subtitle: '+12.4% vs día anterior',
-    icon: 'ri-money-dollar-circle-line',
-    color: 'success',
-  },
-  {
-    title: 'Mesas Ocupadas',
-    value: '14 / 28',
-    subtitle: '50% ocupación de salón',
-    icon: 'ri-restaurant-2-line',
-    color: 'primary',
-  },
-  {
-    title: 'Comandas Activas',
-    value: '6 pedidos',
-    subtitle: '4 en cocina, 2 en bar',
-    icon: 'ri-fire-line',
-    color: 'warning',
-  },
-  {
-    title: 'Facturación SIAT',
-    value: '42 emitidas',
-    subtitle: '100% sincronizadas en línea',
-    icon: 'ri-file-shield-line',
-    color: 'info',
-  },
-]
+// Form data for changing table
+const destinationMesaId = ref(null)
 
-const recentOrders = [
-  { table: 'Mesa 4', waiter: 'Mesero (5678)', total: 'Bs. 210.00', status: 'En preparación', color: 'warning' },
-  { table: 'Mesa 12', waiter: 'Mesero (5678)', total: 'Bs. 480.00', status: 'Cuenta solicitada', color: 'info' },
-  { table: 'Mesa 2', waiter: 'Cajero (1234)', total: 'Bs. 95.00', status: 'Cobrado', color: 'success' },
-  { table: 'Mesa 7', waiter: 'Mesero (5678)', total: 'Bs. 340.00', status: 'Consumiendo', color: 'primary' },
-]
+// Load salones on mounted
+onMounted(async () => {
+  await salonStore.fetchSalones()
+})
+
+// Quick open table dialog
+const handleMesaClick = async (mesa) => {
+  targetMesa.value = mesa
+
+  if (mesa.estado === 'LIBRE') {
+    openTableForm.value = {
+      personas: mesa.capacidad || 2,
+      cliente_nombre: '',
+      notas: '',
+    }
+    openTableDialog.value = true
+  } else {
+    // Cargar detalle y abrir modal/drawer de comanda
+    await salonStore.fetchMesaDetails(mesa.id)
+    tableDetailDialog.value = true
+  }
+}
+
+// Confirm open table
+const submitOpenTable = async () => {
+  if (!targetMesa.value) return
+
+  // Usar el usuario logueado o primer mesero
+  const meseroId = authStore.user?.id
+
+  const res = await salonStore.abrirMesa(targetMesa.value.id, {
+    mesero_id: meseroId,
+    personas: openTableForm.value.personas,
+    cliente_nombre: openTableForm.value.cliente_nombre || 'Cliente Ocasional',
+    notas: openTableForm.value.notas,
+  })
+
+  if (res.success) {
+    openTableDialog.value = false
+    targetMesa.value = null
+  } else {
+    alert(res.message || 'Error al abrir la mesa')
+  }
+}
+
+// Open change table modal
+const openChangeModal = () => {
+  destinationMesaId.value = null
+  changeTableDialog.value = true
+}
+
+// Confirm change table
+const submitChangeTable = async () => {
+  if (!targetMesa.value || !destinationMesaId.value) return
+
+  const res = await salonStore.cambiarMesa(targetMesa.value.id, destinationMesaId.value)
+  if (res.success) {
+    changeTableDialog.value = false
+    tableDetailDialog.value = false
+    targetMesa.value = null
+  } else {
+    alert(res.message || 'Error al mover la mesa')
+  }
+}
+
+// Request bill / precuenta
+const handleSolicitarPrecuenta = async () => {
+  if (!targetMesa.value) return
+  await salonStore.solicitarPrecuenta(targetMesa.value.id)
+}
+
+// Free / checkout table
+const handleLiberarMesa = async () => {
+  if (!targetMesa.value) return
+  if (confirm(`¿Confirmar cobro y liberar la ${targetMesa.value.nombre}?`)) {
+    const res = await salonStore.liberarMesa(targetMesa.value.id)
+    if (res.success) {
+      tableDetailDialog.value = false
+      targetMesa.value = null
+    }
+  }
+}
+
+// Available free tables for moving
+const freeTablesForMove = computed(() => {
+  return salonStore.mesas.filter(m => m.estado === 'LIBRE' && m.id !== targetMesa.value?.id)
+})
 </script>
 
 <template>
-  <div>
-    <!-- Welcome Header Banner -->
-    <VCard class="mb-6 elevation-2">
-      <VCardText class="py-6">
-        <VRow align="center">
-          <VCol cols="12" md="8">
-            <div class="d-flex align-center gap-3 mb-2 flex-wrap">
-              <h4 class="text-h4 font-weight-bold text-high-emphasis">
-                ¡Bienvenido, {{ authStore.userName }}!
-              </h4>
-              <VChip
-                color="success"
-                size="small"
-                variant="tonal"
-                class="font-weight-bold"
-              >
-                Turno Abierto • {{ currentTime }}
-              </VChip>
-            </div>
-            <p class="text-body-1 text-medium-emphasis mb-0">
-              Sistema <strong>RiberResto POS</strong> • Sucursal: <strong>{{ authStore.branchCode }}</strong> (Casa Ribersoft Demo). Todas las funciones operativas listas para atención táctil.
-            </p>
-          </VCol>
-
-          <VCol cols="12" md="4" class="text-md-end">
-            <a
-              href="https://wa.me/59167369293?text=Hola%20Ribersoft,%20soporte%20técnico%20RiberResto%20POS"
-              target="_blank"
-              class="text-decoration-none"
+  <div class="pos-tables-container">
+    <!-- Top Bar: Salon Navigation & Quick Metrics -->
+    <VCard class="mb-4 elevation-1">
+      <VCardText class="py-3 px-4">
+        <div class="d-flex align-center justify-space-between flex-wrap gap-3">
+          <!-- Salones Tabs -->
+          <div class="d-flex align-center gap-2 flex-wrap">
+            <VTabs
+              :model-value="salonStore.activeSalonId"
+              class="v-tabs-pill"
+              @update:model-value="(val) => salonStore.fetchMesas(val)"
             >
-              <VBtn
-                color="success"
-                prepend-icon="ri-whatsapp-line"
-                variant="elevated"
+              <VTab
+                v-for="salon in salonStore.salones"
+                :key="salon.id"
+                :value="salon.id"
                 class="font-weight-bold"
               >
-                Soporte Cel. 67369293
-              </VBtn>
-            </a>
-          </VCol>
-        </VRow>
+                <VIcon icon="ri-layout-grid-line" class="me-2" size="18" />
+                {{ salon.nombre }}
+                <VChip
+                  size="x-small"
+                  :color="salon.mesas_ocupadas > 0 ? 'error' : 'secondary'"
+                  variant="tonal"
+                  class="ms-2 font-weight-bold"
+                >
+                  {{ salon.mesas_ocupadas }}/{{ salon.total_mesas }}
+                </VChip>
+              </VTab>
+            </VTabs>
+          </div>
+
+          <!-- Quick Refresh Button -->
+          <div class="d-flex align-center gap-2">
+            <VBtn
+              icon="ri-refresh-line"
+              size="small"
+              variant="tonal"
+              color="primary"
+              :loading="salonStore.loading"
+              @click="salonStore.fetchSalones()"
+            />
+          </div>
+        </div>
       </VCardText>
     </VCard>
 
-    <!-- KPI Statistics Grid -->
-    <VRow class="mb-6">
-      <VCol
-        v-for="kpi in kpis"
-        :key="kpi.title"
-        cols="12"
-        sm="6"
-        lg="3"
-      >
-        <VCard class="h-100">
-          <VCardText class="d-flex align-center gap-4">
-            <VAvatar
-              :color="kpi.color"
-              variant="tonal"
-              size="52"
-              rounded="lg"
+    <!-- Operational Filter & Metrics Bar (RestoTech Style) -->
+    <VCard class="mb-4 elevation-1">
+      <VCardText class="py-2 px-4">
+        <div class="d-flex align-center justify-space-between flex-wrap gap-3">
+          <!-- Status Filter Chips -->
+          <div class="d-flex align-center gap-2 flex-wrap">
+            <span class="text-caption font-weight-bold text-medium-emphasis me-1">ESTADO:</span>
+            
+            <VChip
+              :color="salonStore.filterStatus === 'TODAS' ? 'primary' : 'default'"
+              :variant="salonStore.filterStatus === 'TODAS' ? 'elevated' : 'tonal'"
+              size="small"
+              class="cursor-pointer font-weight-medium"
+              @click="salonStore.filterStatus = 'TODAS'"
             >
-              <VIcon :icon="kpi.icon" size="30" />
+              Todas ({{ salonStore.totalesResumen.total }})
+            </VChip>
+
+            <VChip
+              color="success"
+              :variant="salonStore.filterStatus === 'LIBRE' ? 'elevated' : 'tonal'"
+              size="small"
+              class="cursor-pointer font-weight-bold"
+              @click="salonStore.filterStatus = 'LIBRE'"
+            >
+              <VIcon icon="ri-checkbox-circle-fill" size="14" class="me-1" />
+              Libres ({{ salonStore.totalesResumen.libres }})
+            </VChip>
+
+            <VChip
+              color="error"
+              :variant="salonStore.filterStatus === 'OCUPADA' ? 'elevated' : 'tonal'"
+              size="small"
+              class="cursor-pointer font-weight-bold"
+              @click="salonStore.filterStatus = 'OCUPADA'"
+            >
+              <VIcon icon="ri-fire-fill" size="14" class="me-1" />
+              Ocupadas ({{ salonStore.totalesResumen.ocupadas }})
+            </VChip>
+
+            <VChip
+              color="warning"
+              :variant="salonStore.filterStatus === 'PRECUENTA' ? 'elevated' : 'tonal'"
+              size="small"
+              class="cursor-pointer font-weight-bold"
+              @click="salonStore.filterStatus = 'PRECUENTA'"
+            >
+              <VIcon icon="ri-file-list-3-fill" size="14" class="me-1" />
+              Pre-cuenta ({{ salonStore.totalesResumen.precuenta }})
+            </VChip>
+          </div>
+
+          <!-- Total Consumo Salón & Quick Search -->
+          <div class="d-flex align-center gap-3">
+            <div class="d-flex align-center gap-2 bg-var-theme-background px-3 py-1 rounded">
+              <span class="text-caption text-medium-emphasis">Consumo Salón:</span>
+              <strong class="text-primary text-body-1 font-weight-bold">
+                Bs. {{ salonStore.totalesResumen.consumoTotal.toFixed(2) }}
+              </strong>
+            </div>
+
+            <VTextField
+              v-model="salonStore.searchQuery"
+              placeholder="Buscar mesa..."
+              prepend-inner-icon="ri-search-line"
+              density="compact"
+              hide-details
+              style="width: 160px;"
+            />
+          </div>
+        </div>
+      </VCardText>
+    </VCard>
+
+    <!-- Interactive Table Grid (Visual Salon Map) -->
+    <VRow class="match-height">
+      <VCol
+        v-for="mesa in salonStore.filteredMesas"
+        :key="mesa.id"
+        cols="6"
+        sm="4"
+        md="3"
+        lg="2"
+      >
+        <VCard
+          class="mesa-card cursor-pointer transition-swing"
+          :class="[`mesa-${mesa.estado.toLowerCase()}`]"
+          elevation="2"
+          @click="handleMesaClick(mesa)"
+        >
+          <!-- Top Badge & Table Number -->
+          <div class="d-flex align-center justify-space-between pa-3 pb-1">
+            <span class="text-h6 font-weight-bold mesa-title">
+              {{ mesa.codigo }}
+            </span>
+            <VChip
+              :color="mesa.estado_color"
+              size="x-small"
+              variant="elevated"
+              class="font-weight-bold text-uppercase"
+            >
+              {{ mesa.estado_label }}
+            </VChip>
+          </div>
+
+          <!-- Card Body -->
+          <VCardText class="pa-3 pt-1 text-center">
+            <!-- Icon by Shape -->
+            <VAvatar
+              :color="mesa.estado_color"
+              variant="tonal"
+              size="46"
+              class="my-2"
+            >
+              <VIcon
+                :icon="mesa.forma === 'redonda' ? 'ri-record-circle-line' : 'ri-layout-grid-line'"
+                size="26"
+              />
             </VAvatar>
 
-            <div class="flex-grow-1">
-              <div class="text-body-2 text-medium-emphasis mb-1">
-                {{ kpi.title }}
+            <!-- Status Details -->
+            <template v-if="mesa.estado === 'LIBRE'">
+              <div class="text-caption text-disabled mb-1">
+                Capacidad: {{ mesa.capacidad }} pers.
               </div>
-              <h5 class="text-h5 font-weight-bold mb-1">
-                {{ kpi.value }}
-              </h5>
-              <div class="text-caption text-medium-emphasis">
-                {{ kpi.subtitle }}
+              <div class="text-caption font-weight-medium text-success">
+                Tocar para Abrir
               </div>
-            </div>
+            </template>
+
+            <template v-else>
+              <div class="text-caption text-truncate font-weight-medium mb-1">
+                {{ mesa.mesero_nombre || 'Mesero' }}
+              </div>
+
+              <!-- Total Consumo -->
+              <div class="text-h6 font-weight-bold text-high-emphasis">
+                Bs. {{ (parseFloat(mesa.total_consumo) || 0).toFixed(2) }}
+              </div>
+
+              <!-- Time elapsed -->
+              <div class="text-caption text-disabled mt-1 d-flex align-center justify-center gap-1">
+                <VIcon icon="ri-time-line" size="13" />
+                <span>{{ mesa.minutos_abierta }} min</span>
+                <span class="mx-1">•</span>
+                <VIcon icon="ri-user-line" size="13" />
+                <span>{{ mesa.personas }}p</span>
+              </div>
+            </template>
           </VCardText>
         </VCard>
       </VCol>
     </VRow>
 
-    <!-- Quick Operations & Recent Activity -->
-    <VRow class="mb-6">
-      <!-- Fast POS Actions -->
-      <VCol cols="12" lg="7">
-        <VCard class="h-100">
-          <VCardItem title="Accesos Rápidos del Sistema">
-            <template #subtitle>
-              Módulos principales de atención táctil para restaurantes
-            </template>
-          </VCardItem>
-
-          <VCardText>
-            <VRow>
-              <VCol cols="12" sm="6">
-                <VCard variant="outlined" class="pa-4 text-center cursor-pointer hover-card">
-                  <VAvatar color="primary" variant="tonal" size="50" class="mb-3">
-                    <VIcon icon="ri-layout-grid-line" size="28" />
-                  </VAvatar>
-                  <h6 class="text-h6 font-weight-bold mb-1">
-                    Plano de Mesas & Salón
-                  </h6>
-                  <p class="text-caption text-medium-emphasis mb-3">
-                    Control visual interactivo de áreas, salones y cuentas
-                  </p>
-                  <VBtn size="small" color="primary" block>
-                    Módulo Bucle 2
-                  </VBtn>
-                </VCard>
-              </VCol>
-
-              <VCol cols="12" sm="6">
-                <VCard variant="outlined" class="pa-4 text-center cursor-pointer hover-card">
-                  <VAvatar color="warning" variant="tonal" size="50" class="mb-3">
-                    <VIcon icon="ri-file-add-line" size="28" />
-                  </VAvatar>
-                  <h6 class="text-h6 font-weight-bold mb-1">
-                    Comandas & Cocina
-                  </h6>
-                  <p class="text-caption text-medium-emphasis mb-3">
-                    Envío directo a impresoras térmicas y pantalla KDS
-                  </p>
-                  <VBtn size="small" color="warning" variant="tonal" block>
-                    Ver Comandas
-                  </VBtn>
-                </VCard>
-              </VCol>
-
-              <VCol cols="12" sm="6">
-                <VCard variant="outlined" class="pa-4 text-center cursor-pointer hover-card">
-                  <VAvatar color="success" variant="tonal" size="50" class="mb-3">
-                    <VIcon icon="ri-safe-2-line" size="28" />
-                  </VAvatar>
-                  <h6 class="text-h6 font-weight-bold mb-1">
-                    Caja & Turnos
-                  </h6>
-                  <p class="text-caption text-medium-emphasis mb-3">
-                    Apertura, arqueos, retiros y corte X/Z de caja
-                  </p>
-                  <VBtn size="small" color="success" variant="tonal" block>
-                    Arqueo de Caja
-                  </VBtn>
-                </VCard>
-              </VCol>
-
-              <VCol cols="12" sm="6">
-                <VCard variant="outlined" class="pa-4 text-center cursor-pointer hover-card">
-                  <VAvatar color="info" variant="tonal" size="50" class="mb-3">
-                    <VIcon icon="ri-qr-code-line" size="28" />
-                  </VAvatar>
-                  <h6 class="text-h6 font-weight-bold mb-1">
-                    Facturación Bolivia SIAT
-                  </h6>
-                  <p class="text-caption text-medium-emphasis mb-3">
-                    Modalidad computarizada y electrónica con CUFD/CUF
-                  </p>
-                  <VBtn size="small" color="info" variant="tonal" block>
-                    Estado SIAT
-                  </VBtn>
-                </VCard>
-              </VCol>
-            </VRow>
-          </VCardText>
-        </VCard>
-      </VCol>
-
-      <!-- Recent Orders / Active Tables -->
-      <VCol cols="12" lg="5">
-        <VCard class="h-100">
-          <VCardItem title="Mesas con Movimiento Activo">
-            <template #subtitle>
-              Cuentas abiertas en el turno actual
-            </template>
-          </VCardItem>
-
-          <VCardText class="pa-0">
-            <VList lines="two">
-              <VListItem
-                v-for="order in recentOrders"
-                :key="order.table"
-                class="px-4"
-              >
-                <template #prepend>
-                  <VAvatar color="primary" variant="tonal" class="me-3">
-                    <VIcon icon="ri-restaurant-line" />
-                  </VAvatar>
-                </template>
-
-                <VListItemTitle class="font-weight-bold">
-                  {{ order.table }}
-                </VListItemTitle>
-                <VListItemSubtitle class="text-caption">
-                  Atiende: {{ order.waiter }}
-                </VListItemSubtitle>
-
-                <template #append>
-                  <div class="text-end">
-                    <div class="font-weight-bold text-body-1">
-                      {{ order.total }}
-                    </div>
-                    <VChip :color="order.color" size="x-small" variant="tonal">
-                      {{ order.status }}
-                    </VChip>
-                  </div>
-                </template>
-              </VListItem>
-            </VList>
-          </VCardText>
-        </VCard>
-      </VCol>
-    </VRow>
-
-    <!-- Ribersoft Marketing & Support Card -->
-    <VCard class="bg-primary text-white elevation-3">
-      <VCardText class="pa-6">
-        <VRow align="center">
-          <VCol cols="12" md="8">
-            <div class="d-flex align-center gap-2 mb-2">
-              <VIcon icon="ri-medal-line" size="26" />
-              <h5 class="text-h5 font-weight-bold text-white mb-0">
-                Ribersoft — Soluciones Tecnológicas de Alta Gama
-              </h5>
-            </div>
-            <p class="text-body-1 mb-0 opacity-90">
-              ¿Deseas personalizar <strong>RiberResto POS</strong> con módulos a medida, impresoras fiscales, reportes avanzados o comanderas móviles? Contáctate directamente con nuestro equipo de ingeniería.
-            </p>
-          </VCol>
-
-          <VCol cols="12" md="4" class="text-md-end">
-            <a
-              href="https://wa.me/59167369293?text=Hola%20Ribersoft,%20quiero%20información%20sobre%20RiberResto%20POS"
-              target="_blank"
-              class="text-decoration-none"
-            >
-              <VBtn
-                color="white"
-                class="text-primary font-weight-bold"
-                size="large"
-                prepend-icon="ri-phone-fill"
-              >
-                Cel. 67369293
-              </VBtn>
-            </a>
-          </VCol>
-        </VRow>
-      </VCardText>
+    <!-- Empty State -->
+    <VCard v-if="salonStore.filteredMesas.length === 0" class="pa-8 text-center mt-4">
+      <VIcon icon="ri-restaurant-line" size="48" color="disabled" class="mb-2" />
+      <h5 class="text-h5 text-medium-emphasis">No se encontraron mesas</h5>
+      <p class="text-caption text-disabled mb-0">Prueba cambiando el filtro de estado o la búsqueda.</p>
     </VCard>
+
+    <!-- DIALOG: Abrir Mesa -->
+    <VDialog
+      v-model="openTableDialog"
+      max-width="450"
+    >
+      <VCard v-if="targetMesa">
+        <VCardItem class="bg-primary text-white">
+          <template #prepend>
+            <VAvatar color="white" size="36">
+              <VIcon icon="ri-restaurant-2-line" color="primary" size="20" />
+            </VAvatar>
+          </template>
+          <VCardTitle class="text-white font-weight-bold">
+            Abrir {{ targetMesa.nombre }}
+          </VCardTitle>
+          <VCardSubtitle class="text-white opacity-80">
+            Capacidad: {{ targetMesa.capacidad }} comensales
+          </VCardSubtitle>
+        </VCardItem>
+
+        <VCardText class="pt-5">
+          <!-- Personas selector -->
+          <div class="mb-4">
+            <label class="text-caption font-weight-bold text-medium-emphasis d-block mb-2">
+              CANTIDAD DE COMENSALES:
+            </label>
+            <div class="d-flex gap-2 flex-wrap mb-2">
+              <VBtn
+                v-for="p in [1, 2, 3, 4, 5, 6, 8]"
+                :key="p"
+                size="small"
+                :variant="openTableForm.personas === p ? 'elevated' : 'outlined'"
+                :color="openTableForm.personas === p ? 'primary' : 'default'"
+                class="font-weight-bold"
+                @click="openTableForm.personas = p"
+              >
+                {{ p }}
+              </VBtn>
+            </div>
+          </div>
+
+          <!-- Cliente nombre -->
+          <VTextField
+            v-model="openTableForm.cliente_nombre"
+            label="Nombre del Cliente (Opcional)"
+            placeholder="Ej. Familia Pérez"
+            prepend-inner-icon="ri-user-smile-line"
+            class="mb-3"
+          />
+
+          <!-- Notas -->
+          <VTextField
+            v-model="openTableForm.notas"
+            label="Notas de Mesa (Opcional)"
+            placeholder="Ej. Mesa preferencial con niños"
+            prepend-inner-icon="ri-sticky-note-line"
+          />
+        </VCardText>
+
+        <VCardActions class="pa-4 pt-0 d-flex justify-end gap-2">
+          <VBtn variant="tonal" color="secondary" @click="openTableDialog = false">
+            Cancelar
+          </VBtn>
+          <VBtn
+            color="primary"
+            variant="elevated"
+            prepend-icon="ri-check-line"
+            :loading="salonStore.loading"
+            @click="submitOpenTable"
+          >
+            Abrir Mesa
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- DIALOG: Detalle de Mesa y Comanda Activa (RestoTech Style) -->
+    <VDialog
+      v-model="tableDetailDialog"
+      max-width="650"
+    >
+      <VCard v-if="salonStore.selectedMesaDetails">
+        <VCardItem class="bg-primary text-white">
+          <template #prepend>
+            <VAvatar color="white" size="40">
+              <VIcon icon="ri-receipt-line" color="primary" size="22" />
+            </VAvatar>
+          </template>
+          <VCardTitle class="text-white font-weight-bold d-flex align-center justify-space-between">
+            <span>{{ salonStore.selectedMesaDetails.nombre }} ({{ salonStore.selectedMesaDetails.salon_nombre }})</span>
+            <VChip
+              :color="salonStore.selectedMesaDetails.estado === 'PRECUENTA' ? 'warning' : 'success'"
+              size="small"
+              class="font-weight-bold"
+            >
+              {{ salonStore.selectedMesaDetails.estado }}
+            </VChip>
+          </VCardTitle>
+          <VCardSubtitle class="text-white opacity-80">
+            Atiende: {{ salonStore.selectedMesaDetails.visita?.mesero_nombre }} • {{ salonStore.selectedMesaDetails.visita?.personas }} personas
+          </VCardSubtitle>
+        </VCardItem>
+
+        <VCardText class="pa-4">
+          <!-- Detalle de Consumos -->
+          <h6 class="text-subtitle-1 font-weight-bold mb-2 d-flex align-center justify-space-between">
+            <span>ÍTEMS DE LA COMANDA</span>
+            <span class="text-primary font-weight-bold text-h6">
+              Total: Bs. {{ salonStore.selectedMesaDetails.visita?.total?.toFixed(2) }}
+            </span>
+          </h6>
+
+          <VTable density="compact" class="border rounded mb-4">
+            <thead>
+              <tr>
+                <th class="font-weight-bold">CANT</th>
+                <th class="font-weight-bold">PRODUCTO</th>
+                <th class="text-end font-weight-bold">P. UNIT</th>
+                <th class="text-end font-weight-bold">SUBTOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="item in salonStore.selectedMesaDetails.visita?.detalles"
+                :key="item.id"
+              >
+                <td class="font-weight-bold">{{ item.cantidad }}x</td>
+                <td>
+                  <div class="font-weight-medium">{{ item.producto_nombre }}</div>
+                  <div v-if="item.observaciones" class="text-caption text-disabled">
+                    {{ item.observaciones }}
+                  </div>
+                </td>
+                <td class="text-end">Bs. {{ item.precio_unitario.toFixed(2) }}</td>
+                <td class="text-end font-weight-bold">Bs. {{ item.subtotal.toFixed(2) }}</td>
+              </tr>
+            </tbody>
+          </VTable>
+
+          <!-- Acciones Táctiles de Mesa (RestoTech Faithful) -->
+          <div class="d-flex gap-2 flex-wrap">
+            <VBtn
+              color="warning"
+              variant="tonal"
+              prepend-icon="ri-printer-line"
+              class="flex-grow-1"
+              @click="handleSolicitarPrecuenta"
+            >
+              Pre-cuenta
+            </VBtn>
+
+            <VBtn
+              color="info"
+              variant="tonal"
+              prepend-icon="ri-arrow-left-right-line"
+              class="flex-grow-1"
+              @click="openChangeModal"
+            >
+              Mover Mesa
+            </VBtn>
+
+            <VBtn
+              color="success"
+              variant="elevated"
+              prepend-icon="ri-money-dollar-circle-line"
+              class="flex-grow-1 font-weight-bold"
+              @click="handleLiberarMesa"
+            >
+              Cobrar & Liberar
+            </VBtn>
+          </div>
+        </VCardText>
+
+        <VCardActions class="pa-4 pt-0">
+          <VBtn block variant="tonal" color="secondary" @click="tableDetailDialog = false">
+            Cerrar Ventana
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
+
+    <!-- DIALOG: Cambiar de Mesa (frmCambiarMesa) -->
+    <VDialog
+      v-model="changeTableDialog"
+      max-width="450"
+    >
+      <VCard>
+        <VCardItem class="bg-info text-white">
+          <VCardTitle class="text-white font-weight-bold">
+            Cambiar de Mesa
+          </VCardTitle>
+          <VCardSubtitle class="text-white opacity-80">
+            Mover cuenta de {{ targetMesa?.nombre }} a otra mesa disponible
+          </VCardSubtitle>
+        </VCardItem>
+
+        <VCardText class="pt-5">
+          <label class="text-caption font-weight-bold text-medium-emphasis d-block mb-2">
+            SELECCIONE LA MESA DESTINO:
+          </label>
+
+          <VSelect
+            v-model="destinationMesaId"
+            :items="freeTablesForMove"
+            item-title="nombre"
+            item-value="id"
+            placeholder="Seleccione mesa libre..."
+            prepend-inner-icon="ri-layout-grid-line"
+          />
+        </VCardText>
+
+        <VCardActions class="pa-4 pt-0 d-flex justify-end gap-2">
+          <VBtn variant="tonal" color="secondary" @click="changeTableDialog = false">
+            Cancelar
+          </VBtn>
+          <VBtn
+            color="info"
+            variant="elevated"
+            :disabled="!destinationMesaId"
+            :loading="salonStore.loading"
+            @click="submitChangeTable"
+          >
+            Confirmar Cambio
+          </VBtn>
+        </VCardActions>
+      </VCard>
+    </VDialog>
   </div>
 </template>
 
 <style scoped>
-.hover-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+.pos-tables-container {
+  min-height: 80vh;
 }
-.hover-card:hover {
+
+.mesa-card {
+  border-radius: 12px;
+  border-width: 2px;
+  border-style: solid;
+  transition: all 0.2s ease-in-out;
+}
+
+.mesa-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Colores Oficiales RestoTech */
+.mesa-libre {
+  border-color: rgba(76, 175, 80, 0.4);
+  background: rgba(76, 175, 80, 0.04);
+}
+.mesa-libre:hover {
+  border-color: #4caf50;
+}
+
+.mesa-ocupada {
+  border-color: rgba(244, 67, 54, 0.5);
+  background: rgba(244, 67, 54, 0.05);
+}
+.mesa-ocupada:hover {
+  border-color: #f44336;
+}
+
+.mesa-precuenta {
+  border-color: rgba(255, 152, 0, 0.5);
+  background: rgba(255, 152, 0, 0.06);
+}
+.mesa-precuenta:hover {
+  border-color: #ff9800;
+}
+
+.mesa-title {
+  font-size: 1.25rem;
+  letter-spacing: -0.5px;
 }
 </style>
