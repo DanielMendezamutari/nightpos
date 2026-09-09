@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\SalonMesaController;
 use App\Http\Controllers\Api\V1\ComandaController;
+use App\Http\Controllers\Api\V1\CajaFacturaController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -37,6 +38,7 @@ Route::prefix('v1')->group(function () {
         Route::post('{mesaId}/precuenta', [SalonMesaController::class, 'solicitarPrecuenta']);
         Route::post('{mesaId}/liberar', [SalonMesaController::class, 'liberarMesa']);
         Route::post('{mesaId}/comanda', [ComandaController::class, 'agregarComanda']);
+        Route::post('{mesaId}/cobrar-facturar', [CajaFacturaController::class, 'cobrarYFacturar']);
     });
 
     Route::prefix('menu')->group(function () {
@@ -46,4 +48,17 @@ Route::prefix('v1')->group(function () {
     });
 
     Route::delete('visita-detalles/{detalleId}', [ComandaController::class, 'eliminarItem']);
+
+    Route::prefix('caja')->group(function () {
+        Route::get('turno-activo', [CajaFacturaController::class, 'getTurnoActivo']);
+        Route::post('abrir-turno', [CajaFacturaController::class, 'abrirTurno']);
+        Route::post('cerrar-turno', [CajaFacturaController::class, 'cerrarTurno']);
+        Route::get('movimientos', [CajaFacturaController::class, 'getMovimientos']);
+        Route::post('movimientos', [CajaFacturaController::class, 'registrarMovimiento']);
+    });
+
+    Route::prefix('facturas')->group(function () {
+        Route::get('/', [CajaFacturaController::class, 'getFacturas']);
+        Route::post('{id}/anular', [CajaFacturaController::class, 'anularFactura']);
+    });
 });

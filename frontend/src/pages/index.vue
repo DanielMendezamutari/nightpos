@@ -1,18 +1,25 @@
 <script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useSalonMesaStore } from '@/stores/salonMesa'
 import { useAuthStore } from '@/stores/auth'
 import { useComandaStore } from '@/stores/comanda'
+import { useCajaStore } from '@/stores/caja'
 import ComandaModal from '@/components/pos/ComandaModal.vue'
+import CobroFacturacionModal from '@/components/pos/CobroFacturacionModal.vue'
+import ControlCajaModal from '@/components/pos/ControlCajaModal.vue'
 
 const salonStore = useSalonMesaStore()
 const authStore = useAuthStore()
 const comandaStore = useComandaStore()
+const cajaStore = useCajaStore()
 
 // State
 const openTableDialog = ref(false)
 const changeTableDialog = ref(false)
 const tableDetailDialog = ref(false)
 const comandaModalOpen = ref(false)
+const cobroModalOpen = ref(false)
+const controlCajaModalOpen = ref(false)
 const targetMesa = ref(null)
 
 // Form data for opening table
@@ -25,9 +32,26 @@ const openTableForm = ref({
 // Form data for changing table
 const destinationMesaId = ref(null)
 
-// Load salones on mounted
+// Hotkeys handler (RestoTech Keyboard Accelerators)
+const handleGlobalKeydown = (e) => {
+  if (e.key === 'F9') {
+    e.preventDefault()
+    controlCajaModalOpen.value = true
+  } else if (e.key === 'F12' && tableDetailDialog.value && targetMesa.value) {
+    e.preventDefault()
+    abrirCobroModal()
+  }
+}
+
+// Load salones and active shift on mounted
 onMounted(async () => {
   await salonStore.fetchSalones()
+  await cajaStore.fetchTurnoActivo()
+  window.addEventListener('keydown', handleGlobalKeydown)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 
 // Quick open table dialog
@@ -42,7 +66,7 @@ const handleMesaClick = async (mesa) => {
     }
     openTableDialog.value = true
   } else {
-    // Cargar detalle y abrir modal/drawer de comanda
+    // Cargar detalle y abrir modal de detalle
     await salonStore.fetchMesaDetails(mesa.id)
     tableDetailDialog.value = true
   }
@@ -63,7 +87,7 @@ const submitOpenTable = async () => {
 
   if (res.success) {
     openTableDialog.value = false
-    // Abrir automáticamente la toma de pedidos para la mesa recién abierta
+    // Abrir automÃ¡ticamente la toma de pedidos para la mesa reciÃ©n abierta
     const updatedMesa = salonStore.mesas.find(m => m.id === targetMesa.value.id)
     targetMesa.value = updatedMesa || targetMesa.value
     comandaModalOpen.value = true
@@ -98,21 +122,26 @@ const handleSolicitarPrecuenta = async () => {
   await salonStore.solicitarPrecuenta(targetMesa.value.id)
 }
 
-// Free / checkout table
-const handleLiberarMesa = async () => {
-  if (!targetMesa.value) return
-  if (confirm(`¿Confirmar cobro y liberar la ${targetMesa.value.nombre}?`)) {
-    const res = await salonStore.liberarMesa(targetMesa.value.id)
-    if (res.success) {
-      tableDetailDialog.value = false
-      targetMesa.value = null
-    }
+// Open Cobro / Facturacion Modal
+const abrirCobroModal = () => {
+  if (!cajaStore.isTurnoAbierto) {
+    alert('Debe abrir un turno de caja antes de realizar cobros y facturaciÃ³n.')
+    controlCajaModalOpen.value = true
+    return
   }
+  tableDetailDialog.value = false
+  cobroModalOpen.value = true
+}
+
+// On Cobro Exitoso
+const onCobroExitoso = async () => {
+  targetMesa.value = null
+  await salonStore.fetchMesas(salonStore.activeSalonId)
 }
 
 // Delete existing item from order
 const handleEliminarItem = async (detalleId) => {
-  if (confirm('¿Eliminar este ítem de la comanda?')) {
+  if (confirm('Â¿Eliminar este Ã­tem de la comanda?')) {
     const ok = await comandaStore.eliminarItemComandaExistente(detalleId)
     if (ok && targetMesa.value) {
       await salonStore.fetchMesaDetails(targetMesa.value.id)
@@ -167,8 +196,24 @@ const freeTablesForMove = computed(() => {
             </VTabs>
           </div>
 
-          <!-- Quick Refresh Button -->
+          <!-- Top Actions: Control de Caja (F9) & Refresh -->
           <div class="d-flex align-center gap-2">
+            <VBtn
+              :color="cajaStore.isTurnoAbierto ? 'success' : 'warning'"
+              :variant="cajaStore.isTurnoAbierto ? 'tonal' : 'flat'"
+              size="small"
+              prepend-icon="ri-safe-2-line"
+              class="font-weight-bold"
+              @click="controlCajaModalOpen = true"
+            >
+              <span v-if="cajaStore.isTurnoAbierto">
+                Turno #{{ cajaStore.turnoActivo?.id }} (Bs. {{ parseFloat(cajaStore.turnoActivo?.efectivo_esperado || 0).toFixed(2) }}) [F9]
+              </span>
+              <span v-else>
+                Caja Cerrada - Abrir Turno [F9]
+              </span>
+            </VBtn>
+
             <VBtn
               icon="ri-refresh-line"
               size="small"
@@ -234,10 +279,10 @@ const freeTablesForMove = computed(() => {
             </VChip>
           </div>
 
-          <!-- Total Consumo Salón & Quick Search -->
+          <!-- Total Consumo SalÃ³n & Quick Search -->
           <div class="d-flex align-center gap-3">
             <div class="d-flex align-center gap-2 bg-var-theme-background px-3 py-1 rounded">
-              <span class="text-caption text-medium-emphasis">Consumo Salón:</span>
+              <span class="text-caption text-medium-emphasis">Consumo SalÃ³n:</span>
               <strong class="text-primary text-body-1 font-weight-bold">
                 Bs. {{ salonStore.totalesResumen.consumoTotal.toFixed(2) }}
               </strong>
@@ -326,7 +371,7 @@ const freeTablesForMove = computed(() => {
               <div class="text-caption text-disabled mt-1 d-flex align-center justify-center gap-1">
                 <VIcon icon="ri-time-line" size="13" />
                 <span>{{ mesa.minutos_abierta }} min</span>
-                <span class="mx-1">•</span>
+                <span class="mx-1">â€¢</span>
                 <VIcon icon="ri-user-line" size="13" />
                 <span>{{ mesa.personas }}p</span>
               </div>
@@ -340,7 +385,7 @@ const freeTablesForMove = computed(() => {
     <VCard v-if="salonStore.filteredMesas.length === 0" class="pa-8 text-center mt-4">
       <VIcon icon="ri-restaurant-line" size="48" color="disabled" class="mb-2" />
       <h5 class="text-h5 text-medium-emphasis">No se encontraron mesas</h5>
-      <p class="text-caption text-disabled mb-0">Prueba cambiando el filtro de estado o la búsqueda.</p>
+      <p class="text-caption text-disabled mb-0">Prueba cambiando el filtro de estado o la bÃºsqueda.</p>
     </VCard>
 
     <!-- DIALOG: Abrir Mesa -->
@@ -388,7 +433,7 @@ const freeTablesForMove = computed(() => {
           <VTextField
             v-model="openTableForm.cliente_nombre"
             label="Nombre del Cliente (Opcional)"
-            placeholder="Ej. Familia Pérez"
+            placeholder="Ej. Familia PÃ©rez"
             prepend-inner-icon="ri-user-smile-line"
             class="mb-3"
           />
@@ -397,7 +442,7 @@ const freeTablesForMove = computed(() => {
           <VTextField
             v-model="openTableForm.notas"
             label="Notas de Mesa (Opcional)"
-            placeholder="Ej. Mesa preferencial con niños"
+            placeholder="Ej. Mesa preferencial con niÃ±os"
             prepend-inner-icon="ri-sticky-note-line"
           />
         </VCardText>
@@ -442,14 +487,14 @@ const freeTablesForMove = computed(() => {
             </VChip>
           </VCardTitle>
           <VCardSubtitle class="text-white opacity-80">
-            Atiende: {{ salonStore.selectedMesaDetails.visita?.mesero_nombre }} • {{ salonStore.selectedMesaDetails.visita?.personas }} personas
+            Atiende: {{ salonStore.selectedMesaDetails.visita?.mesero_nombre }} â€¢ {{ salonStore.selectedMesaDetails.visita?.personas }} personas
           </VCardSubtitle>
         </VCardItem>
 
         <VCardText class="pa-4">
           <!-- Detalle de Consumos -->
           <div class="d-flex align-center justify-space-between mb-2">
-            <h6 class="text-subtitle-1 font-weight-bold">ÍTEMS DE LA COMANDA</h6>
+            <h6 class="text-subtitle-1 font-weight-bold">ÃTEMS DE LA COMANDA</h6>
             <VBtn
               color="primary"
               size="small"
@@ -469,7 +514,7 @@ const freeTablesForMove = computed(() => {
                 <th class="font-weight-bold">PRODUCTO</th>
                 <th class="text-end font-weight-bold">P. UNIT</th>
                 <th class="text-end font-weight-bold">SUBTOTAL</th>
-                <th class="text-center font-weight-bold" style="width: 50px;">ACCIÓN</th>
+                <th class="text-center font-weight-bold" style="width: 50px;">ACCIÃ“N</th>
               </tr>
             </thead>
             <tbody>
@@ -506,7 +551,7 @@ const freeTablesForMove = computed(() => {
             </div>
           </div>
 
-          <!-- Acciones Táctiles de Mesa (RestoTech Faithful) -->
+          <!-- Acciones TÃ¡ctiles de Mesa (RestoTech Faithful) -->
           <div class="d-flex gap-2 flex-wrap">
             <VBtn
               color="warning"
@@ -528,14 +573,15 @@ const freeTablesForMove = computed(() => {
               Mover Mesa
             </VBtn>
 
+            <!-- RestoTech frmFacturacion1 Trigger -->
             <VBtn
               color="success"
               variant="elevated"
-              prepend-icon="ri-money-dollar-circle-line"
+              prepend-icon="ri-secure-payment-line"
               class="flex-grow-1 font-weight-bold"
-              @click="handleLiberarMesa"
+              @click="abrirCobroModal"
             >
-              Cobrar & Liberar
+              COBRAR & FACTURAR (F12)
             </VBtn>
           </div>
         </VCardText>
@@ -595,59 +641,79 @@ const freeTablesForMove = computed(() => {
       </VCard>
     </VDialog>
 
-    <!-- FULLSCREEN MODAL: Toma de Pedidos Táctil (frmOrdenesPedido) -->
+    <!-- FULLSCREEN MODAL: Toma de Pedidos TÃ¡ctil (frmOrdenesPedido) -->
     <ComandaModal
       v-model="comandaModalOpen"
       :mesa="targetMesa"
+      :visita="salonStore.selectedMesaDetails?.visita"
       @comanda-enviada="onComandaEnviada"
+    />
+
+    <!-- MODAL: Cobro y Facturacion SIAT Bolivia (frmFacturacion1) -->
+    <CobroFacturacionModal
+      v-model="cobroModalOpen"
+      :mesa="targetMesa"
+      :visita="salonStore.selectedMesaDetails?.visita"
+      @cobro-exitoso="onCobroExitoso"
+    />
+
+    <!-- MODAL: Control de Caja & Arqueo de Turno (frmControlCajaTurno) -->
+    <ControlCajaModal
+      v-model="controlCajaModalOpen"
+      @turno-actualizado="cajaStore.fetchTurnoActivo()"
     />
   </div>
 </template>
 
 <style scoped>
 .pos-tables-container {
-  min-height: 80vh;
+  padding: 8px 0;
 }
 
+/* Mesa Cards Styling */
 .mesa-card {
   border-radius: 12px;
-  border-width: 2px;
-  border-style: solid;
-  transition: all 0.2s ease-in-out;
+  border: 2px solid transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 180px;
 }
 
 .mesa-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(var(--v-shadow-key-umbrella), 0.15) !important;
 }
 
-/* Colores Oficiales RestoTech */
+/* Colores oficiales RestoTech */
 .mesa-libre {
-  border-color: rgba(76, 175, 80, 0.4);
-  background: rgba(76, 175, 80, 0.04);
-}
-.mesa-libre:hover {
-  border-color: #4caf50;
+  border-color: rgba(var(--v-theme-success), 0.35);
+  background: linear-gradient(180deg, rgba(var(--v-theme-success), 0.03) 0%, transparent 100%);
 }
 
 .mesa-ocupada {
-  border-color: rgba(244, 67, 54, 0.5);
-  background: rgba(244, 67, 54, 0.05);
-}
-.mesa-ocupada:hover {
-  border-color: #f44336;
+  border-color: rgba(var(--v-theme-error), 0.5);
+  background: linear-gradient(180deg, rgba(var(--v-theme-error), 0.05) 0%, transparent 100%);
 }
 
 .mesa-precuenta {
-  border-color: rgba(255, 152, 0, 0.5);
-  background: rgba(255, 152, 0, 0.06);
+  border-color: rgba(var(--v-theme-warning), 0.6);
+  background: linear-gradient(180deg, rgba(var(--v-theme-warning), 0.06) 0%, transparent 100%);
+  animation: pulse-precuenta 2s infinite;
 }
-.mesa-precuenta:hover {
-  border-color: #ff9800;
+
+@keyframes pulse-precuenta {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(var(--v-theme-warning), 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--v-theme-warning), 0);
+  }
 }
 
 .mesa-title {
-  font-size: 1.25rem;
-  letter-spacing: -0.5px;
+  font-size: 1.15rem;
+  letter-spacing: 0.5px;
 }
 </style>

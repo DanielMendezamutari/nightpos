@@ -32,4 +32,9 @@ class VisitaDetalleModel extends Model
     {
         return $this->belongsTo(VisitaModel::class, 'visita_id');
     }
+
+    public function producto(): BelongsTo
+    {
+        return $this->belongsTo(ProductoModel::class, 'producto_id');
+    }
 }
