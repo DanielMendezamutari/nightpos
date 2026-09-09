@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\SalonMesaController;
 use App\Http\Controllers\Api\V1\ComandaController;
 use App\Http\Controllers\Api\V1\CajaFacturaController;
 use App\Http\Controllers\Api\V1\QrPagoController;
+use App\Http\Controllers\Api\V1\ClienteController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -68,5 +69,16 @@ Route::prefix('v1')->group(function () {
         Route::get('estado/{codigo}', [QrPagoController::class, 'estado']);
         Route::post('webhook', [QrPagoController::class, 'webhook']);
         Route::post('simular/{codigo}', [QrPagoController::class, 'simular']);
+    });
+
+    Route::prefix('clientes')->group(function () {
+        Route::get('/', [ClienteController::class, 'index']);
+        Route::post('/', [ClienteController::class, 'store']);
+        Route::get('{id}', [ClienteController::class, 'show']);
+        Route::put('{id}', [ClienteController::class, 'update']);
+        Route::delete('{id}', [ClienteController::class, 'destroy']);
+        Route::post('{id}/abono', [ClienteController::class, 'registrarAbono']);
+        Route::post('{id}/anticipos', [ClienteController::class, 'registrarAnticipo']);
+        Route::get('{id}/anticipos-disponibles', [ClienteController::class, 'anticiposDisponibles']);
     });
 });

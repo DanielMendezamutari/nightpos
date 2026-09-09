@@ -8,7 +8,7 @@ export default [
     heading: 'PUNTO DE VENTA (POS)',
   },
   {
-    title: 'Salón & Mesas',
+    title: 'SalÃ³n & Mesas',
     to: { name: 'root' },
     icon: { icon: 'ri-layout-grid-line' },
   },
@@ -23,10 +23,15 @@ export default [
     icon: { icon: 'ri-safe-2-line' },
   },
   {
-    heading: 'FACTURACIÓN & VENTAS',
+    title: 'Clientes & CrÃ©dito',
+    to: { name: 'clientes' },
+    icon: { icon: 'ri-user-star-line' },
   },
   {
-    title: 'Facturación Bolivia',
+    heading: 'FACTURACIÃ“N & VENTAS',
+  },
+  {
+    title: 'FacturaciÃ³n Bolivia',
     to: { name: 'facturas' },
     icon: { icon: 'ri-file-shield-line' },
     badgeContent: 'SIAT',
