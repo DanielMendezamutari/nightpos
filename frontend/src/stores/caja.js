@@ -137,5 +137,40 @@ export const useCajaStore = defineStore('caja', {
         return { success: false, message: err.data?.message || err.message || 'Error al anular factura' }
       }
     },
+
+    // QR Payment Actions
+    async generarPagoQr(payload) {
+      try {
+        const res = await $api('/api/v1/pagos/qr/generar', {
+          method: 'POST',
+          body: payload,
+        })
+        return { success: true, data: res.data }
+      } catch (err) {
+        return { success: false, message: err.data?.message || err.message || 'Error al generar cÃ³digo QR' }
+      }
+    },
+
+    async consultarEstadoQr(codigo) {
+      try {
+        const res = await $api(`/api/v1/pagos/qr/estado/${codigo}`, {
+          method: 'GET',
+        })
+        return { success: true, data: res.data }
+      } catch (err) {
+        return { success: false, message: err.data?.message || err.message || 'Error al consultar estado QR' }
+      }
+    },
+
+    async simularPagoQr(codigo) {
+      try {
+        const res = await $api(`/api/v1/pagos/qr/simular/${codigo}`, {
+          method: 'POST',
+        })
+        return { success: true, data: res.data, message: res.message }
+      } catch (err) {
+        return { success: false, message: err.data?.message || err.message || 'Error al simular pago QR' }
+      }
+    },
   },
 })

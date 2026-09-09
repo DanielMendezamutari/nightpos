@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\SalonMesaController;
 use App\Http\Controllers\Api\V1\ComandaController;
 use App\Http\Controllers\Api\V1\CajaFacturaController;
+use App\Http\Controllers\Api\V1\QrPagoController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -60,5 +61,12 @@ Route::prefix('v1')->group(function () {
     Route::prefix('facturas')->group(function () {
         Route::get('/', [CajaFacturaController::class, 'getFacturas']);
         Route::post('{id}/anular', [CajaFacturaController::class, 'anularFactura']);
+    });
+
+    Route::prefix('pagos/qr')->group(function () {
+        Route::post('generar', [QrPagoController::class, 'generar']);
+        Route::get('estado/{codigo}', [QrPagoController::class, 'estado']);
+        Route::post('webhook', [QrPagoController::class, 'webhook']);
+        Route::post('simular/{codigo}', [QrPagoController::class, 'simular']);
     });
 });
