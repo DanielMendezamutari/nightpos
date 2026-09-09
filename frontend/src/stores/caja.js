@@ -21,7 +21,7 @@ export const useCajaStore = defineStore('caja', {
       this.loading = true
       this.error = null
       try {
-        const res = await $api('/v1/caja/turno-activo', { method: 'GET' })
+        const res = await $api('/api/v1/caja/turno-activo', { method: 'GET' })
         this.turnoActivo = res.data || null
         return this.turnoActivo
       } catch (err) {
@@ -37,7 +37,7 @@ export const useCajaStore = defineStore('caja', {
       this.loading = true
       this.error = null
       try {
-        const res = await $api('/v1/caja/abrir-turno', {
+        const res = await $api('/api/v1/caja/abrir-turno', {
           method: 'POST',
           body: payload,
         })
@@ -55,7 +55,7 @@ export const useCajaStore = defineStore('caja', {
       this.loading = true
       this.error = null
       try {
-        const res = await $api('/v1/caja/cerrar-turno', {
+        const res = await $api('/api/v1/caja/cerrar-turno', {
           method: 'POST',
           body: payload,
         })
@@ -71,7 +71,7 @@ export const useCajaStore = defineStore('caja', {
 
     async fetchMovimientos(turnoId = null) {
       try {
-        const url = turnoId ? `/v1/caja/movimientos?turno_id=${turnoId}` : '/v1/caja/movimientos'
+        const url = turnoId ? `/api/v1/caja/movimientos?turno_id=${turnoId}` : '/api/v1/caja/movimientos'
         const res = await $api(url, { method: 'GET' })
         this.movimientos = res.data || []
         return this.movimientos
@@ -83,7 +83,7 @@ export const useCajaStore = defineStore('caja', {
     async registrarMovimiento(payload) {
       this.loading = true
       try {
-        const res = await $api('/v1/caja/movimientos', {
+        const res = await $api('/api/v1/caja/movimientos', {
           method: 'POST',
           body: payload,
         })
@@ -100,7 +100,7 @@ export const useCajaStore = defineStore('caja', {
     async cobrarYFacturar(mesaId, payload) {
       this.loading = true
       try {
-        const res = await $api(`/v1/mesas/${mesaId}/cobrar-facturar`, {
+        const res = await $api(`/api/v1/mesas/${mesaId}/cobrar-facturar`, {
           method: 'POST',
           body: payload,
         })
@@ -115,7 +115,7 @@ export const useCajaStore = defineStore('caja', {
 
     async fetchFacturas(turnoId = null) {
       try {
-        const url = turnoId ? `/v1/facturas?turno_id=${turnoId}` : '/v1/facturas'
+        const url = turnoId ? `/api/v1/facturas?turno_id=${turnoId}` : '/api/v1/facturas'
         const res = await $api(url, { method: 'GET' })
         this.facturas = res.data || []
         return this.facturas
@@ -126,7 +126,7 @@ export const useCajaStore = defineStore('caja', {
 
     async anularFactura(id, motivo) {
       try {
-        const res = await $api(`/v1/facturas/${id}/anular`, {
+        const res = await $api(`/api/v1/facturas/${id}/anular`, {
           method: 'POST',
           body: { motivo },
         })

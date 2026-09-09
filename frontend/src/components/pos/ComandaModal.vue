@@ -1,4 +1,5 @@
 <script setup>
+import { ref, watch, onMounted } from 'vue'
 import { useComandaStore } from '@/stores/comanda'
 import { useSalonMesaStore } from '@/stores/salonMesa'
 
@@ -84,7 +85,7 @@ const toggleObservaciones = (productoId) => {
         <!-- Columna 1: Categorías Táctiles (Izquierda) -->
         <div class="categories-panel border-e bg-var-theme-background pa-2 d-flex flex-column gap-2 overflow-y-auto">
           <div class="text-caption font-weight-bold text-disabled px-2 mb-1">
-            CATEGORÍAS
+            CATEGORÍAS
           </div>
 
           <VBtn
@@ -187,7 +188,7 @@ const toggleObservaciones = (productoId) => {
 
           <VDivider class="mb-2" />
 
-          <!-- Lista de Ítems en el Carrito -->
+          <!-- Lista de Ítems en el Carrito -->
           <div class="flex-grow-1 overflow-y-auto pr-1">
             <div v-if="comandaStore.carrito.length === 0" class="text-center py-12 text-disabled">
               <VIcon icon="ri-restaurant-line" size="40" class="mb-2" />

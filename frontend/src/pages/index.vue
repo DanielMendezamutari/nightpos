@@ -87,7 +87,7 @@ const submitOpenTable = async () => {
 
   if (res.success) {
     openTableDialog.value = false
-    // Abrir automÃ¡ticamente la toma de pedidos para la mesa reciÃ©n abierta
+    // Abrir automáticamente la toma de pedidos para la mesa recién abierta
     const updatedMesa = salonStore.mesas.find(m => m.id === targetMesa.value.id)
     targetMesa.value = updatedMesa || targetMesa.value
     comandaModalOpen.value = true
@@ -125,7 +125,7 @@ const handleSolicitarPrecuenta = async () => {
 // Open Cobro / Facturacion Modal
 const abrirCobroModal = () => {
   if (!cajaStore.isTurnoAbierto) {
-    alert('Debe abrir un turno de caja antes de realizar cobros y facturaciÃ³n.')
+    alert('Debe abrir un turno de caja antes de realizar cobros y facturación.')
     controlCajaModalOpen.value = true
     return
   }
@@ -141,7 +141,7 @@ const onCobroExitoso = async () => {
 
 // Delete existing item from order
 const handleEliminarItem = async (detalleId) => {
-  if (confirm('Â¿Eliminar este Ã­tem de la comanda?')) {
+  if (confirm('¿Eliminar este ítem de la comanda?')) {
     const ok = await comandaStore.eliminarItemComandaExistente(detalleId)
     if (ok && targetMesa.value) {
       await salonStore.fetchMesaDetails(targetMesa.value.id)
@@ -279,10 +279,10 @@ const freeTablesForMove = computed(() => {
             </VChip>
           </div>
 
-          <!-- Total Consumo SalÃ³n & Quick Search -->
+          <!-- Total Consumo Salón & Quick Search -->
           <div class="d-flex align-center gap-3">
             <div class="d-flex align-center gap-2 bg-var-theme-background px-3 py-1 rounded">
-              <span class="text-caption text-medium-emphasis">Consumo SalÃ³n:</span>
+              <span class="text-caption text-medium-emphasis">Consumo Salón:</span>
               <strong class="text-primary text-body-1 font-weight-bold">
                 Bs. {{ salonStore.totalesResumen.consumoTotal.toFixed(2) }}
               </strong>
@@ -385,7 +385,7 @@ const freeTablesForMove = computed(() => {
     <VCard v-if="salonStore.filteredMesas.length === 0" class="pa-8 text-center mt-4">
       <VIcon icon="ri-restaurant-line" size="48" color="disabled" class="mb-2" />
       <h5 class="text-h5 text-medium-emphasis">No se encontraron mesas</h5>
-      <p class="text-caption text-disabled mb-0">Prueba cambiando el filtro de estado o la bÃºsqueda.</p>
+      <p class="text-caption text-disabled mb-0">Prueba cambiando el filtro de estado o la búsqueda.</p>
     </VCard>
 
     <!-- DIALOG: Abrir Mesa -->
@@ -433,7 +433,7 @@ const freeTablesForMove = computed(() => {
           <VTextField
             v-model="openTableForm.cliente_nombre"
             label="Nombre del Cliente (Opcional)"
-            placeholder="Ej. Familia PÃ©rez"
+            placeholder="Ej. Familia Pérez"
             prepend-inner-icon="ri-user-smile-line"
             class="mb-3"
           />
@@ -442,7 +442,7 @@ const freeTablesForMove = computed(() => {
           <VTextField
             v-model="openTableForm.notas"
             label="Notas de Mesa (Opcional)"
-            placeholder="Ej. Mesa preferencial con niÃ±os"
+            placeholder="Ej. Mesa preferencial con niños"
             prepend-inner-icon="ri-sticky-note-line"
           />
         </VCardText>
@@ -494,7 +494,7 @@ const freeTablesForMove = computed(() => {
         <VCardText class="pa-4">
           <!-- Detalle de Consumos -->
           <div class="d-flex align-center justify-space-between mb-2">
-            <h6 class="text-subtitle-1 font-weight-bold">ÃTEMS DE LA COMANDA</h6>
+            <h6 class="text-subtitle-1 font-weight-bold">ÍTEMS DE LA COMANDA</h6>
             <VBtn
               color="primary"
               size="small"
@@ -514,7 +514,7 @@ const freeTablesForMove = computed(() => {
                 <th class="font-weight-bold">PRODUCTO</th>
                 <th class="text-end font-weight-bold">P. UNIT</th>
                 <th class="text-end font-weight-bold">SUBTOTAL</th>
-                <th class="text-center font-weight-bold" style="width: 50px;">ACCIÃ“N</th>
+                <th class="text-center font-weight-bold" style="width: 50px;">ACCIÓN</th>
               </tr>
             </thead>
             <tbody>
@@ -551,7 +551,7 @@ const freeTablesForMove = computed(() => {
             </div>
           </div>
 
-          <!-- Acciones TÃ¡ctiles de Mesa (RestoTech Faithful) -->
+          <!-- Acciones Táctiles de Mesa (RestoTech Faithful) -->
           <div class="d-flex gap-2 flex-wrap">
             <VBtn
               color="warning"
@@ -641,7 +641,7 @@ const freeTablesForMove = computed(() => {
       </VCard>
     </VDialog>
 
-    <!-- FULLSCREEN MODAL: Toma de Pedidos TÃ¡ctil (frmOrdenesPedido) -->
+    <!-- FULLSCREEN MODAL: Toma de Pedidos Táctil (frmOrdenesPedido) -->
     <ComandaModal
       v-model="comandaModalOpen"
       :mesa="targetMesa"

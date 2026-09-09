@@ -43,7 +43,7 @@ const totalCobro = computed(() => {
   return 0
 })
 
-// Monto recibido numÃ©rico
+// Monto recibido numerico
 const montoRecibidoNum = computed(() => {
   const val = parseFloat(montoRecibidoStr.value)
   return isNaN(val) ? 0 : val
@@ -56,7 +56,7 @@ const cambioCalculado = computed(() => {
   return diff > 0 ? Math.round(diff * 100) / 100 : 0
 })
 
-// Es vÃ¡lido para procesar
+// Es valido para procesar
 const isValid = computed(() => {
   if (totalCobro.value <= 0) return false
   if (!numeroDocumento.value.trim() || !razonSocial.value.trim()) return false
@@ -117,7 +117,7 @@ const closeModal = () => {
 const submitCobro = async () => {
   if (!props.mesa?.id) return
   if (!cajaStore.isTurnoAbierto) {
-    errorMessage.value = 'Debe tener un turno de caja abierto para cobrar. Abra la caja en el botÃ³n superior.'
+    errorMessage.value = 'Debe tener un turno de caja abierto para cobrar. Abra la caja en el botón superior o en el menú.'
     return
   }
 
@@ -175,7 +175,7 @@ const finalizarTicket = () => {
               <VIcon icon="ri-secure-payment-line" size="28" />
               <div>
                 <h3 class="text-h6 text-white font-weight-bold mb-0">
-                  Cobro & FacturaciÃ³n SIAT Bolivia
+                  Cobro & Facturación SIAT Bolivia
                 </h3>
                 <span class="text-caption text-white opacity-80">
                   {{ mesa?.nombre || 'Mesa' }} | Cliente: {{ visita?.cliente_nombre || 'Cliente Ocasional' }}
@@ -205,7 +205,7 @@ const finalizarTicket = () => {
           </VAlert>
 
           <VRow>
-            <!-- Left Column: Totales, Metodo de Pago y Teclado TÃ¡ctil -->
+            <!-- Left Column: Totales, Metodo de Pago y Teclado Tactil -->
             <VCol cols="12" md="7">
               <!-- Big Total Display -->
               <VCard variant="tonal" color="primary" class="mb-4 text-center py-3">
@@ -220,7 +220,7 @@ const finalizarTicket = () => {
               <!-- Payment Method Selector -->
               <div class="text-subtitle-2 font-weight-bold mb-2 d-flex align-center gap-1">
                 <VIcon icon="ri-wallet-3-line" size="18" />
-                <span>MÃ©todo de Pago:</span>
+                <span>Método de Pago:</span>
               </div>
 
               <div class="d-grid grid-cols-2 gap-2 mb-4">
@@ -269,7 +269,7 @@ const finalizarTicket = () => {
                 </VBtn>
               </div>
 
-              <!-- Cash Tender & Change (Only for Efectivo) -->
+              <!-- Cash Section -->
               <div v-if="metodoPago === 'EFECTIVO'" class="cash-section">
                 <!-- Quick Cash Presets -->
                 <div class="d-flex flex-wrap gap-2 mb-3">
@@ -324,7 +324,7 @@ const finalizarTicket = () => {
               </div>
             </VCol>
 
-            <!-- Right Column: Datos de FacturaciÃ³n SIAT Bolivia -->
+            <!-- Right Column: Datos de Facturacion SIAT Bolivia -->
             <VCol cols="12" md="5">
               <VCard variant="outlined" class="pa-3 h-100">
                 <div class="d-flex align-center justify-space-between mb-3">
@@ -363,7 +363,7 @@ const finalizarTicket = () => {
                 <!-- Document Number -->
                 <VTextField
                   v-model="numeroDocumento"
-                  label="NÂ° Documento / NIT"
+                  label="N° Documento / NIT"
                   variant="outlined"
                   density="compact"
                   class="mb-3"
@@ -374,7 +374,7 @@ const finalizarTicket = () => {
                 <!-- Razon Social -->
                 <VTextField
                   v-model="razonSocial"
-                  label="RazÃ³n Social / Nombre"
+                  label="Razón Social / Nombre"
                   variant="outlined"
                   density="compact"
                   class="mb-3"
@@ -382,10 +382,10 @@ const finalizarTicket = () => {
                   placeholder="SIN NOMBRE o Nombre del cliente"
                 />
 
-                <!-- Correo ElectrÃ³nico -->
+                <!-- Correo Electronico -->
                 <VTextField
                   v-model="correo"
-                  label="Correo ElectrÃ³nico (Opcional)"
+                  label="Correo Electrónico (Opcional)"
                   variant="outlined"
                   density="compact"
                   type="email"
@@ -397,7 +397,7 @@ const finalizarTicket = () => {
                 <!-- Items Preview -->
                 <div class="items-summary mt-2">
                   <div class="text-caption font-weight-bold text-medium-emphasis mb-1">
-                    Resumen de Ãtems ({{ visita?.detalles?.length || 0 }}):
+                    Resumen de Ítems ({{ visita?.detalles?.length || 0 }}):
                   </div>
                   <div class="items-scroll" style="max-height: 140px; overflow-y: auto;">
                     <div
@@ -469,9 +469,9 @@ const finalizarTicket = () => {
             <div class="text-caption">Santa Cruz - Bolivia</div>
             <div class="border-b my-2" />
             <div class="text-subtitle-2 font-weight-bold">
-              FACTURA NÂ° {{ facturaEmitida?.nro_factura }}
+              FACTURA N° {{ facturaEmitida?.nro_factura }}
             </div>
-            <div class="text-caption text-break opacity-75 font-mono" style="font-size: 9px;">
+            <div class="text-caption text-break font-mono" style="font-size: 9px;">
               CUF: {{ facturaEmitida?.cuf }}
             </div>
           </div>
@@ -479,9 +479,9 @@ const finalizarTicket = () => {
           <!-- Customer Data -->
           <div class="text-caption mb-2 border-b pb-2">
             <div><strong>Fecha:</strong> {{ facturaEmitida?.fecha_emision }}</div>
-            <div><strong>SeÃ±or(es):</strong> {{ facturaEmitida?.razon_social }}</div>
+            <div><strong>Señor(es):</strong> {{ facturaEmitida?.razon_social }}</div>
             <div><strong>NIT/CI:</strong> {{ facturaEmitida?.numero_documento }}</div>
-            <div><strong>MÃ©todo:</strong> {{ facturaEmitida?.metodo_pago }}</div>
+            <div><strong>Método:</strong> {{ facturaEmitida?.metodo_pago }}</div>
             <div><strong>Mesa:</strong> {{ facturaEmitida?.mesa_numero }}</div>
           </div>
 
@@ -520,10 +520,10 @@ const finalizarTicket = () => {
               <VIcon icon="ri-qr-code-line" size="100" color="black" />
             </div>
             <div class="text-caption font-weight-bold" style="font-size: 10px;">
-              "ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÃS, EL USO ILÃCITO SERÃ SANCIONADO PENALMENTE DE ACUERDO A LEY"
+              "ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÍS, EL USO ILÍCITO SERÁ SANCIONADO PENALMENTE DE ACUERDO A LEY"
             </div>
             <div class="text-caption text-medium-emphasis mt-1" style="font-size: 9px;">
-              Ley NÂ° 453: El proveedor deberÃ¡ suministrar el servicio en las modalidades y tÃ©rminos ofertados o convenidos.
+              Ley N° 453: El proveedor deberá suministrar el servicio en las modalidades y términos ofertados o convenidos.
             </div>
           </div>
         </VCardText>

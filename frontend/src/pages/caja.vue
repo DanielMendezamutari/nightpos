@@ -1,16 +1,7 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useCajaStore } from '@/stores/caja'
 import { useAuthStore } from '@/stores/auth'
-
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: false,
-  },
-})
-
-const emit = defineEmits(['update:modelValue', 'turno-actualizado'])
 
 const cajaStore = useCajaStore()
 const authStore = useAuthStore()
@@ -45,15 +36,10 @@ const loadingAction = ref(false)
 const errorMessage = ref('')
 const successMessage = ref('')
 
-// On open modal, fetch latest data
-watch(() => props.modelValue, async (val) => {
-  if (val) {
-    errorMessage.value = ''
-    successMessage.value = ''
-    await loadCajaData()
-    if (cajaStore.isTurnoAbierto) {
-      formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
-    }
+onMounted(async () => {
+  await loadCajaData()
+  if (cajaStore.isTurnoAbierto) {
+    formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
   }
 })
 
@@ -76,6 +62,7 @@ const diferenciaCalculada = computed(() => {
 const submitApertura = async () => {
   loadingAction.value = true
   errorMessage.value = ''
+  successMessage.value = ''
 
   const res = await cajaStore.abrirTurno({
     monto_inicial_bs: parseFloat(formApertura.value.monto_inicial_bs) || 0,
@@ -88,7 +75,7 @@ const submitApertura = async () => {
   if (res.success) {
     successMessage.value = 'Turno abierto exitosamente'
     await loadCajaData()
-    emit('turno-actualizado', cajaStore.turnoActivo)
+    formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
   } else {
     errorMessage.value = res.message || 'Error al abrir turno'
   }
@@ -119,6 +106,7 @@ const submitMovimiento = async () => {
       comprobante_nro: '',
     }
     successMessage.value = 'Movimiento registrado correctamente'
+    formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
   } else {
     alert(res.message || 'Error al registrar movimiento')
   }
@@ -144,8 +132,6 @@ const submitCierre = async () => {
 
   if (res.success) {
     successMessage.value = 'Turno cerrado y arqueado correctamente'
-    emit('turno-actualizado', null)
-    emit('update:modelValue', false)
   } else {
     errorMessage.value = res.message || 'Error al cerrar turno'
   }
@@ -159,234 +145,221 @@ const handleAnularFactura = async (factura) => {
   const res = await cajaStore.anularFactura(factura.id, motivo)
   if (res.success) {
     alert('Factura anulada con éxito')
+    formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
   } else {
     alert(res.message || 'Error al anular factura')
   }
 }
-
-// Close dialog
-const closeModal = () => {
-  emit('update:modelValue', false)
-}
 </script>
 
 <template>
-  <VDialog
-    :model-value="modelValue"
-    max-width="1000"
-    persistent
-    scrollable
-  >
-    <VCard class="control-caja-card">
-      <!-- Header -->
-      <VCardItem class="bg-primary text-white py-3 px-4">
-        <div class="d-flex align-center justify-space-between w-100">
-          <div class="d-flex align-center gap-2">
-            <VIcon icon="ri-safe-2-line" size="28" />
+  <div class="caja-page-container">
+    <!-- Breadcrumbs / Top Header -->
+    <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-4">
+      <div>
+        <h2 class="text-h5 font-weight-bold mb-0">Control de Caja & Arqueo de Turnos</h2>
+        <span class="text-caption text-medium-emphasis">
+          RiberResto POS | Gestión de Efectivo, Arqueo Físico y Movimientos de Sucursal
+        </span>
+      </div>
+      <div class="d-flex align-center gap-2">
+        <VChip
+          :color="cajaStore.isTurnoAbierto ? 'success' : 'warning'"
+          variant="elevated"
+          class="font-weight-bold"
+        >
+          <VIcon :icon="cajaStore.isTurnoAbierto ? 'ri-lock-unlock-line' : 'ri-lock-line'" class="me-1" />
+          {{ cajaStore.isTurnoAbierto ? `TURNO #${cajaStore.turnoActivo.id} ABIERTO` : 'CAJA CERRADA' }}
+        </VChip>
+        <VBtn
+          icon="ri-refresh-line"
+          size="small"
+          variant="tonal"
+          color="primary"
+          :loading="cajaStore.loading"
+          @click="loadCajaData"
+        />
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <VAlert v-if="successMessage" type="success" variant="tonal" class="mb-4" closable @click:close="successMessage = ''">
+      {{ successMessage }}
+    </VAlert>
+    <VAlert v-if="errorMessage" type="error" variant="tonal" class="mb-4" closable @click:close="errorMessage = ''">
+      {{ errorMessage }}
+    </VAlert>
+
+    <!-- VIEW A: CAJA CERRADA (Apertura de Turno) -->
+    <VCard v-if="!cajaStore.isTurnoAbierto" class="pa-8 text-center max-w-700 mx-auto elevation-2">
+      <VAvatar color="primary" variant="tonal" size="80" class="mb-4">
+        <VIcon icon="ri-safe-2-line" size="44" color="primary" />
+      </VAvatar>
+      <h3 class="text-h5 font-weight-bold mb-2">Apertura de Turno de Caja</h3>
+      <p class="text-body-2 text-medium-emphasis mb-6">
+        Para habilitar los cobros de comandas y la emisión de facturas, debe registrar el fondo de efectivo inicial en la gaveta.
+      </p>
+
+      <VRow dense class="text-left mb-4">
+        <VCol cols="12" md="6">
+          <VTextField
+            v-model="formApertura.monto_inicial_bs"
+            label="Fondo Inicial (Bs.)"
+            prefix="Bs."
+            type="number"
+            variant="outlined"
+            density="comfortable"
+            class="text-h6 font-weight-bold"
+          />
+        </VCol>
+        <VCol cols="12" md="6">
+          <VTextField
+            v-model="formApertura.monto_inicial_usd"
+            label="Fondo Inicial ($US - Opcional)"
+            prefix="$"
+            type="number"
+            variant="outlined"
+            density="comfortable"
+          />
+        </VCol>
+        <VCol cols="12">
+          <VTextField
+            v-model="formApertura.observaciones"
+            label="Observaciones de Apertura"
+            variant="outlined"
+            density="comfortable"
+            placeholder="Ej. Apertura turno mañana - Responsable de caja"
+          />
+        </VCol>
+      </VRow>
+
+      <VBtn
+        color="primary"
+        size="large"
+        variant="elevated"
+        prepend-icon="ri-key-line"
+        :loading="loadingAction"
+        class="px-8 font-weight-bold"
+        @click="submitApertura"
+      >
+        ABRIR TURNO DE CAJA
+      </VBtn>
+    </VCard>
+
+    <!-- VIEW B: TURNO ABIERTO -->
+    <div v-else>
+      <!-- Shift Info Bar -->
+      <VCard class="mb-4 elevation-1">
+        <VCardText class="py-3 px-4">
+          <div class="d-flex align-center justify-space-between flex-wrap gap-3">
             <div>
-              <h3 class="text-h6 text-white font-weight-bold mb-0">
-                Control de Caja & Arqueo de Turnos
-              </h3>
-              <span class="text-caption text-white opacity-80">
-                RiberResto POS | Sucursal Central | Ribersoft
-              </span>
-            </div>
-          </div>
-          <div class="d-flex align-center gap-2">
-            <VChip
-              :color="cajaStore.isTurnoAbierto ? 'success' : 'warning'"
-              variant="flat"
-              class="font-weight-bold"
-            >
-              <VIcon :icon="cajaStore.isTurnoAbierto ? 'ri-lock-unlock-line' : 'ri-lock-line'" class="me-1" />
-              {{ cajaStore.isTurnoAbierto ? `TURNO #${cajaStore.turnoActivo.id} ABIERTO` : 'CAJA CERRADA' }}
-            </VChip>
-            <VBtn
-              icon="ri-close-line"
-              variant="text"
-              color="white"
-              density="comfortable"
-              @click="closeModal"
-            />
-          </div>
-        </div>
-      </VCardItem>
-
-      <VCardText class="pa-4">
-        <!-- Messages -->
-        <VAlert v-if="successMessage" type="success" variant="tonal" class="mb-3" closable @click:close="successMessage = ''">
-          {{ successMessage }}
-        </VAlert>
-        <VAlert v-if="errorMessage" type="error" variant="tonal" class="mb-3" closable @click:close="errorMessage = ''">
-          {{ errorMessage }}
-        </VAlert>
-
-        <!-- VIEW A: NO SHIFT OPEN (Apertura de Turno) -->
-        <div v-if="!cajaStore.isTurnoAbierto" class="apertura-caja-section py-4">
-          <VCard variant="outlined" class="pa-6 max-w-600 mx-auto text-center">
-            <VIcon icon="ri-inbox-archive-line" size="64" color="primary" class="mb-3" />
-            <h3 class="text-h5 font-weight-bold mb-2">Apertura de Turno de Caja</h3>
-            <p class="text-body-2 text-medium-emphasis mb-6">
-              No existe un turno activo en esta sucursal. Ingrese el fondo de cambio inicial para comenzar a cobrar comandas y emitir facturas.
-            </p>
-
-            <VRow dense class="text-left mb-4">
-              <VCol cols="12" md="6">
-                <VTextField
-                  v-model="formApertura.monto_inicial_bs"
-                  label="Fondo Inicial (Bs.)"
-                  prefix="Bs."
-                  type="number"
-                  variant="outlined"
-                  density="comfortable"
-                  class="text-h6 font-weight-bold"
-                />
-              </VCol>
-              <VCol cols="12" md="6">
-                <VTextField
-                  v-model="formApertura.monto_inicial_usd"
-                  label="Fondo Inicial ($US - Opcional)"
-                  prefix="$"
-                  type="number"
-                  variant="outlined"
-                  density="comfortable"
-                />
-              </VCol>
-              <VCol cols="12">
-                <VTextField
-                  v-model="formApertura.observaciones"
-                  label="Observaciones de Apertura"
-                  variant="outlined"
-                  density="comfortable"
-                  placeholder="Ej. Turno Mañana - Responsable Juan Perez"
-                />
-              </VCol>
-            </VRow>
-
-            <VBtn
-              color="primary"
-              size="large"
-              variant="flat"
-              prepend-icon="ri-key-line"
-              :loading="loadingAction"
-              class="px-8 font-weight-bold"
-              @click="submitApertura"
-            >
-              ABRIR TURNO DE CAJA
-            </VBtn>
-          </VCard>
-        </div>
-
-        <!-- VIEW B: SHIFT OPEN (Full frmControlCajaTurno) -->
-        <div v-else class="turno-activo-section">
-          <!-- Shift Info Bar -->
-          <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-4 pa-3 bg-surface-variant rounded">
-            <div>
-              <span class="text-caption font-weight-medium">Cajero Responsable:</span>
+              <span class="text-caption font-weight-bold text-medium-emphasis">CAJERO:</span>
               <strong class="ms-1">{{ cajaStore.turnoActivo?.cajero_nombre || 'Cajero' }}</strong>
             </div>
             <div>
-              <span class="text-caption font-weight-medium">Apertura:</span>
+              <span class="text-caption font-weight-bold text-medium-emphasis">FECHA DE APERTURA:</span>
               <strong class="ms-1">{{ cajaStore.turnoActivo?.fecha_inicio }}</strong>
             </div>
             <div>
-              <span class="text-caption font-weight-medium">Fondo Inicial:</span>
+              <span class="text-caption font-weight-bold text-medium-emphasis">FONDO INICIAL:</span>
               <strong class="ms-1 text-primary">Bs. {{ parseFloat(cajaStore.turnoActivo?.monto_inicial_bs || 0).toFixed(2) }}</strong>
             </div>
+            <div>
+              <span class="text-caption font-weight-bold text-medium-emphasis">EFECTIVO EN GAVETA:</span>
+              <strong class="ms-1 text-success text-h6 font-weight-black">Bs. {{ parseFloat(cajaStore.turnoActivo?.efectivo_esperado || 0).toFixed(2) }}</strong>
+            </div>
           </div>
+        </VCardText>
+      </VCard>
 
-          <!-- 6 Financial KPI Cards (RestoTech exact metrics) -->
-          <VRow class="mb-4" dense>
-            <!-- 1. Ventas Efectivo -->
-            <VCol cols="6" sm="4" md="2">
-              <VCard variant="tonal" color="success" class="text-center pa-2 h-100">
-                <div class="text-caption font-weight-bold">Ventas Efectivo</div>
-                <div class="text-h6 font-weight-black">
-                  Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas_efectivo || 0).toFixed(2) }}
-                </div>
-              </VCard>
-            </VCol>
+      <!-- 6 Financial KPI Cards (RestoTech faithful) -->
+      <VRow class="mb-4 match-height">
+        <VCol cols="6" sm="4" md="2">
+          <VCard variant="tonal" color="success" class="text-center pa-3 h-100">
+            <div class="text-caption font-weight-bold">Ventas Efectivo</div>
+            <div class="text-h6 font-weight-black">
+              Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas_efectivo || 0).toFixed(2) }}
+            </div>
+          </VCard>
+        </VCol>
 
-            <!-- 2. Ventas QR -->
-            <VCol cols="6" sm="4" md="2">
-              <VCard variant="tonal" color="info" class="text-center pa-2 h-100">
-                <div class="text-caption font-weight-bold">Ventas QR</div>
-                <div class="text-h6 font-weight-black">
-                  Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas_qr || 0).toFixed(2) }}
-                </div>
-              </VCard>
-            </VCol>
+        <VCol cols="6" sm="4" md="2">
+          <VCard variant="tonal" color="info" class="text-center pa-3 h-100">
+            <div class="text-caption font-weight-bold">Ventas QR</div>
+            <div class="text-h6 font-weight-black">
+              Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas_qr || 0).toFixed(2) }}
+            </div>
+          </VCard>
+        </VCol>
 
-            <!-- 3. Ventas Tarjeta -->
-            <VCol cols="6" sm="4" md="2">
-              <VCard variant="tonal" color="warning" class="text-center pa-2 h-100">
-                <div class="text-caption font-weight-bold">Ventas Tarjeta</div>
-                <div class="text-h6 font-weight-black">
-                  Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas_tarjeta || 0).toFixed(2) }}
-                </div>
-              </VCard>
-            </VCol>
+        <VCol cols="6" sm="4" md="2">
+          <VCard variant="tonal" color="warning" class="text-center pa-3 h-100">
+            <div class="text-caption font-weight-bold">Ventas Tarjeta</div>
+            <div class="text-h6 font-weight-black">
+              Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas_tarjeta || 0).toFixed(2) }}
+            </div>
+          </VCard>
+        </VCol>
 
-            <!-- 4. Gastos / Retiros -->
-            <VCol cols="6" sm="4" md="2">
-              <VCard variant="tonal" color="error" class="text-center pa-2 h-100">
-                <div class="text-caption font-weight-bold">Gastos / Egresos</div>
-                <div class="text-h6 font-weight-black">
-                  Bs. {{ parseFloat(cajaStore.turnoActivo?.total_gastos || 0).toFixed(2) }}
-                </div>
-              </VCard>
-            </VCol>
+        <VCol cols="6" sm="4" md="2">
+          <VCard variant="tonal" color="error" class="text-center pa-3 h-100">
+            <div class="text-caption font-weight-bold">Gastos / Egresos</div>
+            <div class="text-h6 font-weight-black">
+              Bs. {{ parseFloat(cajaStore.turnoActivo?.total_gastos || 0).toFixed(2) }}
+            </div>
+          </VCard>
+        </VCol>
 
-            <!-- 5. Total Ventas -->
-            <VCol cols="6" sm="4" md="2">
-              <VCard variant="tonal" color="primary" class="text-center pa-2 h-100">
-                <div class="text-caption font-weight-bold">Total Facturado</div>
-                <div class="text-h6 font-weight-black">
-                  Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas || 0).toFixed(2) }}
-                </div>
-              </VCard>
-            </VCol>
+        <VCol cols="6" sm="4" md="2">
+          <VCard variant="tonal" color="primary" class="text-center pa-3 h-100">
+            <div class="text-caption font-weight-bold">Total Facturado</div>
+            <div class="text-h6 font-weight-black">
+              Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas || 0).toFixed(2) }}
+            </div>
+          </VCard>
+        </VCol>
 
-            <!-- 6. Efectivo Esperado en Caja -->
-            <VCol cols="6" sm="4" md="2">
-              <VCard variant="flat" color="primary" class="text-center pa-2 h-100 text-white">
-                <div class="text-caption font-weight-bold text-white">Efectivo en Caja</div>
-                <div class="text-h6 font-weight-black text-white">
-                  Bs. {{ parseFloat(cajaStore.turnoActivo?.efectivo_esperado || 0).toFixed(2) }}
-                </div>
-              </VCard>
-            </VCol>
-          </VRow>
+        <VCol cols="6" sm="4" md="2">
+          <VCard variant="flat" color="primary" class="text-center pa-3 h-100 text-white">
+            <div class="text-caption font-weight-bold text-white">Efectivo en Caja</div>
+            <div class="text-h6 font-weight-black text-white">
+              Bs. {{ parseFloat(cajaStore.turnoActivo?.efectivo_esperado || 0).toFixed(2) }}
+            </div>
+          </VCard>
+        </VCol>
+      </VRow>
 
-          <!-- Navigation Tabs -->
-          <VTabs v-model="activeTab" class="v-tabs-pill mb-4">
-            <VTab value="resumen">
-              <VIcon icon="ri-pie-chart-line" class="me-1" />
-              Arqueo & Cierre
-            </VTab>
-            <VTab value="gastos">
-              <VIcon icon="ri-hand-coin-line" class="me-1" />
-              Gastos & Movimientos ({{ cajaStore.movimientos.length }})
-            </VTab>
-            <VTab value="facturas">
-              <VIcon icon="ri-file-list-3-line" class="me-1" />
-              Facturas del Turno ({{ cajaStore.facturas.length }})
-            </VTab>
-          </VTabs>
+      <!-- Navigation Tabs -->
+      <VCard class="elevation-1">
+        <VTabs v-model="activeTab" class="v-tabs-pill border-b pa-2">
+          <VTab value="resumen">
+            <VIcon icon="ri-calculator-line" class="me-1" />
+            Arqueo & Cierre de Turno
+          </VTab>
+          <VTab value="gastos">
+            <VIcon icon="ri-hand-coin-line" class="me-1" />
+            Gastos y Movimientos ({{ cajaStore.movimientos.length }})
+          </VTab>
+          <VTab value="facturas">
+            <VIcon icon="ri-file-list-3-line" class="me-1" />
+            Facturas del Turno ({{ cajaStore.facturas.length }})
+          </VTab>
+        </VTabs>
 
+        <VCardText class="pa-4">
           <!-- TAB 1: ARQUEO Y CIERRE -->
           <div v-if="activeTab === 'resumen'">
             <VRow>
               <VCol cols="12" md="7">
                 <VCard variant="outlined" class="pa-4">
                   <h4 class="text-subtitle-1 font-weight-bold mb-3 d-flex align-center gap-1">
-                    <VIcon icon="ri-calculator-line" color="primary" />
-                    <span>Conteo Físico de Efectivo (Arqueo a Ciegas / Guiado)</span>
+                    <VIcon icon="ri-money-dollar-box-line" color="primary" />
+                    <span>Conteo Físico de Efectivo en Gaveta</span>
                   </h4>
 
                   <VTextField
                     v-model="formCierre.monto_final_bs"
-                    label="Efectivo Real Contado en Caja (Bs.)"
+                    label="Efectivo Total Contado (Bs.)"
                     prefix="Bs."
                     type="number"
                     variant="outlined"
@@ -396,11 +369,10 @@ const closeModal = () => {
 
                   <VTextField
                     v-model="formCierre.observaciones"
-                    label="Observaciones del Cierre"
+                    label="Observaciones del Cierre de Turno"
                     variant="outlined"
                     density="comfortable"
-                    placeholder="Ej. Cuadre final de turno noche, todo conforme"
-                    class="mb-3"
+                    placeholder="Ej. Cuadre verificado conforme, sin discrepancias"
                   />
                 </VCard>
               </VCol>
@@ -408,43 +380,22 @@ const closeModal = () => {
               <VCol cols="12" md="5">
                 <VCard variant="outlined" class="pa-4 h-100 text-center d-flex flex-column justify-center">
                   <div class="text-caption text-uppercase font-weight-bold mb-1">
-                    Resultado del Arqueo
+                    Balance de Arqueo
                   </div>
 
-                  <div
-                    v-if="diferenciaCalculada === 0"
-                    class="pa-3 rounded bg-success-subtle mb-3"
-                  >
-                    <div class="text-h4 font-weight-black text-success">
-                      Bs. 0.00
-                    </div>
-                    <span class="text-caption font-weight-bold text-success">
-                      âœ“ CUADRE PERFECTO EXACTO
-                    </span>
+                  <div v-if="diferenciaCalculada === 0" class="pa-3 rounded bg-success-subtle mb-3">
+                    <div class="text-h4 font-weight-black text-success">Bs. 0.00</div>
+                    <span class="text-caption font-weight-bold text-success">âœ“ CUADRE PERFECTO EXACTO</span>
                   </div>
 
-                  <div
-                    v-else-if="diferenciaCalculada > 0"
-                    class="pa-3 rounded bg-info-subtle mb-3"
-                  >
-                    <div class="text-h4 font-weight-black text-info">
-                      +Bs. {{ Math.abs(diferenciaCalculada).toFixed(2) }}
-                    </div>
-                    <span class="text-caption font-weight-bold text-info">
-                      â–² SOBRANTE EN CAJA
-                    </span>
+                  <div v-else-if="diferenciaCalculada > 0" class="pa-3 rounded bg-info-subtle mb-3">
+                    <div class="text-h4 font-weight-black text-info">+Bs. {{ Math.abs(diferenciaCalculada).toFixed(2) }}</div>
+                    <span class="text-caption font-weight-bold text-info">â–² SOBRANTE EN CAJA</span>
                   </div>
 
-                  <div
-                    v-else
-                    class="pa-3 rounded bg-error-subtle mb-3"
-                  >
-                    <div class="text-h4 font-weight-black text-error">
-                      -Bs. {{ Math.abs(diferenciaCalculada).toFixed(2) }}
-                    </div>
-                    <span class="text-caption font-weight-bold text-error">
-                      â–¼ FALTANTE EN CAJA
-                    </span>
+                  <div v-else class="pa-3 rounded bg-error-subtle mb-3">
+                    <div class="text-h4 font-weight-black text-error">-Bs. {{ Math.abs(diferenciaCalculada).toFixed(2) }}</div>
+                    <span class="text-caption font-weight-bold text-error">â–¼ FALTANTE EN CAJA</span>
                   </div>
 
                   <VBtn
@@ -466,12 +417,12 @@ const closeModal = () => {
           <!-- TAB 2: GASTOS Y MOVIMIENTOS -->
           <div v-if="activeTab === 'gastos'">
             <div class="d-flex justify-space-between align-center mb-3">
-              <span class="text-subtitle-2 font-weight-bold">
+              <span class="text-subtitle-1 font-weight-bold">
                 Movimientos de Entrada y Salida de Efectivo
               </span>
               <VBtn
                 color="error"
-                variant="tonal"
+                variant="elevated"
                 size="small"
                 prepend-icon="ri-add-circle-line"
                 @click="dialogMovimiento = true"
@@ -503,6 +454,7 @@ const closeModal = () => {
                     <VChip
                       size="x-small"
                       :color="m.tipo === 'INGRESO' ? 'success' : (m.tipo === 'RETIRO_CAJA' ? 'warning' : 'error')"
+                      class="font-weight-bold"
                     >
                       {{ m.tipo }}
                     </VChip>
@@ -553,6 +505,7 @@ const closeModal = () => {
                     <VChip
                       size="x-small"
                       :color="f.estado === 'VALIDA' ? 'success' : 'error'"
+                      class="font-weight-bold"
                     >
                       {{ f.estado }}
                     </VChip>
@@ -576,15 +529,9 @@ const closeModal = () => {
               </tbody>
             </VTable>
           </div>
-        </div>
-      </VCardText>
-
-      <VCardActions class="pa-3 bg-surface-variant d-flex justify-end">
-        <VBtn variant="outlined" color="secondary" @click="closeModal">
-          Cerrar Ventana (ESC)
-        </VBtn>
-      </VCardActions>
-    </VCard>
+        </VCardText>
+      </VCard>
+    </div>
 
     <!-- Modal Registrar Gasto / Movimiento -->
     <VDialog v-model="dialogMovimiento" max-width="480">
@@ -628,7 +575,7 @@ const closeModal = () => {
             variant="outlined"
             density="comfortable"
             class="mb-3"
-            placeholder="Ej. Compra de carbón urgente, pago a delivery"
+            placeholder="Ej. Compra de insumos de cocina urgentes"
           />
 
           <VTextField
@@ -647,5 +594,11 @@ const closeModal = () => {
         </VCardActions>
       </VCard>
     </VDialog>
-  </VDialog>
+  </div>
 </template>
+
+<style scoped>
+.max-w-700 {
+  max-width: 700px;
+}
+</style>

@@ -11,17 +11,15 @@ export default [
     title: 'Salón & Mesas',
     to: { name: 'root' },
     icon: { icon: 'ri-layout-grid-line' },
-    badgeContent: 'Bucle 2',
-    badgeClass: 'bg-primary',
   },
   {
     title: 'Comandas & Cocina',
-    to: { name: 'second-page' },
+    to: { name: 'comandas' },
     icon: { icon: 'ri-restaurant-2-line' },
   },
   {
     title: 'Caja & Turnos',
-    to: { name: 'second-page' },
+    to: { name: 'caja' },
     icon: { icon: 'ri-safe-2-line' },
   },
   {
@@ -29,7 +27,7 @@ export default [
   },
   {
     title: 'Facturación Bolivia',
-    to: { name: 'second-page' },
+    to: { name: 'facturas' },
     icon: { icon: 'ri-file-shield-line' },
     badgeContent: 'SIAT',
     badgeClass: 'bg-success',
