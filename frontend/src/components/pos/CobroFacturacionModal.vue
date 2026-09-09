@@ -23,11 +23,8 @@ const emit = defineEmits(['update:modelValue', 'cobro-exitoso'])
 const cajaStore = useCajaStore()
 
 // --- State (frmPagondoConTecladoNumerico & frmFacturacion1 Replica) ---
-// Moneda
 const moneda = ref('BOB') // 'BOB' o 'USD'
 const tipoCambio = ref(6.96) // _txtTipoCambio de RestoTech
-
-// Metodo de pago
 const metodoPago = ref('EFECTIVO') // EFECTIVO, TARJETA, QR, MIXTO
 
 // Tarjeta POS
@@ -63,7 +60,6 @@ const imprimirFisico = ref(true) // _chbImprimirFisico
 const processing = ref(false)
 const errorMessage = ref('')
 const facturaEmitida = ref(null)
-const printAreaRef = ref(null)
 
 // Total a cobrar en Bolivianos
 const totalCobroBob = computed(() => {
@@ -246,7 +242,6 @@ const generarQr = async () => {
 const startQrPolling = (codigo) => {
   stopQrPolling()
 
-  // Intervalo de polling cada 2 segundos
   qrPollingTimer.value = setInterval(async () => {
     const res = await cajaStore.consultarEstadoQr(codigo)
     if (res.success && res.data.estado === 'PAGADO') {
@@ -256,14 +251,13 @@ const startQrPolling = (codigo) => {
       stopQrPolling()
 
       // DISPARO AUTOMATICO: Confirmado el QR, emitir factura e imprimir silenciosamente
-      await submitCobroAutomatico()
+      await submitCobro()
     } else if (res.success && res.data.estado === 'EXPIRADO') {
       qrStatus.value = 'EXPIRADO'
       stopQrPolling()
     }
   }, 2000)
 
-  // Countdown timer
   qrTimerInterval.value = setInterval(() => {
     if (qrCountdown.value > 0) {
       qrCountdown.value--
@@ -299,13 +293,12 @@ const simularPagoBancario = async () => {
     stopQrPolling()
 
     // DISPARO AUTOMATICO DE COBRO E IMPRESION
-    await submitCobroAutomatico()
+    await submitCobro()
   } else {
     errorMessage.value = res.message || 'Error al simular pago bancario'
   }
 }
 
-// When user switches to QR, auto generate
 watch(metodoPago, (newVal) => {
   if (newVal === 'QR') {
     generarQr()
@@ -314,39 +307,154 @@ watch(metodoPago, (newVal) => {
   }
 })
 
-// Formatear segundos en MM:SS
 const formatTime = (secs) => {
   const m = Math.floor(secs / 60).toString().padStart(2, '0')
   const s = (secs % 60).toString().padStart(2, '0')
   return `${m}:${s}`
 }
 
-// Close dialog
 const closeModal = () => {
   stopQrPolling()
   emit('update:modelValue', false)
 }
 
-// Ejecucion silenciosa de impresion directa
-const ejecutarImpresionDirecta = (factura) => {
-  if (!imprimirFisico.value) return
+// --- IMPRESIÃ“N DIRECTA AISLADA MEDIANTE IFRAME OCULTO (100% LIMPIO 80MM) ---
+const imprimirTicketTermicoIframe = (factura) => {
+  if (!imprimirFisico.value || !factura) return
 
-  // Render printable ticket and invoke print immediately
-  nextTick(() => {
-    window.print()
-  })
-}
+  let iframe = document.getElementById('resto-thermal-iframe')
+  if (!iframe) {
+    iframe = document.createElement('iframe')
+    iframe.id = 'resto-thermal-iframe'
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    document.body.appendChild(iframe)
+  }
 
-// Envio automatico (usado tras confirmacion QR)
-const submitCobroAutomatico = async () => {
-  await submitCobro()
+  const itemsHtml = (factura.detalles || []).map(d => `
+    <div style="display:flex; justify-content:space-between; margin:2px 0;">
+      <span>${d.cantidad}x ${d.producto_nombre}</span>
+      <span>Bs. ${parseFloat(d.subtotal).toFixed(2)}</span>
+    </div>
+  `).join('')
+
+  const ticketHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Ticket Factura ${factura.nro_factura}</title>
+      <style>
+        @page {
+          margin: 0;
+          size: 80mm auto;
+        }
+        body {
+          margin: 0;
+          padding: 3mm 4mm;
+          font-family: 'Courier New', Courier, monospace;
+          font-size: 11px;
+          line-height: 1.25;
+          color: #000000;
+          background: #ffffff;
+          width: 72mm;
+        }
+        .text-center { text-align: center; }
+        .bold { font-weight: bold; }
+        .title { font-size: 15px; font-weight: 900; margin: 0; }
+        .sub { font-size: 12px; font-weight: bold; }
+        .divider { border-bottom: 1px dashed #000000; margin: 4px 0; }
+        .row { display: flex; justify-content: space-between; margin: 2px 0; }
+        .total-row { font-size: 13px; font-weight: 900; }
+        .cuf { font-size: 8px; word-break: break-all; margin: 2px 0; }
+        .legal { font-size: 8px; text-align: center; margin-top: 4px; line-height: 1.2; }
+        .footer { font-size: 8px; font-weight: bold; text-align: center; margin-top: 6px; }
+      </style>
+    </head>
+    <body>
+      <div class="text-center">
+        <div class="title">RIBERRESTO POS</div>
+        <div class="sub">RIBERSOFT BOLIVIA</div>
+        <div>NIT: 1028456023 | Telf: 67369293</div>
+        <div>Santa Cruz - Bolivia</div>
+        <div class="divider"></div>
+        <div class="bold" style="font-size:12px;">FACTURA NÂ° ${factura.nro_factura}</div>
+        <div class="cuf">CUF: ${factura.cuf || ''}</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div>
+        <div><strong>Fecha:</strong> ${factura.fecha_emision || ''}</div>
+        <div><strong>SeÃ±or(es):</strong> ${factura.razon_social || 'SIN NOMBRE'}</div>
+        <div><strong>NIT/CI:</strong> ${factura.numero_documento || '0'}</div>
+        <div><strong>MÃ©todo:</strong> ${factura.metodo_pago || 'EFECTIVO'}</div>
+        <div><strong>Mesa:</strong> ${factura.mesa_numero || ''}</div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="bold" style="display:flex; justify-content:space-between; border-bottom:1px solid #000; padding-bottom:2px;">
+        <span>Cant. / Detalle</span>
+        <span>Subtotal</span>
+      </div>
+      ${itemsHtml}
+
+      <div class="divider"></div>
+
+      <div class="row total-row">
+        <span>TOTAL A PAGAR:</span>
+        <span>Bs. ${parseFloat(factura.monto_total || 0).toFixed(2)}</span>
+      </div>
+      <div class="row">
+        <span>Monto Entregado:</span>
+        <span>Bs. ${parseFloat(factura.monto_recibido || factura.monto_total || 0).toFixed(2)}</span>
+      </div>
+      <div class="row">
+        <span>Cambio / Vuelto:</span>
+        <span>Bs. ${parseFloat(factura.cambio || 0).toFixed(2)}</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="text-center">
+        <div style="border:1px solid #000; padding:4px; margin:4px auto; width:80%; font-size:9px; font-weight:bold;">
+          [ CÃ“DIGO QR VALIDACIÃ“N SIAT ]
+        </div>
+        <div class="legal">
+          "ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÃS, EL USO ILÃCITO SERÃ SANCIONADO PENALMENTE DE ACUERDO A LEY"
+        </div>
+        <div class="legal">
+          Ley NÂ° 453: El proveedor deberÃ¡ suministrar el servicio en las condiciones ofertadas.
+        </div>
+        <div class="footer">
+          Desarrollado por Ribersoft | Soporte: 67369293
+        </div>
+      </div>
+    </body>
+    </html>
+  `
+
+  const frameDoc = iframe.contentWindow.document
+  frameDoc.open()
+  frameDoc.write(ticketHtml)
+  frameDoc.close()
+
+  setTimeout(() => {
+    iframe.contentWindow.focus()
+    iframe.contentWindow.print()
+  }, 250)
 }
 
 // Submit payment and emit SIAT invoice
 const submitCobro = async () => {
   if (!props.mesa?.id) return
   if (!cajaStore.isTurnoAbierto) {
-    errorMessage.value = 'Debe tener un turno de caja abierto para cobrar. Abra la caja en el botÃ³n superior o en el menÃº.'
+    errorMessage.value = 'Debe tener un turno de caja abierto para cobrar. Abra la caja en el menÃº o control de caja.'
     return
   }
 
@@ -384,10 +492,10 @@ const submitCobro = async () => {
     facturaEmitida.value = res.data.factura
     stopQrPolling()
 
-    // 1. Disparar impresion directa inmediata (sin ventanas extras)
-    ejecutarImpresionDirecta(res.data.factura)
+    // 1. Disparar impresion termica aislada y limpia de 80mm
+    imprimirTicketTermicoIframe(res.data.factura)
 
-    // 2. Cerrar modal y emitir evento de mesa liberada
+    // 2. Cerrar modal y notificar al salon
     emit('update:modelValue', false)
     emit('cobro-exitoso', res.data)
   } else {
@@ -668,7 +776,6 @@ onBeforeUnmount(() => {
                   Compatible con cualquier banco de Bolivia (BCP, BNB, Ganadero, UniÃ³n, FIE, Mercantil, etc.)
                 </div>
 
-                <!-- Dynamic QR Canvas & Status -->
                 <div class="d-flex flex-column align-center justify-center py-2">
                   <div class="qr-canvas-wrapper pa-2 bg-white rounded elevation-2 mb-2" style="border: 2px solid #0284c7;">
                     <canvas ref="qrCanvasRef" />
@@ -687,7 +794,6 @@ onBeforeUnmount(() => {
                     Ref: {{ qrData?.codigo_transaccion || 'Generando...' }}
                   </div>
 
-                  <!-- Live Bank Status Pulse -->
                   <div v-if="qrStatus === 'ESPERANDO'" class="d-flex align-center gap-2 text-info text-caption font-weight-bold mb-3">
                     <VProgressCircular indeterminate size="16" width="2" color="info" />
                     <span>ESPERANDO NOTIFICACIÃ“N EN TIEMPO REAL DEL BANCO...</span>
@@ -698,7 +804,6 @@ onBeforeUnmount(() => {
                     <span>Â¡PAGO ACREDITADO! Banco: {{ qrBancoConfirmado }} (Ref: {{ qrRefBancaria }})</span>
                   </div>
 
-                  <!-- Simulator Button for Fast Testing -->
                   <div class="d-flex gap-2">
                     <VBtn
                       size="small"
@@ -910,80 +1015,6 @@ onBeforeUnmount(() => {
         </VCardActions>
       </VCard>
     </VDialog>
-
-    <!-- HIDDEN THERMAL PRINTABLE CONTAINER (80mm SIAT FORMAT FOR SILENT HARDWARE PRINTING) -->
-    <div id="resto-print-area" class="resto-printable-ticket">
-      <div class="ticket-header text-center">
-        <h3 class="brand-title">RIBERRESTO POS</h3>
-        <div class="brand-sub">RIBERSOFT BOLIVIA</div>
-        <div>NIT: 1028456023 | Telf: 67369293</div>
-        <div>Santa Cruz - Bolivia</div>
-        <div class="ticket-divider" />
-        <div class="invoice-title">FACTURA NÂ° {{ facturaEmitida?.nro_factura }}</div>
-        <div class="cuf-code">CUF: {{ facturaEmitida?.cuf }}</div>
-      </div>
-
-      <div class="ticket-divider" />
-
-      <div class="ticket-client">
-        <div><strong>Fecha:</strong> {{ facturaEmitida?.fecha_emision }}</div>
-        <div><strong>SeÃ±or(es):</strong> {{ facturaEmitida?.razon_social }}</div>
-        <div><strong>NIT/CI:</strong> {{ facturaEmitida?.numero_documento }}</div>
-        <div><strong>MÃ©todo:</strong> {{ facturaEmitida?.metodo_pago }}</div>
-        <div><strong>Mesa:</strong> {{ facturaEmitida?.mesa_numero }}</div>
-      </div>
-
-      <div class="ticket-divider" />
-
-      <div class="ticket-items">
-        <div class="ticket-row header-row">
-          <span>Cant. / Detalle</span>
-          <span>Subtotal</span>
-        </div>
-        <div
-          v-for="det in (facturaEmitida?.detalles || [])"
-          :key="det.id"
-          class="ticket-row"
-        >
-          <span>{{ det.cantidad }}x {{ det.producto_nombre }}</span>
-          <span>Bs. {{ parseFloat(det.subtotal).toFixed(2) }}</span>
-        </div>
-      </div>
-
-      <div class="ticket-divider" />
-
-      <div class="ticket-totals">
-        <div class="ticket-row font-bold total-line">
-          <span>TOTAL A PAGAR:</span>
-          <span>Bs. {{ parseFloat(facturaEmitida?.monto_total || 0).toFixed(2) }}</span>
-        </div>
-        <div class="ticket-row">
-          <span>Monto Entregado:</span>
-          <span>Bs. {{ parseFloat(facturaEmitida?.monto_recibido || facturaEmitida?.monto_total || 0).toFixed(2) }}</span>
-        </div>
-        <div class="ticket-row">
-          <span>Cambio / Vuelto:</span>
-          <span>Bs. {{ parseFloat(facturaEmitida?.cambio || 0).toFixed(2) }}</span>
-        </div>
-      </div>
-
-      <div class="ticket-divider" />
-
-      <div class="ticket-footer text-center">
-        <div class="qr-placeholder">
-          [ CÃ“DIGO QR VALIDACIÃ“N SIAT ]
-        </div>
-        <div class="legal-text">
-          "ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÃS, EL USO ILÃCITO SERÃ SANCIONADO PENALMENTE DE ACUERDO A LEY"
-        </div>
-        <div class="legal-text">
-          Ley NÂ° 453: El proveedor deberÃ¡ suministrar el servicio en las condiciones ofertadas.
-        </div>
-        <div class="brand-footer">
-          Desarrollado por Ribersoft | Soporte: 67369293
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -1005,96 +1036,5 @@ onBeforeUnmount(() => {
 .qr-canvas-wrapper canvas {
   display: block;
   margin: 0 auto;
-}
-
-/* --- ESTILOS EXCLUSIVOS PARA IMPRESIÃ“N DIRECTA TÃ‰RMICA 80MM --- */
-.resto-printable-ticket {
-  display: none;
-}
-
-@media print {
-  body * {
-    visibility: hidden !important;
-  }
-
-  #resto-print-area, #resto-print-area * {
-    visibility: visible !important;
-  }
-
-  #resto-print-area {
-    display: block !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 78mm !important;
-    padding: 2mm !important;
-    font-family: 'Courier New', Courier, monospace !important;
-    font-size: 11px !important;
-    line-height: 1.3 !important;
-    color: #000000 !important;
-    background: #ffffff !important;
-  }
-
-  .ticket-header .brand-title {
-    font-size: 16px !important;
-    font-weight: 900 !important;
-    margin: 0 !important;
-  }
-
-  .ticket-header .brand-sub {
-    font-size: 12px !important;
-    font-weight: 700 !important;
-  }
-
-  .ticket-header .invoice-title {
-    font-size: 13px !important;
-    font-weight: 800 !important;
-  }
-
-  .cuf-code {
-    font-size: 8px !important;
-    word-break: break-all !important;
-  }
-
-  .ticket-divider {
-    border-bottom: 1px dashed #000000 !important;
-    margin: 4px 0 !important;
-  }
-
-  .ticket-row {
-    display: flex !important;
-    justify-content: space-between !important;
-  }
-
-  .header-row {
-    font-weight: 700 !important;
-    border-bottom: 1px solid #000000 !important;
-  }
-
-  .total-line {
-    font-size: 14px !important;
-    font-weight: 900 !important;
-  }
-
-  .legal-text {
-    font-size: 8px !important;
-    text-align: center !important;
-    margin-top: 4px !important;
-  }
-
-  .brand-footer {
-    font-size: 8px !important;
-    font-weight: 700 !important;
-    margin-top: 6px !important;
-  }
-
-  .qr-placeholder {
-    font-size: 9px !important;
-    font-weight: 700 !important;
-    padding: 6px !important;
-    border: 1px solid #000000 !important;
-    margin: 6px auto !important;
-    width: 80% !important;
-  }
 }
 </style>
