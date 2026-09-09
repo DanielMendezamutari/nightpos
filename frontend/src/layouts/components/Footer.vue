@@ -1,41 +1,35 @@
 <template>
-  <div class="h-100 d-flex align-center justify-space-between text-medium-emphasis">
-    <!-- 👉 Footer: left content -->
-    <div class="d-flex align-center text-base">
-      &copy;
-      {{ new Date().getFullYear() }},
-      Made With
-      <VIcon
-        icon="ri-heart-fill"
-        color="error"
-        size="1.25rem"
-        class="mx-1"
-      />
-      By <a
-        href="https://pixinvent.com"
+  <div class="h-100 d-flex align-center justify-space-between text-medium-emphasis flex-wrap gap-2">
+    <!-- Footer: left content -->
+    <div class="d-flex align-center text-body-2">
+      &copy; {{ new Date().getFullYear() }}
+      <strong class="text-primary ms-1">Ribersoft</strong>
+      <span class="mx-1">•</span>
+      <span>RiberResto POS Gastronómico</span>
+    </div>
+
+    <!-- Footer: right marketing & contact -->
+    <div class="d-flex align-center gap-x-4">
+      <a
+        href="https://wa.me/59167369293"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-primary ms-1"
-      >Pixinvent</a>
+        class="text-decoration-none"
+      >
+        <VChip
+          color="success"
+          size="small"
+          variant="tonal"
+          prepend-icon="ri-whatsapp-line"
+          class="cursor-pointer font-weight-medium"
+        >
+          Soporte & Ventas: Cel. 67369293
+        </VChip>
+      </a>
+
+      <span class="text-caption text-disabled d-none d-md-inline">
+        Desarrollado en Bolivia por Ribersoft
+      </span>
     </div>
-    <!-- 👉 Footer: right content -->
-    <span class="d-md-flex gap-x-4 text-primary d-none">
-      <a
-        href="https://themeforest.net/licenses/standard"
-        target="noopener noreferrer"
-      >License</a>
-      <a
-        href="https://1.envato.market/pixinvent_portfolio"
-        target="noopener noreferrer"
-      >More Themes</a>
-      <a
-        href="https://demos.pixinvent.com/materialize-vuejs-admin-template/documentation/"
-        target="noopener noreferrer"
-      >Documentation</a>
-      <a
-        href="https://pixinvent.ticksy.com/"
-        target="noopener noreferrer"
-      >Support</a>
-    </span>
   </div>
 </template>

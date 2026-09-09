@@ -1,46 +1,21 @@
 <script setup>
-import { PerfectScrollbar } from 'vue3-perfect-scrollbar'
+import { useAuthStore } from '@/stores/auth'
 import avatar1 from '@images/avatars/avatar-1.png'
 
-const userProfileList = [
-  { type: 'divider' },
-  {
-    type: 'navItem',
-    icon: 'ri-user-line',
-    title: 'Profile',
-    href: '#',
-  },
-  {
-    type: 'navItem',
-    icon: 'ri-settings-4-line',
-    title: 'Settings',
-    href: '#',
-  },
-  {
-    type: 'navItem',
-    icon: 'ri-file-text-line',
-    title: 'Billing Plan',
-    href: '#',
-    chipsProps: {
-      color: 'error',
-      text: '4',
-      size: 'small',
-    },
-  },
-  { type: 'divider' },
-  {
-    type: 'navItem',
-    icon: 'ri-money-dollar-circle-line',
-    title: 'Pricing',
-    href: '#',
-  },
-  {
-    type: 'navItem',
-    icon: 'ri-question-line',
-    title: 'FAQ',
-    href: '#',
-  },
-]
+const authStore = useAuthStore()
+
+const handleLogout = () => {
+  authStore.logout()
+}
+
+const roleBadgeColor = computed(() => {
+  const role = authStore.userRole?.toLowerCase() || ''
+  if (role.includes('admin')) return 'error'
+  if (role.includes('cajero')) return 'warning'
+  if (role.includes('mesero')) return 'primary'
+  if (role.includes('cocina')) return 'secondary'
+  return 'info'
+})
 </script>
 
 <template>
@@ -62,76 +37,74 @@ const userProfileList = [
       <!-- SECTION Menu -->
       <VMenu
         activator="parent"
-        width="230"
+        width="260"
         location="bottom end"
         offset="15px"
       >
         <VList>
-          <VListItem class="px-4">
-            <div class="d-flex gap-x-2 align-center">
-              <VAvatar>
+          <VListItem class="px-4 py-2">
+            <div class="d-flex gap-x-3 align-center">
+              <VAvatar size="40">
                 <VImg :src="avatar1" />
               </VAvatar>
 
               <div>
-                <div class="text-body-2 font-weight-medium text-high-emphasis">
-                  John Doe
+                <div class="text-body-1 font-weight-semibold text-high-emphasis">
+                  {{ authStore.userName }}
                 </div>
-                <div class="text-capitalize text-caption text-disabled">
-                  Admin
+                <div class="d-flex align-center gap-1 mt-1">
+                  <VChip
+                    :color="roleBadgeColor"
+                    size="x-small"
+                    variant="tonal"
+                    class="text-uppercase font-weight-bold"
+                  >
+                    {{ authStore.userRole }}
+                  </VChip>
+                  <span class="text-caption text-disabled">
+                    ({{ authStore.branchCode }})
+                  </span>
                 </div>
               </div>
             </div>
           </VListItem>
 
-          <PerfectScrollbar :options="{ wheelPropagation: false }">
-            <template
-              v-for="item in userProfileList"
-              :key="item.title"
+          <VDivider class="my-2" />
+
+          <VListItem class="px-4">
+            <div class="text-caption text-disabled">
+              Restaurante:
+            </div>
+            <div class="text-body-2 font-weight-medium">
+              Casa Ribersoft Demo
+            </div>
+          </VListItem>
+
+          <VListItem class="px-4">
+            <a
+              href="https://wa.me/59167369293"
+              target="_blank"
+              class="text-decoration-none d-flex align-center gap-2 text-success"
             >
-              <VListItem
-                v-if="item.type === 'navItem'"
-                :href="item.href"
-                class="px-4"
-              >
-                <template #prepend>
-                  <VIcon
-                    :icon="item.icon"
-                    size="22"
-                  />
-                </template>
+              <VIcon icon="ri-whatsapp-line" size="18" />
+              <span class="text-caption font-weight-medium">Soporte Ribersoft: 67369293</span>
+            </a>
+          </VListItem>
 
-                <VListItemTitle>{{ item.title }}</VListItemTitle>
+          <VDivider class="my-2" />
 
-                <template
-                  v-if="item.chipsProps"
-                  #append
-                >
-                  <VChip
-                    v-bind="item.chipsProps"
-                    variant="elevated"
-                  />
-                </template>
-              </VListItem>
-
-              <VDivider
-                v-else
-                class="my-1"
-              />
-            </template>
-
-            <VListItem class="px-4">
-              <VBtn
-                block
-                color="error"
-                size="small"
-                append-icon="ri-logout-box-r-line"
-                :to="{ name: 'login' }"
-              >
-                Logout
-              </VBtn>
-            </VListItem>
-          </PerfectScrollbar>
+          <VListItem class="px-4">
+            <VBtn
+              block
+              color="error"
+              size="small"
+              variant="tonal"
+              prepend-icon="ri-logout-box-r-line"
+              @click="handleLogout"
+            >
+              Cerrar Sesión
+            </VBtn>
+          </VListItem>
         </VList>
       </VMenu>
       <!-- !SECTION -->
