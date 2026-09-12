@@ -195,4 +195,21 @@ Route::prefix('v1')->group(function () {
         Route::get('rendimiento-meseros', [ReporteController::class, 'getRendimientoMeseros']);
         Route::get('balance-financiero', [ReporteController::class, 'getBalanceFinanciero']);
     });
+
+    // ==========================================
+    // MÓDULO 012: API PARA APP MÓVIL DE GARZONES (ServicioRestauranteV4)
+    // ==========================================
+    Route::prefix('movil')->group(function () {
+        Route::post('login', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'login']);
+
+        Route::middleware('auth:api')->group(function () {
+            Route::get('mesas', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'getMesas']);
+            Route::get('menu', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'getMenu']);
+            Route::post('mesas/{mesaId}/abrir', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'abrirMesa']);
+            Route::post('comanda', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'enviarComanda']);
+            Route::get('cuenta/{mesaId}', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'verCuenta']);
+            Route::post('imprimir-precuenta/{mesaId}', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'solicitarPrecuenta']);
+        });
+    });
+
 });
