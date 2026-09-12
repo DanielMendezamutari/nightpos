@@ -39,6 +39,8 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('salones')->group(function () {
         Route::get('/', [SalonMesaController::class, 'getSalones']);
+        Route::post('/', [SalonMesaController::class, 'storeSalon']);
+        Route::put('{salonId}', [SalonMesaController::class, 'updateSalon']);
         Route::get('{salonId}/mesas', [SalonMesaController::class, 'getMesasBySalon']);
     });
 
@@ -47,6 +49,9 @@ Route::prefix('v1')->group(function () {
     Route::post('visitas/{visitaId}/cobrar-facturar', [CajaFacturaController::class, 'cobrarYFacturarVisita']);
 
     Route::prefix('mesas')->group(function () {
+        Route::post('/', [SalonMesaController::class, 'storeMesa']);
+        Route::put('{mesaId}', [SalonMesaController::class, 'updateMesa']);
+        Route::delete('{mesaId}', [SalonMesaController::class, 'deleteMesa']);
         Route::get('{mesaId}', [SalonMesaController::class, 'getMesaDetails']);
         Route::post('{mesaId}/abrir', [SalonMesaController::class, 'abrirMesa']);
         Route::post('{mesaId}/cambiar', [SalonMesaController::class, 'cambiarMesa']);

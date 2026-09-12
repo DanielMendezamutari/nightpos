@@ -14,6 +14,7 @@ declare module 'vue' {
     AddEditRoleDialog: typeof import('./src/components/dialogs/AddEditRoleDialog.vue')['default']
     AddPaymentMethodDialog: typeof import('./src/components/dialogs/AddPaymentMethodDialog.vue')['default']
     AjusteStockModal: typeof import('./src/components/inventario/AjusteStockModal.vue')['default']
+    AlmacenModal: typeof import('./src/components/inventario/AlmacenModal.vue')['default']
     AnticipoModal: typeof import('./src/components/clientes/AnticipoModal.vue')['default']
     AppBarSearch: typeof import('./src/@core/components/AppBarSearch.vue')['default']
     AppCardActions: typeof import('./src/@core/components/cards/AppCardActions.vue')['default']

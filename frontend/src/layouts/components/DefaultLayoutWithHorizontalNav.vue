@@ -1,5 +1,14 @@
 <script setup>
 import navItems from '@/navigation/horizontal'
+import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const filteredNavItems = computed(() => {
+  const role = (authStore.user?.role || authStore.userRole || 'admin').toLowerCase()
+  if (role === 'admin') return navItems
+  return navItems.filter(item => !item.roles || item.roles.includes(role))
+})
 import { themeConfig } from '@themeConfig'
 
 // Components
@@ -27,7 +36,7 @@ watch([
 </script>
 
 <template>
-  <HorizontalNavLayout :nav-items="navItems">
+  <HorizontalNavLayout :nav-items="filteredNavItems">
     <!-- ðŸ‘‰ navbar -->
     <template #navbar>
       <RouterLink

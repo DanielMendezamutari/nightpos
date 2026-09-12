@@ -216,4 +216,140 @@ class SalonMesaController extends Controller
             ], 422);
         }
     }
+
+    public function storeSalon(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'nombre' => 'required|string|max:100',
+            'codigo' => 'nullable|string|max:20',
+            'impresora_cuenta' => 'nullable|string|max:100',
+            'impresora_factura' => 'nullable|string|max:100',
+            'orden' => 'nullable|integer',
+        ]);
+
+        $tenantSlug = $request->query('tenant_slug', 'casa-demo');
+        $branchCode = $request->query('branch_code', 'CENTRO');
+
+        $tenant = TenantModel::where('slug', $tenantSlug)->firstOrFail();
+        $branch = BranchModel::where('tenant_id', $tenant->id)->where('code', $branchCode)->firstOrFail();
+
+        $salon = SalonModel::create([
+            'tenant_id' => $tenant->id,
+            'branch_id' => $branch->id,
+            'codigo' => $validated['codigo'] ?? ('SAL-' . strtoupper(substr(uniqid(), -4))),
+            'nombre' => $validated['nombre'],
+            'impresora_cuenta' => $validated['impresora_cuenta'] ?? 'Termica-Salon',
+            'impresora_factura' => $validated['impresora_factura'] ?? 'Termica-Caja-Central',
+            'orden' => (int) ($validated['orden'] ?? (SalonModel::where('branch_id', $branch->id)->max('orden') + 1)),
+            'activo' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Salón creado exitosamente',
+            'data' => $salon,
+        ], 201);
+    }
+
+    public function updateSalon(Request $request, int $salonId): JsonResponse
+    {
+        $salon = SalonModel::findOrFail($salonId);
+        $validated = $request->validate([
+            'nombre' => 'sometimes|string|max:100',
+            'codigo' => 'nullable|string|max:20',
+            'impresora_cuenta' => 'nullable|string|max:100',
+            'impresora_factura' => 'nullable|string|max:100',
+            'orden' => 'nullable|integer',
+            'activo' => 'nullable|boolean',
+        ]);
+
+        $salon->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Salón actualizado exitosamente',
+            'data' => $salon,
+        ]);
+    }
+
+    public function storeMesa(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'salon_id' => 'required|integer|exists:salones,id',
+            'codigo' => 'nullable|string|max:20',
+            'nombre' => 'required|string|max:100',
+            'capacidad' => 'nullable|integer|min:1|max:50',
+            'forma' => 'nullable|string|in:cuadrada,redonda,rectangular',
+            'posicion_x' => 'nullable|integer',
+            'posicion_y' => 'nullable|integer',
+            'ancho' => 'nullable|integer',
+            'alto' => 'nullable|integer',
+        ]);
+
+        $codigo = $validated['codigo'] ?? (string) (MesaModel::where('salon_id', $validated['salon_id'])->count() + 1);
+
+        $mesa = MesaModel::create([
+            'salon_id' => $validated['salon_id'],
+            'codigo' => $codigo,
+            'nombre' => $validated['nombre'],
+            'capacidad' => (int) ($validated['capacidad'] ?? 4),
+            'forma' => $validated['forma'] ?? 'cuadrada',
+            'posicion_x' => (int) ($validated['posicion_x'] ?? 20),
+            'posicion_y' => (int) ($validated['posicion_y'] ?? 20),
+            'ancho' => (int) ($validated['ancho'] ?? 110),
+            'alto' => (int) ($validated['alto'] ?? 110),
+            'activo' => true,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mesa creada exitosamente',
+            'data' => $mesa,
+        ], 201);
+    }
+
+    public function updateMesa(Request $request, int $mesaId): JsonResponse
+    {
+        $mesa = MesaModel::findOrFail($mesaId);
+        $validated = $request->validate([
+            'salon_id' => 'sometimes|integer|exists:salones,id',
+            'codigo' => 'nullable|string|max:20',
+            'nombre' => 'sometimes|string|max:100',
+            'capacidad' => 'nullable|integer|min:1|max:50',
+            'forma' => 'nullable|string|in:cuadrada,redonda,rectangular',
+            'posicion_x' => 'nullable|integer',
+            'posicion_y' => 'nullable|integer',
+            'ancho' => 'nullable|integer',
+            'alto' => 'nullable|integer',
+            'activo' => 'nullable|boolean',
+        ]);
+
+        $mesa->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mesa actualizada exitosamente',
+            'data' => $mesa,
+        ]);
+    }
+
+    public function deleteMesa(int $mesaId): JsonResponse
+    {
+        $mesa = MesaModel::findOrFail($mesaId);
+        
+        // Verificar que no tenga visita activa
+        if ($mesa->visitaActiva) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No se puede eliminar una mesa que tiene una cuenta o visita activa.',
+            ], 422);
+        }
+
+        $mesa->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mesa eliminada exitosamente',
+        ]);
+    }
 }

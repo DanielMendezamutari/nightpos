@@ -1,5 +1,28 @@
 <script setup>
 import navItems from '@/navigation/vertical'
+import { computed } from 'vue'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
+const filteredNavItems = computed(() => {
+  const role = (authStore.user?.role || authStore.userRole || 'admin').toLowerCase()
+  if (role === 'admin') return navItems
+  return navItems.filter((item, index, arr) => {
+    if (item.roles && !item.roles.includes(role)) return false
+    if (item.heading) {
+      let hasVisibleChild = false
+      for (let i = index + 1; i < arr.length; i++) {
+        if (arr[i].heading) break
+        if (!arr[i].roles || arr[i].roles.includes(role)) {
+          hasVisibleChild = true
+          break
+        }
+      }
+      return hasVisibleChild
+    }
+    return true
+  })
+})
 import { useConfigStore } from '@core/stores/config'
 import { themeConfig } from '@themeConfig'
 
@@ -44,7 +67,7 @@ watch([
 </script>
 
 <template>
-  <VerticalNavLayout :nav-items="navItems">
+  <VerticalNavLayout :nav-items="filteredNavItems">
     <!-- ðŸ‘‰ navbar -->
     <template #navbar="{ toggleVerticalOverlayNavActive }">
       <div class="d-flex h-100 align-center">

@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useInventarioStore } from '@/stores/inventario'
 import { useComandaStore } from '@/stores/comanda'
 import InsumoModal from '@/components/inventario/InsumoModal.vue'
+import AlmacenModal from '@/components/inventario/AlmacenModal.vue'
 import CompraModal from '@/components/inventario/CompraModal.vue'
 import ProveedorModal from '@/components/inventario/ProveedorModal.vue'
 import ProveedorPagoModal from '@/components/inventario/ProveedorPagoModal.vue'
@@ -30,6 +31,19 @@ const modalPago = ref(false)
 const proveedorPago = ref(null)
 
 const modalReceta = ref(false)
+  const modalAlmacen = ref(false)
+  const almacenEditar = ref(null)
+
+  const abrirNuevoAlmacen = () => {
+    almacenEditar.value = null
+    modalAlmacen.value = true
+  }
+
+  const abrirEditarAlmacen = (alm) => {
+    almacenEditar.value = alm
+    modalAlmacen.value = true
+  }
+
 const productoReceta = ref(null)
 
 const modalAjuste = ref(false)
@@ -477,6 +491,13 @@ const abrirRecetaProducto = (prod) => {
           </VTable>
         </div>
       </VCardText>
+
+      <!-- MODAL: Crear / Editar Almacén -->
+      <AlmacenModal
+        v-model="modalAlmacen"
+        :almacen="almacenEditar"
+        @guardado="store.fetchAlmacenes()"
+      />
     </VCard>
 
     <!-- Modales -->

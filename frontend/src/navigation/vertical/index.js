@@ -8,14 +8,16 @@ export default [
     heading: 'PUNTO DE VENTA (POS)',
   },
   {
-    title: 'SalÃƒÂ³n & Mesas',
+    title: 'Salón & Mesas',
     to: { name: 'root' },
     icon: { icon: 'ri-layout-grid-line' },
+    roles: ['admin', 'cajero', 'mesero', 'garzon'],
   },
   {
     title: 'Comandas & Pedidos',
     to: { name: 'comandas' },
     icon: { icon: 'ri-restaurant-2-line' },
+    roles: ['admin', 'cajero', 'mesero', 'garzon'],
   },
   {
     title: 'Monitor Cocina (KDS)',
@@ -23,19 +25,35 @@ export default [
     icon: { icon: 'ri-restaurant-line' },
     badgeContent: 'En Vivo',
     badgeClass: 'bg-warning',
+    roles: ['admin', 'cocina', 'barman'],
   },
   {
     title: 'Caja & Turnos',
     to: { name: 'caja' },
     icon: { icon: 'ri-safe-2-line' },
+    roles: ['admin', 'cajero'],
   },
   {
-    title: 'Clientes & CrÃƒÂ©dito',
+    title: 'Clientes & Crédito',
     to: { name: 'clientes' },
     icon: { icon: 'ri-user-star-line' },
+    roles: ['admin', 'cajero'],
   },
   {
-    heading: 'INVENTARIO & PRODUCCIÃƒâ€œN',
+    heading: 'ADMINISTRACIÓN RESTOTECH',
+    roles: ['admin'],
+  },
+  {
+    title: 'Administración POS',
+    to: { name: 'admin' },
+    icon: { icon: 'ri-settings-4-line' },
+    badgeContent: 'Admin',
+    badgeClass: 'bg-error',
+    roles: ['admin'],
+  },
+  {
+    heading: 'INVENTARIO & PRODUCCIÓN',
+    roles: ['admin'],
   },
   {
     title: 'Inventario & Compras',
@@ -43,16 +61,19 @@ export default [
     icon: { icon: 'ri-archive-line' },
     badgeContent: 'Stock',
     badgeClass: 'bg-primary',
+    roles: ['admin'],
   },
   {
-    heading: 'FACTURACIÃƒâ€œN & VENTAS',
+    heading: 'FACTURACIÓN & VENTAS',
+    roles: ['admin', 'cajero'],
   },
   {
-    title: 'FacturaciÃƒÂ³n Bolivia',
+    title: 'Facturación Bolivia',
     to: { name: 'facturas' },
     icon: { icon: 'ri-file-shield-line' },
     badgeContent: 'SIAT',
     badgeClass: 'bg-success',
+    roles: ['admin', 'cajero'],
   },
   {
     title: 'Reportes & Analítica',
@@ -60,6 +81,7 @@ export default [
     icon: { icon: 'ri-bar-chart-grouped-line' },
     badgeContent: 'BI',
     badgeClass: 'bg-info',
+    roles: ['admin'],
   },
   {
     heading: 'SOPORTE RIBERSOFT',

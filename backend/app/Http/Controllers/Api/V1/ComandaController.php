@@ -104,7 +104,7 @@ class ComandaController extends Controller
         ]);
 
         try {
-            $isSinMesa = str_starts_with((string)$mesaId, 'sin_mesa_') || $request->has('visita_id');
+            $isSinMesa = str_starts_with((string)$mesaId, 'sin_mesa_') || (!empty($request->input('visita_id')) && (int)$request->input('visita_id') > 0);
             if ($isSinMesa) {
                 $visitaId = $request->input('visita_id') ?? (int)str_replace('sin_mesa_', '', (string)$mesaId);
                 $resultado = $this->pedidoRepository->agregarItemsVisita($visitaId, $validated['items']);

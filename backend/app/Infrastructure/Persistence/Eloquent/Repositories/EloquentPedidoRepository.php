@@ -67,7 +67,8 @@ class EloquentPedidoRepository implements PedidoRepositoryInterface
     public function agregarItemsMesa(int $mesaId, array $items): array
     {
         $visita = VisitaModel::where('mesa_id', $mesaId)
-            ->whereIn('estado', ['ABIERTA', 'PRECUENTA'])
+            ->whereRaw("UPPER(estado) IN ('ABIERTA', 'PRECUENTA')")
+            ->latest('id')
             ->first();
 
         if (!$visita) {

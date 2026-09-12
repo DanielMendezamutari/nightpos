@@ -167,10 +167,11 @@ const submitOpenTable = async () => {
   if (res.success) {
     openTableDialog.value = false
     // Abrir automáticamente la toma de pedidos para la mesa recién abierta
-    const updatedMesa = salonStore.mesas.find(m => m.id === targetMesa.value.id)
-    targetMesa.value = updatedMesa || targetMesa.value
-    comandaModalOpen.value = true
-  } else {
+    await salonStore.fetchMesaDetails(targetMesa.value.id)
+      const updatedMesa = salonStore.mesas.find(m => m.id === targetMesa.value.id)
+      targetMesa.value = salonStore.selectedMesaDetails?.mesa || updatedMesa || targetMesa.value
+      comandaModalOpen.value = true
+    } else {
     alert(res.message || 'Error al abrir la mesa')
   }
 }
@@ -495,7 +496,7 @@ const freeTablesForMove = computed(() => {
               <div class="text-caption text-disabled mt-1 d-flex align-center justify-center gap-1">
                 <VIcon icon="ri-time-line" size="13" />
                 <span>{{ mesa.minutos_abierta }} min</span>
-                <span class="mx-1">â€¢</span>
+                <span class="mx-1">•</span>
                 <VIcon icon="ri-user-line" size="13" />
                 <span>{{ mesa.personas }}p</span>
               </div>
@@ -611,7 +612,7 @@ const freeTablesForMove = computed(() => {
             </VChip>
           </VCardTitle>
           <VCardSubtitle class="text-white opacity-80">
-            Atiende: {{ salonStore.selectedMesaDetails.visita?.mesero_nombre }} â€¢ {{ salonStore.selectedMesaDetails.visita?.personas }} personas
+            Atiende: {{ salonStore.selectedMesaDetails.visita?.mesero_nombre }} • {{ salonStore.selectedMesaDetails.visita?.personas }} personas
           </VCardSubtitle>
         </VCardItem>
 

@@ -36,7 +36,7 @@ watch(() => props.modelValue, (val) => {
 const handleEnviar = async () => {
   if (!props.mesa) return
 
-  const visitaId = props.visita?.id || props.mesa?.visitaActiva?.id || (typeof props.mesa.id === 'string' && props.mesa.id.startsWith('sin_mesa_') ? parseInt(props.mesa.id.replace('sin_mesa_', '')) : null)
+  const visitaId = props.visita?.id || props.mesa?.visita_id || props.mesa?.visitaActiva?.id || props.mesa?.visita?.id || (typeof props.mesa.id === 'string' && props.mesa.id.startsWith('sin_mesa_') ? parseInt(props.mesa.id.replace('sin_mesa_', '')) : null)
 
   const res = await comandaStore.enviarComanda(props.mesa.id, visitaId)
   if (res.success) {
