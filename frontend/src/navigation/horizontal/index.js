@@ -34,4 +34,9 @@ export default [
     to: { name: 'facturas' },
     icon: { icon: 'ri-file-shield-line' },
   },
+  {
+    title: 'Reportes',
+    to: { name: 'reportes' },
+    icon: { icon: 'ri-bar-chart-grouped-line' },
+  },
 ]

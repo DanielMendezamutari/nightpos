@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\SalonMesaController;
@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\V1\KdsController;
 use App\Http\Controllers\Api\V1\GastoController;
 use App\Http\Controllers\Api\V1\SepararCuentasController;
 use App\Http\Controllers\Api\V1\MesaOperacionesController;
+use App\Http\Controllers\Api\V1\ReporteController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -179,5 +180,14 @@ Route::prefix('v1')->group(function () {
         Route::post('tickets/{visitaId}/despachar', [KdsController::class, 'despacharTicket']);
         Route::get('historial', [KdsController::class, 'getHistorial']);
         Route::post('tickets/{visitaId}/revertir', [KdsController::class, 'revertirDespacho']);
+    });
+    // ==========================================
+    // BUCLE 11: REPORTES GERENCIALES & ANALÍTICA
+    // ==========================================
+    Route::prefix('reportes')->group(function () {
+        Route::get('resumen-ventas', [ReporteController::class, 'getResumenVentas']);
+        Route::get('top-productos', [ReporteController::class, 'getTopProductos']);
+        Route::get('rendimiento-meseros', [ReporteController::class, 'getRendimientoMeseros']);
+        Route::get('balance-financiero', [ReporteController::class, 'getBalanceFinanciero']);
     });
 });

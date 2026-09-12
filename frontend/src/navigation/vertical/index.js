@@ -8,7 +8,7 @@ export default [
     heading: 'PUNTO DE VENTA (POS)',
   },
   {
-    title: 'Salón & Mesas',
+    title: 'SalÃƒÂ³n & Mesas',
     to: { name: 'root' },
     icon: { icon: 'ri-layout-grid-line' },
   },
@@ -30,12 +30,12 @@ export default [
     icon: { icon: 'ri-safe-2-line' },
   },
   {
-    title: 'Clientes & Crédito',
+    title: 'Clientes & CrÃƒÂ©dito',
     to: { name: 'clientes' },
     icon: { icon: 'ri-user-star-line' },
   },
   {
-    heading: 'INVENTARIO & PRODUCCIÓN',
+    heading: 'INVENTARIO & PRODUCCIÃƒâ€œN',
   },
   {
     title: 'Inventario & Compras',
@@ -45,14 +45,21 @@ export default [
     badgeClass: 'bg-primary',
   },
   {
-    heading: 'FACTURACIÓN & VENTAS',
+    heading: 'FACTURACIÃƒâ€œN & VENTAS',
   },
   {
-    title: 'Facturación Bolivia',
+    title: 'FacturaciÃƒÂ³n Bolivia',
     to: { name: 'facturas' },
     icon: { icon: 'ri-file-shield-line' },
     badgeContent: 'SIAT',
     badgeClass: 'bg-success',
+  },
+  {
+    title: 'Reportes & Analítica',
+    to: { name: 'reportes' },
+    icon: { icon: 'ri-bar-chart-grouped-line' },
+    badgeContent: 'BI',
+    badgeClass: 'bg-info',
   },
   {
     heading: 'SOPORTE RIBERSOFT',
