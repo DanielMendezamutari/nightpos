@@ -125,12 +125,15 @@ export const useComandaStore = defineStore('comanda', {
       this.carrito = []
     },
 
-    async enviarComanda(mesaId) {
+    async enviarComanda(mesaId, visitaId = null) {
       if (this.carrito.length === 0) return { success: false, message: 'El pedido está vacío' }
 
       this.loading = true
       try {
+        const parsedVisitaId = visitaId || (typeof mesaId === 'string' && mesaId.startsWith('sin_mesa_') ? parseInt(mesaId.replace('sin_mesa_', '')) : null)
+
         const payload = {
+          visita_id: parsedVisitaId,
           items: this.carrito.map(item => ({
             producto_id: item.producto_id,
             cantidad: item.cantidad,
@@ -138,7 +141,11 @@ export const useComandaStore = defineStore('comanda', {
           })),
         }
 
-        const res = await $api(`/api/v1/mesas/${mesaId}/comanda`, {
+        const url = parsedVisitaId 
+          ? `/api/v1/visitas/${parsedVisitaId}/comanda`
+          : `/api/v1/mesas/${mesaId}/comanda`
+
+        const res = await $api(url, {
           method: 'POST',
           body: payload,
         })
@@ -152,6 +159,188 @@ export const useComandaStore = defineStore('comanda', {
         return { success: false, message: err.data?.message || err.message }
       } finally {
         this.loading = false
+      }
+    },
+
+
+    async fetchSubcuentas(mesaId) {
+      try {
+        const res = await $api(`/api/v1/mesas/${mesaId}/separar-cuentas`, { method: 'GET' })
+        if (res.success && res.data) {
+          this.subcuentasData = res.data
+        }
+        return res
+      } catch (err) {
+        console.error('Error cargando subcuentas:', err)
+        return { success: false, message: err.data?.message || err.message }
+      }
+    },
+
+    async crearSubcuenta(mesaId, nombreComensal = '') {
+      try {
+        const res = await $api(`/api/v1/mesas/${mesaId}/separar-cuentas/crear`, {
+          method: 'POST',
+          body: { nombre_comensal: nombreComensal },
+        })
+        if (res.success) {
+          await this.fetchSubcuentas(mesaId)
+        }
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async moverItemSubcuenta(mesaId, payload) {
+      try {
+        const res = await $api(`/api/v1/mesas/${mesaId}/separar-cuentas/mover-item`, {
+          method: 'POST',
+          body: payload,
+        })
+        if (res.success) {
+          await this.fetchSubcuentas(mesaId)
+        }
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async dividirEnPartesIguales(mesaId, personas) {
+      try {
+        const res = await $api(`/api/v1/mesas/${mesaId}/separar-cuentas/dividir-iguales`, {
+          method: 'POST',
+          body: { personas },
+        })
+        if (res.success) {
+          await this.fetchSubcuentas(mesaId)
+        }
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async juntarCuentas(mesaId) {
+      try {
+        const res = await $api(`/api/v1/mesas/${mesaId}/separar-cuentas/juntar`, {
+          method: 'POST',
+        })
+        if (res.success) {
+          await this.fetchSubcuentas(mesaId)
+        }
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async registrarPagoParcial(mesaId, payload) {
+      try {
+        const res = await $api(`/api/v1/mesas/${mesaId}/separar-cuentas/pago-parcial`, {
+          method: 'POST',
+          body: payload,
+        })
+        if (res.success) {
+          await this.fetchSubcuentas(mesaId)
+        }
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async cobrarSubcuenta(subcuentaId, payload) {
+      try {
+        const res = await $api(`/api/v1/subcuentas/${subcuentaId}/cobrar`, {
+          method: 'POST',
+          body: payload,
+        })
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async fetchReportePropinas(turnoId) {
+      try {
+        const res = await $api(`/api/v1/caja/reporte-propinas/${turnoId}`, { method: 'GET' })
+        return res
+      } catch (err) {
+        console.error('Error cargando propinas:', err)
+        return { success: false, data: [] }
+      }
+    },
+
+
+    // BUCLE 9: OPERACIONES DE MESA Y SALON
+    async cambiarMesa(origenId, destinoId, motivo = '') {
+      try {
+        const res = await $api(`/api/v1/mesas/${origenId}/cambiar-mesa`, {
+          method: 'POST',
+          body: { mesa_destino_id: destinoId, motivo },
+        })
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async juntarMesa(origenId, destinoId, motivo = '') {
+      try {
+        const res = await $api(`/api/v1/mesas/${origenId}/juntar-mesa`, {
+          method: 'POST',
+          body: { mesa_destino_id: destinoId, motivo },
+        })
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async fetchPedidosSinMesa() {
+      try {
+        const res = await $api('/api/v1/pedidos-sin-mesa', { method: 'GET' })
+        return res
+      } catch (err) {
+        console.error('Error fetching pedidos sin mesa:', err)
+        return []
+      }
+    },
+
+    async crearPedidoSinMesa(payload) {
+      try {
+        const res = await $api('/api/v1/pedidos-sin-mesa', {
+          method: 'POST',
+          body: payload,
+        })
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async asignarMesaAPedidoSinMesa(visitaId, mesaDestinoId) {
+      try {
+        const res = await $api(`/api/v1/pedidos-sin-mesa/${visitaId}/asignar-mesa`, {
+          method: 'POST',
+          body: { mesa_destino_id: mesaDestinoId },
+        })
+        return res
+      } catch (err) {
+        throw err
+      }
+    },
+
+    async reasignarMesero(mesaId, meseroId, motivo = '') {
+      try {
+        const res = await $api(`/api/v1/mesas/${mesaId}/reasignar-mesero`, {
+          method: 'POST',
+          body: { mesero_id: meseroId, motivo },
+        })
+        return res
+      } catch (err) {
+        throw err
       }
     },
 

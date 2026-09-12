@@ -95,7 +95,7 @@ const guardar = async () => {
         <div>
           <span class="text-h6 font-weight-bold">
             <VIcon icon="ri-restaurant-line" class="me-2" />
-            Ficha TÃ©cnica & Receta: {{ producto?.nombre }}
+            Ficha Técnica & Receta: {{ producto?.nombre }}
           </span>
           <div class="text-caption text-white opacity-80">
             Precio de Carta: Bs. {{ Number(producto?.precio || 0).toFixed(2) }}
@@ -155,14 +155,14 @@ const guardar = async () => {
               <th>Unidad</th>
               <th>Cantidad</th>
               <th>Merma %</th>
-              <th>Costo TeÃ³rico (Bs)</th>
+              <th>Costo Teórico (Bs)</th>
               <th class="text-center">Quitar</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="ingredientes.length === 0">
               <td colspan="6" class="text-center py-4 text-medium-emphasis">
-                Este plato no tiene receta configurada. Se venderÃ¡ sin descontar ingredientes.
+                Este plato no tiene receta configurada. Se venderá sin descontar ingredientes.
               </td>
             </tr>
             <tr v-for="(item, idx) in ingredientes" :key="idx">
@@ -184,7 +184,7 @@ const guardar = async () => {
         <VCard variant="outlined" class="pa-3">
           <VRow>
             <VCol cols="4" class="text-center border-e">
-              <div class="text-caption text-medium-emphasis">Costo de ProducciÃ³n</div>
+              <div class="text-caption text-medium-emphasis">Costo de Producción</div>
               <div class="text-h6 font-weight-bold text-error">Bs. {{ costoTeoricoTotal.toFixed(2) }}</div>
             </VCol>
             <VCol cols="4" class="text-center border-e">
@@ -204,7 +204,7 @@ const guardar = async () => {
         <VBtn variant="outlined" color="secondary" @click="emit('update:modelValue', false)">Cancelar</VBtn>
         <VBtn color="primary" variant="elevated" @click="guardar">
           <VIcon icon="ri-save-line" class="me-1" />
-          Guardar Ficha TÃ©cnica
+          Guardar Ficha Técnica
         </VBtn>
       </VCardActions>
     </VCard>

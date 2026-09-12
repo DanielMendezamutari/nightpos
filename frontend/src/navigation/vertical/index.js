@@ -8,14 +8,21 @@ export default [
     heading: 'PUNTO DE VENTA (POS)',
   },
   {
-    title: 'SalÃ³n & Mesas',
+    title: 'Salón & Mesas',
     to: { name: 'root' },
     icon: { icon: 'ri-layout-grid-line' },
   },
   {
-    title: 'Comandas & Cocina',
+    title: 'Comandas & Pedidos',
     to: { name: 'comandas' },
     icon: { icon: 'ri-restaurant-2-line' },
+  },
+  {
+    title: 'Monitor Cocina (KDS)',
+    to: { name: 'kds' },
+    icon: { icon: 'ri-restaurant-line' },
+    badgeContent: 'En Vivo',
+    badgeClass: 'bg-warning',
   },
   {
     title: 'Caja & Turnos',
@@ -23,12 +30,12 @@ export default [
     icon: { icon: 'ri-safe-2-line' },
   },
   {
-    title: 'Clientes & CrÃ©dito',
+    title: 'Clientes & Crédito',
     to: { name: 'clientes' },
     icon: { icon: 'ri-user-star-line' },
   },
   {
-    heading: 'INVENTARIO & PRODUCCIÃ“N',
+    heading: 'INVENTARIO & PRODUCCIÓN',
   },
   {
     title: 'Inventario & Compras',
@@ -38,10 +45,10 @@ export default [
     badgeClass: 'bg-primary',
   },
   {
-    heading: 'FACTURACIÃ“N & VENTAS',
+    heading: 'FACTURACIÓN & VENTAS',
   },
   {
-    title: 'FacturaciÃ³n Bolivia',
+    title: 'Facturación Bolivia',
     to: { name: 'facturas' },
     icon: { icon: 'ri-file-shield-line' },
     badgeContent: 'SIAT',

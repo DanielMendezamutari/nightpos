@@ -12,15 +12,15 @@ use Illuminate\Support\Facades\DB;
 
 class EloquentPedidoRepository implements PedidoRepositoryInterface
 {
-    public function agregarItemsMesa(int $mesaId, array $items): array
+    public function agregarItemsVisita(int $visitaId, array $items): array
     {
-        return DB::transaction(function () use ($mesaId, $items) {
-            $visita = VisitaModel::where('mesa_id', $mesaId)
+        return DB::transaction(function () use ($visitaId, $items) {
+            $visita = VisitaModel::where('id', $visitaId)
                 ->whereIn('estado', ['ABIERTA', 'PRECUENTA'])
                 ->first();
 
             if (!$visita) {
-                throw new \RuntimeException('La mesa no tiene una cuenta abierta para agregar pedidos');
+                throw new \RuntimeException('La cuenta no está activa para agregar pedidos');
             }
 
             $creados = [];
@@ -39,7 +39,10 @@ class EloquentPedidoRepository implements PedidoRepositoryInterface
                     'precio_unitario' => $precio,
                     'subtotal' => $subtotal,
                     'observaciones' => $item['observaciones'] ?? null,
+                    'estacion_cocina' => $producto->estacion_cocina ?? $producto->destino_impresion ?? 'COCINA',
                     'estado' => 'EN_PREPARACION',
+                    'iniciado_at' => now(),
+                    'terminado_at' => null,
                 ]);
 
                 $creados[] = $detalle;
@@ -59,6 +62,19 @@ class EloquentPedidoRepository implements PedidoRepositoryInterface
                 'items_agregados' => count($creados),
             ];
         });
+    }
+
+    public function agregarItemsMesa(int $mesaId, array $items): array
+    {
+        $visita = VisitaModel::where('mesa_id', $mesaId)
+            ->whereIn('estado', ['ABIERTA', 'PRECUENTA'])
+            ->first();
+
+        if (!$visita) {
+            throw new \RuntimeException('La mesa no tiene una cuenta abierta para agregar pedidos');
+        }
+
+        return $this->agregarItemsVisita($visita->id, $items);
     }
 
     public function eliminarItemMesa(int $detalleId): bool

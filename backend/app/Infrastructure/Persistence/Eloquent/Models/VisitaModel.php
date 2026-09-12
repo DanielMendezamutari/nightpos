@@ -25,6 +25,10 @@ class VisitaModel extends Model
         'fecha_apertura',
         'fecha_cierre',
         'total',
+        'tipo_despacho',
+        'telefono_cliente',
+        'direccion_envio',
+        'nombre_para_llevar',
         'notas',
     ];
 
@@ -49,5 +53,26 @@ class VisitaModel extends Model
     public function detalles(): HasMany
     {
         return $this->hasMany(VisitaDetalleModel::class, 'visita_id');
+    }
+
+    public function subcuentas(): HasMany
+    {
+        return $this->hasMany(SubcuentaVisitaModel::class, 'visita_id');
+    }
+
+    public function pagosParciales(): HasMany
+    {
+        return $this->hasMany(PagoParcialVisitaModel::class, 'visita_id');
+    }
+
+    public function propinas(): HasMany
+    {
+        return $this->hasMany(PropinaModel::class, 'visita_id');
+    }
+
+
+    public function historialOperaciones(): HasMany
+    {
+        return $this->hasMany(MesaOperacionHistorialModel::class, 'visita_id');
     }
 }

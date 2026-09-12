@@ -13,19 +13,25 @@ class VisitaDetalleModel extends Model
 
     protected $fillable = [
         'visita_id',
+        'subcuenta_id',
         'producto_id',
         'producto_nombre',
         'cantidad',
         'precio_unitario',
         'subtotal',
         'observaciones',
+        'estacion_cocina',
         'estado',
+        'iniciado_at',
+        'terminado_at',
     ];
 
     protected $casts = [
         'cantidad' => 'decimal:2',
         'precio_unitario' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'iniciado_at' => 'datetime',
+        'terminado_at' => 'datetime',
     ];
 
     public function visita(): BelongsTo
@@ -36,5 +42,10 @@ class VisitaDetalleModel extends Model
     public function producto(): BelongsTo
     {
         return $this->belongsTo(ProductoModel::class, 'producto_id');
+    }
+
+    public function subcuenta(): BelongsTo
+    {
+        return $this->belongsTo(SubcuentaVisitaModel::class, 'subcuenta_id');
     }
 }

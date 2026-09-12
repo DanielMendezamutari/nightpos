@@ -13,14 +13,28 @@ use Illuminate\Support\Str;
 class QrPagoController extends Controller
 {
     /**
-     * Generar un nuevo cÃ³digo QR dinÃ¡mico para una mesa o visita.
+     * Generar un nuevo código QR dinámico para una mesa o visita.
      */
     public function generar(Request $request): JsonResponse
     {
+        $rawMesaId = $request->input('mesa_id');
+        $rawVisitaId = $request->input('visita_id');
+
+        // Soporte para identificadores virtuales de pedidos sin mesa ('sin_mesa_123')
+        if (is_string($rawMesaId) && str_starts_with($rawMesaId, 'sin_mesa_')) {
+            $rawVisitaId = (int) str_replace('sin_mesa_', '', $rawMesaId);
+            $rawMesaId = null;
+        }
+
+        $request->merge([
+            'mesa_id' => is_numeric($rawMesaId) ? (int)$rawMesaId : null,
+            'visita_id' => is_numeric($rawVisitaId) ? (int)$rawVisitaId : null,
+        ]);
+
         $validated = $request->validate([
             'mesa_id' => 'nullable|integer|exists:mesas,id',
             'visita_id' => 'nullable|integer|exists:visitas,id',
-            'monto' => 'required|numeric|min:0.50',
+            'monto' => 'required|numeric|min:0.01',
             'glosa' => 'nullable|string|max:150',
         ]);
 
@@ -41,7 +55,7 @@ class QrPagoController extends Controller
         $monto = (float) $validated['monto'];
         $glosa = $validated['glosa'] ?? 'Consumo RiberResto POS - Mesa ' . ($mesaId ?? 'Barra');
 
-        // Formato EMVCo Simple QR Bolivia (ASOBAN estÃ¡ndar interbancario)
+        // Formato EMVCo Simple QR Bolivia (ASOBAN estándar interbancario)
         $qrPayload = sprintf(
             '00020101021226460014bo.gob.sin.qr011010284560230216%s520458125303BOB54%02d%.2f5802BO5917RIBERSOFT BOLIVIA6010SANTA CRUZ62%02d01%02d%s6304ABCD',
             $codigoTransaccion,
@@ -66,7 +80,7 @@ class QrPagoController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'CÃ³digo QR dinÃ¡mico generado con Ã©xito',
+            'message' => 'Código QR dinámico generado con éxito',
             'data' => [
                 'id' => $pagoQr->id,
                 'codigo_transaccion' => $pagoQr->codigo_transaccion,
@@ -92,11 +106,11 @@ class QrPagoController extends Controller
         if (!$pagoQr) {
             return response()->json([
                 'success' => false,
-                'message' => 'CÃ³digo QR no encontrado',
+                'message' => 'Código QR no encontrado',
             ], 404);
         }
 
-        // Si expirÃ³ y sigue pendiente, actualizar
+        // Si expiró y sigue pendiente, actualizar
         if ($pagoQr->estado === 'PENDIENTE' && $pagoQr->vence_at && $pagoQr->vence_at->isPast()) {
             $pagoQr->update(['estado' => 'EXPIRADO']);
         }
@@ -117,7 +131,7 @@ class QrPagoController extends Controller
     }
 
     /**
-     * Webhook bancario para recepciÃ³n de confirmaciones de pago (ASOBAN / Pasarelas BCP, BNB, etc.).
+     * Webhook bancario para recepción de confirmaciones de pago (ASOBAN / Pasarelas BCP, BNB, etc.).
      */
     public function webhook(Request $request): JsonResponse
     {
@@ -131,14 +145,14 @@ class QrPagoController extends Controller
         if (!$pagoQr) {
             return response()->json([
                 'success' => false,
-                'message' => 'TransacciÃ³n QR no encontrada en el sistema',
+                'message' => 'Transacción QR no encontrada en el sistema',
             ], 404);
         }
 
         if ($pagoQr->estado === 'PAGADO') {
             return response()->json([
                 'success' => true,
-                'message' => 'El pago ya habÃ­a sido procesado previamente',
+                'message' => 'El pago ya había sido procesado previamente',
             ]);
         }
 
@@ -163,7 +177,7 @@ class QrPagoController extends Controller
     }
 
     /**
-     * Endpoint de simulaciÃ³n para pruebas en local y validaciÃ³n de UI de caja.
+     * Endpoint de simulación para pruebas en local y validación de UI de caja.
      */
     public function simular(string $codigo): JsonResponse
     {
@@ -174,7 +188,7 @@ class QrPagoController extends Controller
         if (!$pagoQr) {
             return response()->json([
                 'success' => false,
-                'message' => 'CÃ³digo QR no encontrado',
+                'message' => 'Código QR no encontrado',
             ], 404);
         }
 
@@ -190,7 +204,7 @@ class QrPagoController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Pago simulado y confirmado con Ã©xito por ' . $bancoElegido,
+            'message' => 'Pago simulado y confirmado con éxito por ' . $bancoElegido,
             'data' => [
                 'codigo_transaccion' => $pagoQr->codigo_transaccion,
                 'estado' => $pagoQr->estado,

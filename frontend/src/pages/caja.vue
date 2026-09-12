@@ -1,7 +1,9 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useCajaStore } from '@/stores/caja'
 import { useAuthStore } from '@/stores/auth'
+import GastoModal from '@/components/caja/GastoModal.vue'
+import ArqueoCiegoModal from '@/components/caja/ArqueoCiegoModal.vue'
 
 const cajaStore = useCajaStore()
 const authStore = useAuthStore()
@@ -16,8 +18,12 @@ const formApertura = ref({
   observaciones: '',
 })
 
-// Movimiento form & dialog
+// Dialog controls
 const dialogMovimiento = ref(false)
+const dialogGasto = ref(false)
+const dialogArqueoCiego = ref(false)
+
+// Movimiento manual form
 const formMovimiento = ref({
   tipo: 'EGRESO_GASTO',
   monto: '',
@@ -43,11 +49,28 @@ onMounted(async () => {
   }
 })
 
+// Watch tab changes to reload data
+watch(activeTab, async (tab) => {
+  if (tab === 'gastos') {
+    await cajaStore.fetchGastos()
+    await cajaStore.fetchTiposGastos()
+  } else if (tab === 'facturas') {
+    await cajaStore.fetchFacturas()
+  } else if (tab === 'resumen') {
+    await cajaStore.fetchTurnoActivo()
+  }
+})
+
 const loadCajaData = async () => {
   await cajaStore.fetchTurnoActivo()
   if (cajaStore.isTurnoAbierto) {
-    await cajaStore.fetchMovimientos()
-    await cajaStore.fetchFacturas()
+    await Promise.all([
+      cajaStore.fetchMovimientos(),
+      cajaStore.fetchFacturas(),
+      cajaStore.fetchGastos(),
+      cajaStore.fetchTiposGastos(),
+    ])
+    formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
   }
 }
 
@@ -75,13 +98,12 @@ const submitApertura = async () => {
   if (res.success) {
     successMessage.value = 'Turno abierto exitosamente'
     await loadCajaData()
-    formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
   } else {
     errorMessage.value = res.message || 'Error al abrir turno'
   }
 }
 
-// Register Movement
+// Register Manual Movement
 const submitMovimiento = async () => {
   if (!formMovimiento.value.monto || !formMovimiento.value.motivo) {
     alert('Por favor ingrese el monto y motivo del movimiento')
@@ -106,7 +128,7 @@ const submitMovimiento = async () => {
       comprobante_nro: '',
     }
     successMessage.value = 'Movimiento registrado correctamente'
-    formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
+    await loadCajaData()
   } else {
     alert(res.message || 'Error al registrar movimiento')
   }
@@ -137,6 +159,22 @@ const submitCierre = async () => {
   }
 }
 
+// Anular Gasto (frmGastos RestoTech)
+const handleAnularGasto = async (gasto) => {
+  const confirmMsg = `¿Confirma anular el gasto por Bs. ${parseFloat(gasto.monto).toFixed(2)} pagado a "${gasto.beneficiario}"?\n\nEl monto se reintegrará al efectivo disponible de la caja.`
+  if (!confirm(confirmMsg)) return
+
+  try {
+    const res = await cajaStore.anularGasto(gasto.id)
+    if (res.success) {
+      successMessage.value = 'Gasto anulado correctamente. Cuadratura de caja actualizada.'
+      await loadCajaData()
+    }
+  } catch (err) {
+    alert(err.data?.message || err.message || 'Error al anular gasto')
+  }
+}
+
 // Anular Factura
 const handleAnularFactura = async (factura) => {
   const motivo = prompt(`Ingrese motivo para anular la Factura N° ${factura.nro_factura}:`)
@@ -145,7 +183,7 @@ const handleAnularFactura = async (factura) => {
   const res = await cajaStore.anularFactura(factura.id, motivo)
   if (res.success) {
     alert('Factura anulada con éxito')
-    formCierre.value.monto_final_bs = cajaStore.efectivoEsperado.toFixed(2)
+    await loadCajaData()
   } else {
     alert(res.message || 'Error al anular factura')
   }
@@ -254,7 +292,7 @@ const handleAnularFactura = async (factura) => {
           <div class="d-flex align-center justify-space-between flex-wrap gap-3">
             <div>
               <span class="text-caption font-weight-bold text-medium-emphasis">CAJERO:</span>
-              <strong class="ms-1">{{ cajaStore.turnoActivo?.cajero_nombre || 'Cajero' }}</strong>
+              <strong class="ms-1">{{ cajaStore.turnoActivo?.cajero_nombre || 'Cajero Principal' }}</strong>
             </div>
             <div>
               <span class="text-caption font-weight-bold text-medium-emphasis">FECHA DE APERTURA:</span>
@@ -312,18 +350,18 @@ const handleAnularFactura = async (factura) => {
 
         <VCol cols="6" sm="4" md="2">
           <VCard variant="tonal" color="primary" class="text-center pa-3 h-100">
-            <div class="text-caption font-weight-bold">Total Facturado</div>
+            <div class="text-caption font-weight-bold">Facturado SIAT</div>
             <div class="text-h6 font-weight-black">
-              Bs. {{ parseFloat(cajaStore.turnoActivo?.total_ventas || 0).toFixed(2) }}
+              Bs. {{ parseFloat(cajaStore.turnoActivo?.total_facturado || 0).toFixed(2) }}
             </div>
           </VCard>
         </VCol>
 
         <VCol cols="6" sm="4" md="2">
-          <VCard variant="flat" color="primary" class="text-center pa-3 h-100 text-white">
-            <div class="text-caption font-weight-bold text-white">Efectivo en Caja</div>
-            <div class="text-h6 font-weight-black text-white">
-              Bs. {{ parseFloat(cajaStore.turnoActivo?.efectivo_esperado || 0).toFixed(2) }}
+          <VCard variant="tonal" color="info" class="text-center pa-3 h-100">
+            <div class="text-caption font-weight-bold">Recibos (Sin Factura)</div>
+            <div class="text-h6 font-weight-black">
+              Bs. {{ parseFloat(cajaStore.turnoActivo?.total_recibos || 0).toFixed(2) }}
             </div>
           </VCard>
         </VCol>
@@ -338,11 +376,11 @@ const handleAnularFactura = async (factura) => {
           </VTab>
           <VTab value="gastos">
             <VIcon icon="ri-hand-coin-line" class="me-1" />
-            Gastos y Movimientos ({{ cajaStore.movimientos.length }})
+            Gastos y Movimientos ({{ cajaStore.gastos?.length || 0 }})
           </VTab>
           <VTab value="facturas">
             <VIcon icon="ri-file-list-3-line" class="me-1" />
-            Facturas del Turno ({{ cajaStore.facturas.length }})
+            Facturas del Turno ({{ cajaStore.facturas?.length || 0 }})
           </VTab>
         </VTabs>
 
@@ -352,10 +390,22 @@ const handleAnularFactura = async (factura) => {
             <VRow>
               <VCol cols="12" md="7">
                 <VCard variant="outlined" class="pa-4">
-                  <h4 class="text-subtitle-1 font-weight-bold mb-3 d-flex align-center gap-1">
-                    <VIcon icon="ri-money-dollar-box-line" color="primary" />
-                    <span>Conteo Físico de Efectivo en Gaveta</span>
-                  </h4>
+                  <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-3">
+                    <span class="d-flex align-center gap-1 text-subtitle-1 font-weight-bold">
+                      <VIcon icon="ri-money-dollar-box-line" color="primary" />
+                      <span>Conteo Físico de Efectivo en Gaveta</span>
+                    </span>
+                    <VBtn
+                      color="primary"
+                      variant="elevated"
+                      size="small"
+                      class="font-weight-bold"
+                      prepend-icon="ri-safe-2-line"
+                      @click="dialogArqueoCiego = true"
+                    >
+                      Arqueo Ciego Táctil (Billetes & Monedas)
+                    </VBtn>
+                  </div>
 
                   <VTextField
                     v-model="formCierre.monto_final_bs"
@@ -382,92 +432,228 @@ const handleAnularFactura = async (factura) => {
                   <div class="text-caption text-uppercase font-weight-bold mb-1">
                     Balance de Arqueo
                   </div>
-
-                  <div v-if="diferenciaCalculada === 0" class="pa-3 rounded bg-success-subtle mb-3">
-                    <div class="text-h4 font-weight-black text-success">Bs. 0.00</div>
-                    <span class="text-caption font-weight-bold text-success">âœ“ CUADRE PERFECTO EXACTO</span>
-                  </div>
-
-                  <div v-else-if="diferenciaCalculada > 0" class="pa-3 rounded bg-info-subtle mb-3">
-                    <div class="text-h4 font-weight-black text-info">+Bs. {{ Math.abs(diferenciaCalculada).toFixed(2) }}</div>
-                    <span class="text-caption font-weight-bold text-info">â–² SOBRANTE EN CAJA</span>
-                  </div>
-
-                  <div v-else class="pa-3 rounded bg-error-subtle mb-3">
-                    <div class="text-h4 font-weight-black text-error">-Bs. {{ Math.abs(diferenciaCalculada).toFixed(2) }}</div>
-                    <span class="text-caption font-weight-bold text-error">â–¼ FALTANTE EN CAJA</span>
-                  </div>
-
-                  <VBtn
-                    color="error"
-                    size="large"
-                    variant="flat"
-                    prepend-icon="ri-lock-2-line"
-                    :loading="loadingAction"
-                    class="font-weight-bold mt-2"
-                    @click="submitCierre"
+                  <div
+                    class="text-h4 font-weight-black mb-2"
+                    :class="diferenciaCalculada === 0 ? 'text-success' : (diferenciaCalculada > 0 ? 'text-info' : 'text-error')"
                   >
-                    CERRAR Y ARQUEAR TURNO
-                  </VBtn>
+                    {{ diferenciaCalculada >= 0 ? '+' : '' }}Bs. {{ diferenciaCalculada.toFixed(2) }}
+                  </div>
+                  <div class="text-caption font-weight-medium">
+                    <span v-if="diferenciaCalculada === 0" class="text-success font-weight-bold">
+                      <VIcon icon="ri-checkbox-circle-line" start size="16" />
+                      Caja Cuadrada Perfectamente
+                    </span>
+                    <span v-else-if="diferenciaCalculada > 0" class="text-info font-weight-bold">
+                      <VIcon icon="ri-arrow-up-circle-line" start size="16" />
+                      Sobrante de Caja Chica
+                    </span>
+                    <span v-else class="text-error font-weight-bold">
+                      <VIcon icon="ri-error-warning-line" start size="16" />
+                      Faltante en Gaveta
+                    </span>
+                  </div>
+                  <div class="text-caption text-medium-emphasis mt-2">
+                    Esperado según sistema: <strong>Bs. {{ cajaStore.efectivoEsperado.toFixed(2) }}</strong>
+                  </div>
                 </VCard>
               </VCol>
             </VRow>
-          </div>
 
-          <!-- TAB 2: GASTOS Y MOVIMIENTOS -->
-          <div v-if="activeTab === 'gastos'">
-            <div class="d-flex justify-space-between align-center mb-3">
-              <span class="text-subtitle-1 font-weight-bold">
-                Movimientos de Entrada y Salida de Efectivo
-              </span>
+            <div class="d-flex justify-end mt-4">
               <VBtn
                 color="error"
+                size="large"
                 variant="elevated"
-                size="small"
-                prepend-icon="ri-add-circle-line"
-                @click="dialogMovimiento = true"
+                prepend-icon="ri-lock-2-line"
+                :loading="loadingAction"
+                class="px-8 font-weight-bold"
+                @click="submitCierre"
               >
-                + Registrar Gasto / Retiro
+                CERRAR Y ARQUEAR TURNO DE CAJA
               </VBtn>
             </div>
+          </div>
 
-            <VTable density="compact" class="border rounded">
+          <!-- TAB 2: GASTOS OPERATIVOS & CAJA CHICA (frmGastos RestoTech) -->
+          <div v-if="activeTab === 'gastos'">
+            <div class="d-flex flex-wrap justify-space-between align-center gap-2 mb-4">
+              <div>
+                <h4 class="text-subtitle-1 font-weight-bold mb-0">
+                  Control de Gastos Operativos & Caja Chica (frmGastos)
+                </h4>
+                <div class="text-caption text-medium-emphasis">
+                  Egresos categorizados que impactan la cuadratura de caja chica
+                </div>
+              </div>
+              <div class="d-flex gap-2">
+                <VBtn
+                  color="error"
+                  variant="elevated"
+                  size="default"
+                  class="font-weight-bold"
+                  prepend-icon="ri-hand-coin-line"
+                  @click="dialogGasto = true"
+                >
+                  + Registrar Gasto de Caja Chica
+                </VBtn>
+                <VBtn
+                  color="secondary"
+                  variant="outlined"
+                  size="default"
+                  prepend-icon="ri-exchange-dollar-line"
+                  @click="dialogMovimiento = true"
+                >
+                  + Movimiento Manual Extra
+                </VBtn>
+              </div>
+            </div>
+
+            <!-- Resumen Rápido de Gastos -->
+            <VRow class="mb-4" dense>
+              <VCol cols="12" sm="4">
+                <VCard variant="tonal" color="error" class="pa-3 rounded-lg text-center">
+                  <div class="text-caption font-weight-bold text-uppercase">Total Gastos Turno</div>
+                  <div class="text-h5 font-weight-black">
+                    Bs. {{ cajaStore.gastosSummary?.total_gastos !== undefined ? cajaStore.gastosSummary.total_gastos.toFixed(2) : (cajaStore.turnoActivo?.total_gastos || 0).toFixed(2) }}
+                  </div>
+                </VCard>
+              </VCol>
+              <VCol cols="12" sm="4">
+                <VCard variant="tonal" color="warning" class="pa-3 rounded-lg text-center">
+                  <div class="text-caption font-weight-bold text-uppercase">Efectivo de Caja</div>
+                  <div class="text-h5 font-weight-black">
+                    Bs. {{ cajaStore.gastosSummary?.total_efectivo !== undefined ? cajaStore.gastosSummary.total_efectivo.toFixed(2) : (cajaStore.turnoActivo?.total_gastos || 0).toFixed(2) }}
+                  </div>
+                </VCard>
+              </VCol>
+              <VCol cols="12" sm="4">
+                <VCard variant="tonal" color="info" class="pa-3 rounded-lg text-center">
+                  <div class="text-caption font-weight-bold text-uppercase">Digital / QR / Transf.</div>
+                  <div class="text-h5 font-weight-black">
+                    Bs. {{ (cajaStore.gastosSummary?.total_otros || 0).toFixed(2) }}
+                  </div>
+                </VCard>
+              </VCol>
+            </VRow>
+
+            <!-- Tabla Principal: Gastos de Caja Chica -->
+            <VTable density="compact" class="border rounded mb-6">
               <thead>
                 <tr>
                   <th>Hora</th>
-                  <th>Tipo</th>
-                  <th>Motivo</th>
+                  <th>Categoría</th>
+                  <th>Beneficiario / Proveedor</th>
+                  <th>Motivo / Justificación</th>
                   <th>N° Comprobante</th>
-                  <th>Usuario</th>
-                  <th class="text-right">Monto</th>
+                  <th>Origen / Pago</th>
+                  <th class="text-right">Monto (Bs.)</th>
+                  <th class="text-center">Estado</th>
+                  <th class="text-center">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="cajaStore.movimientos.length === 0">
-                  <td colspan="6" class="text-center py-4 text-medium-emphasis">
-                    No hay movimientos registrados en este turno
+                <tr v-if="!cajaStore.gastos || cajaStore.gastos.length === 0">
+                  <td colspan="9" class="text-center py-6 text-medium-emphasis">
+                    <VIcon icon="ri-hand-coin-line" size="28" class="mb-1 d-block mx-auto text-disabled" />
+                    No hay gastos registrados en este turno.
+                    <div class="text-caption mt-1">Haga clic en <strong>+ Registrar Gasto de Caja Chica</strong> para agregar un egreso.</div>
                   </td>
                 </tr>
-                <tr v-for="m in cajaStore.movimientos" :key="m.id">
-                  <td>{{ m.created_at?.split(' ')[1] || m.created_at }}</td>
+                <tr v-for="g in cajaStore.gastos" :key="g.id">
+                  <td>{{ g.created_at?.split('T')[1]?.substring(0, 8) || g.created_at?.split(' ')[1] || g.created_at }}</td>
+                  <td>
+                    <VChip size="small" color="primary" variant="tonal" class="font-weight-medium">
+                      <VIcon :icon="g.tipo_gasto?.icono || 'ri-price-tag-3-line'" start size="15" />
+                      {{ g.tipo_gasto?.nombre || 'General' }}
+                    </VChip>
+                  </td>
+                  <td class="font-weight-bold">{{ g.beneficiario }}</td>
+                  <td class="text-caption">{{ g.observaciones || '-' }}</td>
+                  <td>
+                    <code class="font-weight-bold text-primary">{{ g.comprobante_nro || '-' }}</code>
+                  </td>
                   <td>
                     <VChip
                       size="x-small"
-                      :color="m.tipo === 'INGRESO' ? 'success' : (m.tipo === 'RETIRO_CAJA' ? 'warning' : 'error')"
+                      :color="g.forma_pago === 'EFECTIVO' ? 'error' : 'info'"
+                      variant="tonal"
                       class="font-weight-bold"
                     >
-                      {{ m.tipo }}
+                      {{ g.forma_pago === 'EFECTIVO' ? '💵 EFECTIVO' : (g.forma_pago === 'QR' ? '📱 QR' : '🏦 BANCO') }}
                     </VChip>
                   </td>
-                  <td>{{ m.motivo }}</td>
-                  <td>{{ m.comprobante_nro || '-' }}</td>
-                  <td>{{ m.usuario_nombre || 'Cajero' }}</td>
-                  <td class="text-right font-weight-bold" :class="m.tipo === 'INGRESO' ? 'text-success' : 'text-error'">
-                    {{ m.tipo === 'INGRESO' ? '+' : '-' }}Bs. {{ parseFloat(m.monto).toFixed(2) }}
+                  <td
+                    class="text-right font-weight-black"
+                    :class="g.estado === 'ANULADO' ? 'text-decoration-line-through text-medium-emphasis' : 'text-error'"
+                  >
+                    -Bs. {{ parseFloat(g.monto).toFixed(2) }}
+                  </td>
+                  <td class="text-center">
+                    <VChip
+                      size="x-small"
+                      :color="g.estado === 'ACTIVO' ? 'success' : 'secondary'"
+                      variant="elevated"
+                      class="font-weight-bold"
+                    >
+                      {{ g.estado }}
+                    </VChip>
+                  </td>
+                  <td class="text-center">
+                    <VBtn
+                      v-if="g.estado === 'ACTIVO'"
+                      size="x-small"
+                      color="error"
+                      variant="text"
+                      prepend-icon="ri-close-circle-line"
+                      @click="handleAnularGasto(g)"
+                    >
+                      Anular
+                    </VBtn>
+                    <span v-else class="text-caption text-disabled">Anulado</span>
                   </td>
                 </tr>
               </tbody>
             </VTable>
+
+            <!-- Sección Secundaria: Movimientos Manuales de Gaveta -->
+            <div v-if="cajaStore.movimientos && cajaStore.movimientos.length > 0" class="mt-4">
+              <h5 class="text-subtitle-2 font-weight-bold mb-2 d-flex align-center gap-1">
+                <VIcon icon="ri-history-line" size="18" />
+                <span>Otros Movimientos Manuales de Gaveta ({{ cajaStore.movimientos.length }})</span>
+              </h5>
+              <VTable density="compact" class="border rounded">
+                <thead>
+                  <tr>
+                    <th>Hora</th>
+                    <th>Tipo</th>
+                    <th>Motivo</th>
+                    <th>N° Comprobante</th>
+                    <th>Usuario</th>
+                    <th class="text-right">Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="m in cajaStore.movimientos" :key="m.id">
+                    <td>{{ m.created_at?.split(' ')[1] || m.created_at }}</td>
+                    <td>
+                      <VChip
+                        size="x-small"
+                        :color="m.tipo === 'INGRESO' ? 'success' : (m.tipo === 'RETIRO_CAJA' ? 'warning' : 'error')"
+                        class="font-weight-bold"
+                      >
+                        {{ m.tipo }}
+                      </VChip>
+                    </td>
+                    <td>{{ m.motivo }}</td>
+                    <td>{{ m.comprobante_nro || '-' }}</td>
+                    <td>{{ m.usuario_nombre || 'Cajero' }}</td>
+                    <td class="text-right font-weight-bold" :class="m.tipo === 'INGRESO' ? 'text-success' : 'text-error'">
+                      {{ m.tipo === 'INGRESO' ? '+' : '-' }}Bs. {{ parseFloat(m.monto).toFixed(2) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </VTable>
+            </div>
           </div>
 
           <!-- TAB 3: FACTURAS DEL TURNO -->
@@ -486,7 +672,7 @@ const handleAnularFactura = async (factura) => {
                 </tr>
               </thead>
               <tbody>
-                <tr v-if="cajaStore.facturas.length === 0">
+                <tr v-if="!cajaStore.facturas || cajaStore.facturas.length === 0">
                   <td colspan="8" class="text-center py-4 text-medium-emphasis">
                     No se han emitido facturas en este turno
                   </td>
@@ -494,17 +680,17 @@ const handleAnularFactura = async (factura) => {
                 <tr v-for="f in cajaStore.facturas" :key="f.id">
                   <td class="font-weight-bold">#{{ f.nro_factura }}</td>
                   <td>{{ f.fecha_emision }}</td>
-                  <td>{{ f.razon_social }}</td>
-                  <td>{{ f.numero_documento }}</td>
+                  <td>{{ f.cliente_razon_social || 'S/N' }}</td>
+                  <td>{{ f.cliente_nit || '0' }}</td>
                   <td>
-                    <VChip size="x-small" variant="tonal" color="primary">
+                    <VChip size="x-small" variant="tonal">
                       {{ f.metodo_pago }}
                     </VChip>
                   </td>
                   <td>
                     <VChip
                       size="x-small"
-                      :color="f.estado === 'VALIDA' ? 'success' : 'error'"
+                      :color="f.estado === 'EMITIDA' ? 'success' : 'error'"
                       class="font-weight-bold"
                     >
                       {{ f.estado }}
@@ -515,11 +701,10 @@ const handleAnularFactura = async (factura) => {
                   </td>
                   <td class="text-center">
                     <VBtn
-                      v-if="f.estado === 'VALIDA'"
+                      v-if="f.estado === 'EMITIDA'"
                       size="x-small"
                       color="error"
                       variant="text"
-                      prepend-icon="ri-close-circle-line"
                       @click="handleAnularFactura(f)"
                     >
                       Anular
@@ -533,12 +718,25 @@ const handleAnularFactura = async (factura) => {
       </VCard>
     </div>
 
-    <!-- Modal Registrar Gasto / Movimiento -->
+    <!-- Modal Registrar Gasto de Caja Chica (frmGastos RestoTech) -->
+    <GastoModal
+      v-model="dialogGasto"
+      @saved="loadCajaData"
+    />
+
+    <!-- Modal Arqueo Ciego Táctil (frmControlCajaTurnoCiego RestoTech) -->
+    <ArqueoCiegoModal
+      v-model="dialogArqueoCiego"
+      :turno="cajaStore.turnoActivo"
+      @closed="loadCajaData"
+    />
+
+    <!-- Modal Registrar Movimiento Extra (Ingreso / Retiro de Gaveta) -->
     <VDialog v-model="dialogMovimiento" max-width="480">
       <VCard>
         <VCardItem class="bg-error text-white py-2">
           <div class="d-flex align-center justify-space-between w-100">
-            <span class="font-weight-bold">Registrar Movimiento / Gasto</span>
+            <span class="font-weight-bold">Registrar Movimiento Extra de Gaveta</span>
             <VIcon icon="ri-money-dollar-circle-line" />
           </div>
         </VCardItem>
@@ -552,8 +750,8 @@ const handleAnularFactura = async (factura) => {
             variant="outlined"
             class="w-100 mb-3"
           >
-            <VBtn value="EGRESO_GASTO" class="flex-grow-1">Gasto Operativo</VBtn>
-            <VBtn value="RETIRO_CAJA" class="flex-grow-1">Retiro / Arqueo</VBtn>
+            <VBtn value="EGRESO_GASTO" class="flex-grow-1">Egreso Directo</VBtn>
+            <VBtn value="RETIRO_CAJA" class="flex-grow-1">Retiro / Caja Fuerte</VBtn>
             <VBtn value="INGRESO" class="flex-grow-1">Ingreso Extra</VBtn>
           </VBtnToggle>
 
@@ -575,7 +773,7 @@ const handleAnularFactura = async (factura) => {
             variant="outlined"
             density="comfortable"
             class="mb-3"
-            placeholder="Ej. Compra de insumos de cocina urgentes"
+            placeholder="Ej. Cambio de monedas urgente o ingreso imprevisto"
           />
 
           <VTextField
@@ -586,7 +784,7 @@ const handleAnularFactura = async (factura) => {
             placeholder="Opcional"
           />
         </VCardText>
-        <VCardActions class="pa-3 bg-surface-variant d-flex justify-space-between">
+        <VCardActions class="pa-3 bg-surface border-t d-flex justify-space-between">
           <VBtn variant="outlined" @click="dialogMovimiento = false">Cancelar</VBtn>
           <VBtn color="error" variant="flat" :loading="loadingAction" @click="submitMovimiento">
             Guardar Movimiento

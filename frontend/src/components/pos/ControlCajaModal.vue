@@ -280,7 +280,7 @@ const closeModal = () => {
         <!-- VIEW B: SHIFT OPEN (Full frmControlCajaTurno) -->
         <div v-else class="turno-activo-section">
           <!-- Shift Info Bar -->
-          <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-4 pa-3 bg-surface-variant rounded">
+          <div class="d-flex align-center justify-space-between flex-wrap gap-2 mb-4 pa-3 bg-var-theme-background border rounded">
             <div>
               <span class="text-caption font-weight-medium">Cajero Responsable:</span>
               <strong class="ms-1">{{ cajaStore.turnoActivo?.cajero_nombre || 'Cajero' }}</strong>
@@ -579,7 +579,7 @@ const closeModal = () => {
         </div>
       </VCardText>
 
-      <VCardActions class="pa-3 bg-surface-variant d-flex justify-end">
+      <VCardActions class="pa-3 bg-surface border-t d-flex justify-end">
         <VBtn variant="outlined" color="secondary" @click="closeModal">
           Cerrar Ventana (ESC)
         </VBtn>
@@ -639,7 +639,7 @@ const closeModal = () => {
             placeholder="Opcional"
           />
         </VCardText>
-        <VCardActions class="pa-3 bg-surface-variant d-flex justify-space-between">
+        <VCardActions class="pa-3 bg-surface border-t d-flex justify-space-between">
           <VBtn variant="outlined" @click="dialogMovimiento = false">Cancelar</VBtn>
           <VBtn color="error" variant="flat" :loading="loadingAction" @click="submitMovimiento">
             Guardar Movimiento

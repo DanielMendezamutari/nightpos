@@ -51,7 +51,7 @@ class DatabaseSeeder extends Seeder
                 'password' => Hash::make('cajero123'),
             ],
             [
-                'name' => 'Mesero SalÃ³n',
+                'name' => 'Mesero Salón',
                 'username' => 'mesero',
                 'email' => 'mesero@ribersoft.com',
                 'pin' => '5678',

@@ -101,7 +101,7 @@ const guardarCompra = async () => {
       <VCardTitle class="d-flex align-center justify-space-between bg-primary text-white pa-4">
         <span class="text-h6 font-weight-bold">
           <VIcon icon="ri-shopping-cart-2-line" class="me-2" />
-          RecepciÃ³n de MercaderÃ­a & Compra
+          Recepción de Mercadería & Compra
         </span>
         <VBtn icon="ri-close-line" variant="text" color="white" density="comfortable" @click="emit('update:modelValue', false)" />
       </VCardTitle>
@@ -126,7 +126,7 @@ const guardarCompra = async () => {
               :items="store.almacenes"
               item-title="nombre"
               item-value="id"
-              label="AlmacÃ©n Receptor *"
+              label="Almacén Receptor *"
               density="compact"
               variant="outlined"
             />
@@ -195,7 +195,7 @@ const guardarCompra = async () => {
               <th>Cantidad</th>
               <th>Costo Unit. (Bs)</th>
               <th>Subtotal (Bs)</th>
-              <th class="text-center">AcciÃ³n</th>
+              <th class="text-center">Acción</th>
             </tr>
           </thead>
           <tbody>
@@ -224,9 +224,9 @@ const guardarCompra = async () => {
               v-model="metodoPago"
               :items="[
                 { title: 'Contado (Pagado)', value: 'CONTADO' },
-                { title: 'CrÃ©dito (A Deber)', value: 'CREDITO' }
+                { title: 'Crédito (A Deber)', value: 'CREDITO' }
               ]"
-              label="CondiciÃ³n de Pago *"
+              label="Condición de Pago *"
               density="compact"
               variant="outlined"
             />

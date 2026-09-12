@@ -13,6 +13,8 @@ final class Factura
         private readonly ?int $visitaId,
         private readonly int $turnoId,
         private readonly string $cajeroId,
+        private readonly string $tipoComprobante,
+        private readonly ?string $nroComprobante,
         private readonly int $nroFactura,
         private readonly string $cuf,
         private readonly ?string $cufd,
@@ -23,10 +25,14 @@ final class Factura
         private readonly string $metodoPago,
         private readonly float $montoTotal,
         private readonly float $montoEfectivo,
-        private readonly float $montoCambio,
-        private readonly string $estado,
-        private readonly ?string $codigoSiat,
-        private readonly string $fechaEmision,
+        private readonly float $montoTarjeta = 0.0,
+        private readonly float $montoQr = 0.0,
+        private readonly ?string $segundoMetodoPago = null,
+        private readonly ?string $nroTarjeta = null,
+        private readonly float $montoCambio = 0.0,
+        private readonly string $estado = 'VALIDA',
+        private readonly ?string $codigoSiat = null,
+        private readonly string $fechaEmision = '',
         private readonly ?string $cajeroNombre = null,
         private readonly ?string $mesaNumero = null,
         private readonly array $detalles = [],
@@ -39,6 +45,8 @@ final class Factura
     public function turnoId(): int { return $this->turnoId; }
     public function cajeroId(): string { return $this->cajeroId; }
     public function nroFactura(): int { return $this->nroFactura; }
+    public function tipoComprobante(): string { return $this->tipoComprobante; }
+    public function nroComprobante(): ?string { return $this->nroComprobante; }
     public function cuf(): string { return $this->cuf; }
     public function cufd(): ?string { return $this->cufd; }
     public function tipoDocumento(): string { return $this->tipoDocumento; }
@@ -48,6 +56,10 @@ final class Factura
     public function metodoPago(): string { return $this->metodoPago; }
     public function montoTotal(): float { return $this->montoTotal; }
     public function montoEfectivo(): float { return $this->montoEfectivo; }
+    public function montoTarjeta(): float { return $this->montoTarjeta; }
+    public function montoQr(): float { return $this->montoQr; }
+    public function segundoMetodoPago(): ?string { return $this->segundoMetodoPago; }
+    public function nroTarjeta(): ?string { return $this->nroTarjeta; }
     public function montoCambio(): float { return $this->montoCambio; }
     public function estado(): string { return $this->estado; }
     public function codigoSiat(): ?string { return $this->codigoSiat; }

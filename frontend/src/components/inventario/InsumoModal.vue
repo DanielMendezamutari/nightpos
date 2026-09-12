@@ -62,7 +62,7 @@ const guardar = async () => {
       <VCardTitle class="d-flex align-center justify-space-between bg-primary text-white pa-4">
         <span class="text-h6 font-weight-bold">
           <VIcon icon="ri-archive-line" class="me-2" />
-          {{ form.id ? 'Editar Insumo / Materia Prima' : 'Nuevo Insumo de AlmacÃ©n' }}
+          {{ form.id ? 'Editar Insumo / Materia Prima' : 'Nuevo Insumo de Almacén' }}
         </span>
         <VBtn icon="ri-close-line" variant="text" color="white" density="comfortable" @click="emit('update:modelValue', false)" />
       </VCardTitle>
@@ -81,7 +81,7 @@ const guardar = async () => {
           <VCol cols="12" md="4">
             <VTextField
               v-model="form.codigo"
-              label="CÃ³digo / Ref"
+              label="Código / Ref"
               placeholder="INS-001"
               density="compact"
               variant="outlined"
@@ -94,7 +94,7 @@ const guardar = async () => {
               :items="store.almacenes"
               item-title="nombre"
               item-value="id"
-              label="AlmacÃ©n *"
+              label="Almacén *"
               density="compact"
               variant="outlined"
             />
@@ -136,7 +136,7 @@ const guardar = async () => {
             <VTextField
               v-model.number="form.stock_minimo"
               type="number"
-              label="Stock MÃ­nimo (Alerta)"
+              label="Stock Mínimo (Alerta)"
               density="compact"
               variant="outlined"
               step="0.001"

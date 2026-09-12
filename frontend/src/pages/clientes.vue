@@ -70,7 +70,7 @@ const abrirAnticipo = (cli) => {
 }
 
 const confirmarEliminar = async (cli) => {
-  if (confirm(`Â¿EstÃ¡ seguro de desactivar al cliente ${cli.nombre_completo || cli.nombre}?`)) {
+  if (confirm(`¿Está seguro de desactivar al cliente ${cli.nombre_completo || cli.nombre}?`)) {
     const res = await clientesStore.eliminarCliente(cli.id)
     if (res.success) {
       showNotification('Cliente desactivado correctamente')
@@ -92,7 +92,7 @@ const confirmarEliminar = async (cli) => {
             Clientes & Cuentas Corrientes
           </h2>
           <span class="text-caption text-medium-emphasis">
-            Directorio de Clientes, Control de CrÃ©ditos, Anticipos de Reservas | Ribersoft POS
+            Directorio de Clientes, Control de Créditos, Anticipos de Reservas | Ribersoft POS
           </span>
         </div>
       </div>
@@ -202,7 +202,7 @@ const confirmarEliminar = async (cli) => {
             class="font-weight-bold cursor-pointer"
             @click="onFilterChange('DEUDORES')"
           >
-            Solo Deudores (CrÃ©dito)
+            Solo Deudores (Crédito)
           </VChip>
 
           <VChip
@@ -213,7 +213,7 @@ const confirmarEliminar = async (cli) => {
             @click="onFilterChange('CUMPLEANEROS')"
           >
             <VIcon icon="ri-cake-2-line" class="me-1" />
-            CumpleaÃ±eros del Mes
+            Cumpleañeros del Mes
           </VChip>
         </div>
       </div>
@@ -227,7 +227,7 @@ const confirmarEliminar = async (cli) => {
             <th class="font-weight-bold">CLIENTE</th>
             <th class="font-weight-bold">NIT / CI</th>
             <th class="font-weight-bold">CONTACTO</th>
-            <th class="font-weight-bold">CRÃ‰DITO PERMITIDO</th>
+            <th class="font-weight-bold">CRÉDITO PERMITIDO</th>
             <th class="font-weight-bold">ESTADO DEUDA</th>
             <th class="font-weight-bold">DESCUENTO</th>
             <th class="font-weight-bold text-center">ACCIONES</th>
@@ -259,7 +259,7 @@ const confirmarEliminar = async (cli) => {
                 {{ cli.nombre }} {{ cli.apellidos || '' }}
               </div>
               <div class="text-caption text-medium-emphasis">
-                {{ cli.razon_social || 'Sin RazÃ³n Social' }}
+                {{ cli.razon_social || 'Sin Razón Social' }}
               </div>
             </td>
 
@@ -282,7 +282,7 @@ const confirmarEliminar = async (cli) => {
               </div>
             </td>
 
-            <!-- LÃ­mite CrÃ©dito -->
+            <!-- Límite Crédito -->
             <td>
               <div v-if="cli.permite_credito">
                 <VChip size="small" color="primary" variant="tonal" class="font-weight-bold">
@@ -311,7 +311,7 @@ const confirmarEliminar = async (cli) => {
                 variant="tonal"
                 class="font-weight-bold"
               >
-                Al DÃ­a (Bs. 0.00)
+                Al Día (Bs. 0.00)
               </VChip>
             </td>
 

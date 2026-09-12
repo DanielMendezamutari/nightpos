@@ -6,6 +6,9 @@ import { useComandaStore } from '@/stores/comanda'
 import { useCajaStore } from '@/stores/caja'
 import ComandaModal from '@/components/pos/ComandaModal.vue'
 import CobroFacturacionModal from '@/components/pos/CobroFacturacionModal.vue'
+import SepararCuentasModal from '@/components/pos/SepararCuentasModal.vue'
+import CambiarMesaModal from '@/components/pos/CambiarMesaModal.vue'
+import SinMesaModal from '@/components/pos/SinMesaModal.vue'
 import ControlCajaModal from '@/components/pos/ControlCajaModal.vue'
 
 const salonStore = useSalonMesaStore()
@@ -19,6 +22,10 @@ const changeTableDialog = ref(false)
 const tableDetailDialog = ref(false)
 const comandaModalOpen = ref(false)
 const cobroModalOpen = ref(false)
+const separarCuentasModalOpen = ref(false)
+const cambiarMesaModalOpen = ref(false)
+const sinMesaModalOpen = ref(false)
+const pedidosSinMesaCount = ref(0)
 const controlCajaModalOpen = ref(false)
 const targetMesa = ref(null)
 
@@ -32,9 +39,81 @@ const openTableForm = ref({
 // Form data for changing table
 const destinationMesaId = ref(null)
 
+
+const cargarContadorSinMesa = async () => {
+  try {
+    const list = await comandaStore.fetchPedidosSinMesa()
+    pedidosSinMesaCount.value = Array.isArray(list) ? list.length : 0
+  } catch (e) {
+    pedidosSinMesaCount.value = 0
+  }
+}
+
+const onMesaCambiada = async () => {
+  tableDetailDialog.value = false
+  await salonStore.fetchSalones()
+  await cargarContadorSinMesa()
+}
+
+const onMesaJuntada = async () => {
+  tableDetailDialog.value = false
+  await salonStore.fetchSalones()
+  await cargarContadorSinMesa()
+}
+
+const onPedidoAsignadoAMesa = async () => {
+  await salonStore.fetchSalones()
+  await cargarContadorSinMesa()
+}
+
+const onAbrirComandaSinMesa = async (mesaVirtual) => {
+  targetMesa.value = mesaVirtual
+  if (mesaVirtual?.visita_id) {
+    try {
+      const res = await $api(`/api/v1/visitas/${mesaVirtual.visita_id}`)
+      if (res?.visita) {
+        targetMesa.value = {
+          ...mesaVirtual,
+          visitaActiva: res.visita,
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo refrescar la visita sin mesa:', e)
+    }
+  }
+  comandaModalOpen.value = true
+}
+
+const onAbrirCobroSinMesa = async (mesaVirtual) => {
+  targetMesa.value = mesaVirtual
+  if (mesaVirtual?.visita_id) {
+    try {
+      const res = await $api(`/api/v1/visitas/${mesaVirtual.visita_id}`)
+      if (res?.visita) {
+        targetMesa.value = {
+          ...mesaVirtual,
+          visitaActiva: res.visita,
+        }
+      }
+    } catch (e) {
+      console.warn('No se pudo refrescar la visita sin mesa para cobro:', e)
+    }
+  }
+  cobroModalOpen.value = true
+}
+
 // Hotkeys handler (RestoTech Keyboard Accelerators)
 const handleGlobalKeydown = (e) => {
-  if (e.key === 'F9') {
+  if (e.key === 'F7') {
+    e.preventDefault()
+    cambiarMesaModalOpen.value = true
+  } else if (e.key === 'F9') {
+    e.preventDefault()
+    sinMesaModalOpen.value = true
+  } else if (e.key === 'F8' && tableDetailDialog.value && targetMesa.value) {
+    e.preventDefault()
+    separarCuentasModalOpen.value = true
+  } else if (e.key === 'F9') {
     e.preventDefault()
     controlCajaModalOpen.value = true
   } else if (e.key === 'F12' && tableDetailDialog.value && targetMesa.value) {
@@ -123,6 +202,13 @@ const handleSolicitarPrecuenta = async () => {
 }
 
 // Open Cobro / Facturacion Modal
+
+const onMesaLiberada = async () => {
+  separarCuentasModalOpen.value = false
+  tableDetailDialog.value = false
+  await salonStore.fetchSalones()
+}
+
 const abrirCobroModal = () => {
   if (!cajaStore.isTurnoAbierto) {
     alert('Debe abrir un turno de caja antes de realizar cobros y facturación.')
@@ -137,6 +223,7 @@ const abrirCobroModal = () => {
 const onCobroExitoso = async () => {
   targetMesa.value = null
   await salonStore.fetchMesas(salonStore.activeSalonId)
+  await cargarContadorSinMesa()
 }
 
 // Delete existing item from order
@@ -153,7 +240,11 @@ const handleEliminarItem = async (detalleId) => {
 // On comanda sent
 const onComandaEnviada = async () => {
   if (targetMesa.value) {
-    await salonStore.fetchMesaDetails(targetMesa.value.id)
+    if (typeof targetMesa.value.id === 'number') {
+      await salonStore.fetchMesaDetails(targetMesa.value.id)
+    } else {
+      await cargarContadorSinMesa()
+    }
   }
 }
 
@@ -288,6 +379,21 @@ const freeTablesForMove = computed(() => {
               </strong>
             </div>
 
+            
+            <VBtn
+              color="warning"
+              variant="elevated"
+              size="small"
+              class="font-weight-bold"
+              @click="sinMesaModalOpen = true"
+            >
+              <VIcon icon="ri-takeaway-line" start size="16" />
+              Sin Mesa / Llevar (F9)
+              <VChip v-if="pedidosSinMesaCount > 0" size="x-small" color="white" class="ms-1 font-weight-black text-warning">
+                {{ pedidosSinMesaCount }}
+              </VChip>
+            </VBtn>
+
             <VTextField
               v-model="salonStore.searchQuery"
               placeholder="Buscar mesa..."
@@ -355,7 +461,25 @@ const freeTablesForMove = computed(() => {
               <div class="text-caption font-weight-medium text-success">
                 Tocar para Abrir
               </div>
-            </template>
+            
+    <!-- BUCLE 9: Modales Cambiar/Juntar Mesa y Pedidos Sin Mesa -->
+    <CambiarMesaModal
+      v-model="cambiarMesaModalOpen"
+      :mesa-origen="targetMesa"
+      :salones="salonStore.salones"
+      @mesa-cambiada="onMesaCambiada"
+      @mesa-juntada="onMesaJuntada"
+    />
+
+    <SinMesaModal
+      v-model="sinMesaModalOpen"
+      :salones="salonStore.salones"
+      @abrir-comanda="onAbrirComandaSinMesa"
+      @abrir-cobro="onAbrirCobroSinMesa"
+      @pedido-asignado-a-mesa="onPedidoAsignadoAMesa"
+    />
+
+</template>
 
             <template v-else>
               <div class="text-caption text-truncate font-weight-medium mb-1">
@@ -573,6 +697,28 @@ const freeTablesForMove = computed(() => {
               Mover Mesa
             </VBtn>
 
+
+            
+            <VBtn
+              color="info"
+              variant="tonal"
+              prepend-icon="ri-arrow-left-right-line"
+              class="flex-grow-1 font-weight-bold"
+              @click="cambiarMesaModalOpen = true"
+            >
+              Cambiar / Juntar (F7)
+            </VBtn>
+
+            <VBtn
+              color="primary"
+              variant="tonal"
+              prepend-icon="ri-split-cells-vertical"
+              class="flex-grow-1 font-weight-bold"
+              @click="separarCuentasModalOpen = true"
+            >
+              Separar Cuentas (F8)
+            </VBtn>
+
             <!-- RestoTech frmFacturacion1 Trigger -->
             <VBtn
               color="success"
@@ -645,7 +791,7 @@ const freeTablesForMove = computed(() => {
     <ComandaModal
       v-model="comandaModalOpen"
       :mesa="targetMesa"
-      :visita="salonStore.selectedMesaDetails?.visita"
+      :visita="targetMesa?.visitaActiva || salonStore.selectedMesaDetails?.visita"
       @comanda-enviada="onComandaEnviada"
     />
 
@@ -653,8 +799,16 @@ const freeTablesForMove = computed(() => {
     <CobroFacturacionModal
       v-model="cobroModalOpen"
       :mesa="targetMesa"
-      :visita="salonStore.selectedMesaDetails?.visita"
+      :visita="targetMesa?.visitaActiva || salonStore.selectedMesaDetails?.visita"
       @cobro-exitoso="onCobroExitoso"
+    />
+
+
+    <!-- MODAL: Separar & Dividir Cuentas (frmSepararCuentas RestoTech) -->
+    <SepararCuentasModal
+      v-model="separarCuentasModalOpen"
+      :mesa="targetMesa"
+      @mesa-liberada="onMesaLiberada"
     />
 
     <!-- MODAL: Control de Caja & Arqueo de Turno (frmControlCajaTurno) -->

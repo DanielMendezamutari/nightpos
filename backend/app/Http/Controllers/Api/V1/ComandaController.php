@@ -93,24 +93,33 @@ class ComandaController extends Controller
         ]);
     }
 
-    public function agregarComanda(Request $request, int $mesaId): JsonResponse
+        public function agregarComanda(Request $request, string|int $mesaId): JsonResponse
     {
         $validated = $request->validate([
             'items' => 'required|array|min:1',
             'items.*.producto_id' => 'required|integer|exists:productos,id',
             'items.*.cantidad' => 'required|numeric|min:0.25',
             'items.*.observaciones' => 'nullable|string|max:255',
+            'visita_id' => 'nullable|integer|exists:visitas,id',
         ]);
 
         try {
-            $resultado = $this->pedidoRepository->agregarItemsMesa($mesaId, $validated['items']);
+            $isSinMesa = str_starts_with((string)$mesaId, 'sin_mesa_') || $request->has('visita_id');
+            if ($isSinMesa) {
+                $visitaId = $request->input('visita_id') ?? (int)str_replace('sin_mesa_', '', (string)$mesaId);
+                $resultado = $this->pedidoRepository->agregarItemsVisita($visitaId, $validated['items']);
+                $descRef = "Comanda Sin Mesa #{$visitaId}";
+            } else {
+                $resultado = $this->pedidoRepository->agregarItemsMesa((int)$mesaId, $validated['items']);
+                $descRef = "Comanda Mesa #{$mesaId}";
+            }
 
-            // Descuento automÃ¡tico de stock de recetas / ingredientes
+            // Descuento automático de stock de recetas / ingredientes
             foreach ($validated['items'] as $item) {
                 \App\Http\Controllers\Api\V1\RecetaController::descontarInsumosPorVenta(
                     (int) $item['producto_id'],
                     (float) $item['cantidad'],
-                    "Comanda Mesa #{$mesaId}"
+                    $descRef
                 );
             }
 
@@ -125,6 +134,11 @@ class ComandaController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    public function agregarComandaVisita(Request $request, int $visitaId): JsonResponse
+    {
+        return $this->agregarComanda($request, "sin_mesa_{$visitaId}");
     }
 
     public function eliminarItem(int $detalleId): JsonResponse

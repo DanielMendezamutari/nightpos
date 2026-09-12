@@ -25,6 +25,8 @@ class TurnoModel extends Model
         'total_ventas_efectivo',
         'total_ventas_qr',
         'total_ventas_tarjeta',
+        'total_facturado',
+        'total_recibos',
         'total_gastos',
         'diferencia',
         'estado',
@@ -41,6 +43,8 @@ class TurnoModel extends Model
         'total_ventas_efectivo' => 'float',
         'total_ventas_qr' => 'float',
         'total_ventas_tarjeta' => 'float',
+        'total_facturado' => 'float',
+        'total_recibos' => 'float',
         'total_gastos' => 'float',
         'diferencia' => 'float',
     ];

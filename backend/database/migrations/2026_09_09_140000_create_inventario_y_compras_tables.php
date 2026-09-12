@@ -63,7 +63,7 @@ return new class extends Migration
             $table->index(['almacen_id', 'activo']);
         });
 
-        // 4. Fichas TÃ©cnicas / Recetas (Ingredientes por plato del menÃº)
+        // 4. Fichas Técnicas / Recetas (Ingredientes por plato del menú)
         Schema::create('recetas', function (Blueprint $table) {
             $table->id();
             $table->foreignId('producto_id')->constrained('productos')->cascadeOnDelete();
@@ -120,7 +120,7 @@ return new class extends Migration
             $table->decimal('costo_unitario', 12, 4)->default(0.0000);
             $table->decimal('stock_anterior', 12, 3);
             $table->decimal('stock_nuevo', 12, 3);
-            $table->string('referencia', 255)->nullable(); // ej: "Compra Fact #102", "Comanda Mesa #4", "Ajuste fÃ­sico"
+            $table->string('referencia', 255)->nullable(); // ej: "Compra Fact #102", "Comanda Mesa #4", "Ajuste físico"
             $table->timestamps();
 
             $table->index(['tenant_id', 'insumo_id']);

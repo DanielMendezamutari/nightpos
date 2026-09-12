@@ -192,7 +192,7 @@ const submit = async () => {
           <VCol cols="12" md="4">
             <VTextField
               v-model="form.ci_nit"
-              label="NÂ° NIT / CI"
+              label="N° NIT / CI"
               variant="outlined"
               density="comfortable"
               prepend-inner-icon="ri-hashtag"
@@ -202,7 +202,7 @@ const submit = async () => {
           <VCol cols="12" md="4">
             <VTextField
               v-model="form.razon_social"
-              label="RazÃ³n Social (Factura)"
+              label="Razón Social (Factura)"
               variant="outlined"
               density="comfortable"
               prepend-inner-icon="ri-building-line"
@@ -224,7 +224,7 @@ const submit = async () => {
           <VCol cols="12" md="4">
             <VTextField
               v-model="form.correo"
-              label="Correo ElectrÃ³nico"
+              label="Correo Electrónico"
               type="email"
               variant="outlined"
               density="comfortable"
@@ -235,7 +235,7 @@ const submit = async () => {
           <VCol cols="12" md="4">
             <VTextField
               v-model="form.cumpleanos"
-              label="Fecha de CumpleaÃ±os"
+              label="Fecha de Cumpleaños"
               type="date"
               variant="outlined"
               density="comfortable"
@@ -243,11 +243,11 @@ const submit = async () => {
             />
           </VCol>
 
-          <!-- DirecciÃ³n -->
+          <!-- Dirección -->
           <VCol cols="12">
             <VTextField
               v-model="form.direccion"
-              label="DirecciÃ³n de Domicilio / Oficina"
+              label="Dirección de Domicilio / Oficina"
               variant="outlined"
               density="comfortable"
               prepend-inner-icon="ri-map-pin-line"
@@ -255,17 +255,17 @@ const submit = async () => {
             />
           </VCol>
 
-          <!-- PolÃ­ticas Comerciales y CrÃ©dito (RestoTech _MaxDeuda, _Descuento) -->
+          <!-- Políticas Comerciales y Crédito (RestoTech _MaxDeuda, _Descuento) -->
           <VCol cols="12">
-            <VCard variant="outlined" class="pa-3 bg-surface-variant">
+            <VCard variant="tonal" color="primary" class="pa-4 rounded-lg bg-surface">
               <div class="text-subtitle-2 font-weight-black text-primary mb-2">
-                POLÃTICAS DE CRÃ‰DITO Y DESCUENTO (RESTOTECH PARITY)
+                POLÍTICAS DE CRÉDITO Y DESCUENTO (RESTOTECH PARITY)
               </div>
               <VRow>
                 <VCol cols="12" md="4">
                   <VCheckbox
                     v-model="form.permite_credito"
-                    label="Permitir Cuenta Corriente / CrÃ©dito"
+                    label="Permitir Cuenta Corriente / Crédito"
                     color="primary"
                     density="compact"
                     hide-details
@@ -275,7 +275,7 @@ const submit = async () => {
                 <VCol cols="12" md="4">
                   <VTextField
                     v-model.number="form.limite_credito"
-                    label="LÃ­mite MÃ¡ximo de CrÃ©dito (Bs.)"
+                    label="Límite Máximo de Crédito (Bs.)"
                     type="number"
                     variant="outlined"
                     density="compact"
@@ -303,7 +303,7 @@ const submit = async () => {
           <VCol cols="12">
             <VTextarea
               v-model="form.comentarios"
-              label="Observaciones y Preferencias GastronÃ³micas"
+              label="Observaciones y Preferencias Gastronómicas"
               rows="2"
               variant="outlined"
               density="comfortable"
@@ -313,7 +313,7 @@ const submit = async () => {
         </VRow>
       </VCardText>
 
-      <VCardActions class="pa-4 bg-surface-variant d-flex justify-space-between align-center">
+      <VCardActions class="pa-4 bg-surface border-t d-flex justify-space-between align-center">
         <VBtn
           variant="outlined"
           color="secondary"

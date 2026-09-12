@@ -98,14 +98,14 @@ const abrirRecetaProducto = (prod) => {
       <div>
         <h2 class="text-h4 font-weight-bold d-flex align-center gap-2">
           <VIcon icon="ri-archive-line" color="primary" />
-          Almacenes & Inventario GastronÃ³mico
+          Almacenes & Inventario Gastronómico
         </h2>
         <p class="text-body-1 text-medium-emphasis mb-0">
-          Control de stock, materias primas, compras, proveedores y recetas de producciÃ³n.
+          Control de stock, materias primas, compras, proveedores y recetas de producción.
         </p>
       </div>
 
-      <!-- Resumen MÃ©tricas RÃ¡pidas -->
+      <!-- Resumen Métricas Rápidas -->
       <div class="d-flex gap-3">
         <VCard variant="tonal" color="warning" class="px-4 py-2 text-center">
           <div class="text-caption">Bajo Stock</div>
@@ -118,9 +118,9 @@ const abrirRecetaProducto = (prod) => {
       </div>
     </div>
 
-    <!-- Tabs NavegaciÃ³n -->
+    <!-- Tabs Navegación -->
     <VCard>
-      <VTabs v-model="currentTab" bg-color="primary" class="rounded-t">
+      <VTabs v-model="currentTab" class="v-tabs-pill border-b pa-2">
         <VTab value="insumos">
           <VIcon icon="ri-stack-line" class="me-2" /> Insumos & Stock
         </VTab>
@@ -131,7 +131,7 @@ const abrirRecetaProducto = (prod) => {
           <VIcon icon="ri-truck-line" class="me-2" /> Proveedores & Deudas
         </VTab>
         <VTab value="recetas">
-          <VIcon icon="ri-restaurant-line" class="me-2" /> Fichas TÃ©cnicas (Recetas)
+          <VIcon icon="ri-restaurant-line" class="me-2" /> Fichas Técnicas (Recetas)
         </VTab>
         <VTab value="almacenes">
           <VIcon icon="ri-building-line" class="me-2" /> Almacenes
@@ -149,7 +149,7 @@ const abrirRecetaProducto = (prod) => {
               <VTextField
                 v-model="searchInsumo"
                 prepend-inner-icon="ri-search-line"
-                placeholder="Buscar insumo por nombre o cÃ³digo..."
+                placeholder="Buscar insumo por nombre o código..."
                 density="compact"
                 variant="outlined"
                 hide-details
@@ -184,9 +184,9 @@ const abrirRecetaProducto = (prod) => {
           <VTable class="border rounded" density="comfortable">
             <thead>
               <tr>
-                <th>CÃ³digo</th>
+                <th>Código</th>
                 <th>Nombre del Insumo</th>
-                <th>AlmacÃ©n</th>
+                <th>Almacén</th>
                 <th>Unidad</th>
                 <th>Costo Promedio</th>
                 <th>Stock Actual</th>
@@ -197,7 +197,7 @@ const abrirRecetaProducto = (prod) => {
             <tbody>
               <tr v-if="insumosFiltrados.length === 0">
                 <td colspan="8" class="text-center py-6 text-medium-emphasis">
-                  No se encontraron insumos de almacÃ©n
+                  No se encontraron insumos de almacén
                 </td>
               </tr>
               <tr v-for="insumo in insumosFiltrados" :key="insumo.id">
@@ -215,7 +215,7 @@ const abrirRecetaProducto = (prod) => {
                     :color="Number(insumo.stock_actual) <= Number(insumo.stock_minimo) ? 'error' : 'success'"
                     variant="elevated"
                   >
-                    {{ Number(insumo.stock_actual) <= Number(insumo.stock_minimo) ? 'BAJO STOCK' : 'Ã“PTIMO' }}
+                    {{ Number(insumo.stock_actual) <= Number(insumo.stock_minimo) ? 'BAJO STOCK' : 'ÓPTIMO' }}
                   </VChip>
                 </td>
                 <td class="text-center">
@@ -227,10 +227,10 @@ const abrirRecetaProducto = (prod) => {
           </VTable>
         </div>
 
-        <!-- TAB 2: COMPRAS & RECEPCIÃ“N -->
+        <!-- TAB 2: COMPRAS & RECEPCIÓN -->
         <div v-if="currentTab === 'compras'">
           <div class="d-flex align-center justify-space-between mb-4">
-            <h3 class="text-h6 font-weight-bold">Historial de Compras & RecepciÃ³n de MercaderÃ­a</h3>
+            <h3 class="text-h6 font-weight-bold">Historial de Compras & Recepción de Mercadería</h3>
             <VBtn color="primary" @click="modalCompra = true">
               <VIcon icon="ri-add-line" class="me-1" />
               Nueva Compra
@@ -243,9 +243,9 @@ const abrirRecetaProducto = (prod) => {
                 <th>Nro</th>
                 <th>Fecha</th>
                 <th>Proveedor</th>
-                <th>AlmacÃ©n</th>
+                <th>Almacén</th>
                 <th>Factura / Nota</th>
-                <th>CondiciÃ³n</th>
+                <th>Condición</th>
                 <th>Total (Bs)</th>
                 <th>Detalles</th>
               </tr>
@@ -269,7 +269,7 @@ const abrirRecetaProducto = (prod) => {
                 </td>
                 <td class="font-weight-bold text-primary">Bs. {{ Number(compra.monto_total).toFixed(2) }}</td>
                 <td>
-                  <span class="text-caption">{{ compra.detalles?.length || 0 }} Ã­tems</span>
+                  <span class="text-caption">{{ compra.detalles?.length || 0 }} ítems</span>
                 </td>
               </tr>
             </tbody>
@@ -291,7 +291,7 @@ const abrirRecetaProducto = (prod) => {
               <tr>
                 <th>Proveedor</th>
                 <th>NIT / CI</th>
-                <th>TelÃ©fono / Contacto</th>
+                <th>Teléfono / Contacto</th>
                 <th>Datos Bancarios</th>
                 <th>Saldo Deuda</th>
                 <th class="text-center">Acciones</th>
@@ -346,21 +346,21 @@ const abrirRecetaProducto = (prod) => {
           </VTable>
         </div>
 
-        <!-- TAB 4: FICHAS TÃ‰CNICAS (RECETAS) -->
+        <!-- TAB 4: FICHAS TÉCNICAS (RECETAS) -->
         <div v-if="currentTab === 'recetas'">
           <div class="d-flex align-center justify-space-between mb-4">
-            <h3 class="text-h6 font-weight-bold">Fichas TÃ©cnicas & Recetas de Platos del MenÃº</h3>
+            <h3 class="text-h6 font-weight-bold">Fichas Técnicas & Recetas de Platos del Menú</h3>
           </div>
 
           <VTable class="border rounded" density="comfortable">
             <thead>
               <tr>
                 <th>Plato / Producto</th>
-                <th>CategorÃ­a</th>
+                <th>Categoría</th>
                 <th>Precio Venta</th>
-                <th>Costo TeÃ³rico</th>
-                <th>Margen TeÃ³rico</th>
-                <th class="text-center">Ficha TÃ©cnica</th>
+                <th>Costo Teórico</th>
+                <th>Margen Teórico</th>
+                <th class="text-center">Ficha Técnica</th>
               </tr>
             </thead>
             <tbody>
@@ -409,7 +409,7 @@ const abrirRecetaProducto = (prod) => {
                     {{ alm.es_interno ? 'Interno' : 'Punto de Venta' }}
                   </VChip>
                 </div>
-                <p class="text-body-2 text-medium-emphasis mb-2">{{ alm.descripcion || 'Sin descripciÃ³n' }}</p>
+                <p class="text-body-2 text-medium-emphasis mb-2">{{ alm.descripcion || 'Sin descripción' }}</p>
                 <div class="d-flex justify-space-between text-caption border-t pt-2">
                   <span>Responsable:</span>
                   <span class="font-weight-medium">{{ alm.responsable || 'No asignado' }}</span>
@@ -437,7 +437,7 @@ const abrirRecetaProducto = (prod) => {
               <tr>
                 <th>Fecha / Hora</th>
                 <th>Insumo</th>
-                <th>AlmacÃ©n</th>
+                <th>Almacén</th>
                 <th>Tipo Movimiento</th>
                 <th>Cantidad</th>
                 <th>Stock Anterior</th>

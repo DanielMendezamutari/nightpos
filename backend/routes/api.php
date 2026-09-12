@@ -10,6 +10,10 @@ use App\Http\Controllers\Api\V1\InventarioController;
 use App\Http\Controllers\Api\V1\CompraController;
 use App\Http\Controllers\Api\V1\ProveedorController;
 use App\Http\Controllers\Api\V1\RecetaController;
+use App\Http\Controllers\Api\V1\KdsController;
+use App\Http\Controllers\Api\V1\GastoController;
+use App\Http\Controllers\Api\V1\SepararCuentasController;
+use App\Http\Controllers\Api\V1\MesaOperacionesController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -37,6 +41,10 @@ Route::prefix('v1')->group(function () {
         Route::get('{salonId}/mesas', [SalonMesaController::class, 'getMesasBySalon']);
     });
 
+    Route::get('visitas/{visitaId}', [MesaOperacionesController::class, 'getVisita']);
+    Route::post('visitas/{visitaId}/comanda', [ComandaController::class, 'agregarComandaVisita']);
+    Route::post('visitas/{visitaId}/cobrar-facturar', [CajaFacturaController::class, 'cobrarYFacturarVisita']);
+
     Route::prefix('mesas')->group(function () {
         Route::get('{mesaId}', [SalonMesaController::class, 'getMesaDetails']);
         Route::post('{mesaId}/abrir', [SalonMesaController::class, 'abrirMesa']);
@@ -61,6 +69,15 @@ Route::prefix('v1')->group(function () {
         Route::post('cerrar-turno', [CajaFacturaController::class, 'cerrarTurno']);
         Route::get('movimientos', [CajaFacturaController::class, 'getMovimientos']);
         Route::post('movimientos', [CajaFacturaController::class, 'registrarMovimiento']);
+        Route::post('arqueo-ciego', [CajaFacturaController::class, 'realizarArqueoCiego']);
+        Route::get('reporte-cierre/{turnoId}', [CajaFacturaController::class, 'getReporteCierreZ']);
+
+        // Gastos operativos y egresos de caja chica (frmGastos RestoTech)
+        Route::get('gastos/tipos', [GastoController::class, 'getTiposGastos']);
+        Route::post('gastos/tipos', [GastoController::class, 'storeTipoGasto']);
+        Route::get('gastos', [GastoController::class, 'index']);
+        Route::post('gastos', [GastoController::class, 'store']);
+        Route::delete('gastos/{id}', [GastoController::class, 'anular']);
     });
 
     Route::prefix('facturas')->group(function () {
@@ -85,6 +102,37 @@ Route::prefix('v1')->group(function () {
         Route::post('{id}/anticipos', [ClienteController::class, 'registrarAnticipo']);
         Route::get('{id}/anticipos-disponibles', [ClienteController::class, 'anticiposDisponibles']);
     });
+
+    // ==========================================
+
+    // ==========================================
+    // BUCLE 9: OPERACIONES DE MESA Y SALON (frmCambiarMesa, JuntandoMesa, frmSinMesa, frmSeleccionarMesero)
+    // ==========================================
+    Route::prefix('mesas/{mesaId}')->group(function () {
+        Route::post('cambiar-mesa', [MesaOperacionesController::class, 'cambiarMesa']);
+        Route::post('juntar-mesa', [MesaOperacionesController::class, 'juntarMesa']);
+        Route::post('reasignar-mesero', [MesaOperacionesController::class, 'reasignarMesero']);
+    });
+
+    Route::prefix('pedidos-sin-mesa')->group(function () {
+        Route::get('/', [MesaOperacionesController::class, 'getPedidosSinMesa']);
+        Route::post('/', [MesaOperacionesController::class, 'crearPedidoSinMesa']);
+        Route::post('{visitaId}/asignar-mesa', [MesaOperacionesController::class, 'asignarMesaAPedidoSinMesa']);
+    });
+
+    // BUCLE 8: SEPARAR CUENTAS, SPLIT BILL, PAGOS PARCIALES Y PROPINAS (frmSepararCuentas, frmPagoParcial, FrmPropinas)
+    // ==========================================
+    Route::prefix('mesas/{mesaId}/separar-cuentas')->group(function () {
+        Route::get('/', [SepararCuentasController::class, 'getSubcuentas']);
+        Route::post('crear', [SepararCuentasController::class, 'crearSubcuenta']);
+        Route::post('mover-item', [SepararCuentasController::class, 'moverItemSubcuenta']);
+        Route::post('dividir-iguales', [SepararCuentasController::class, 'dividirEnPartesIguales']);
+        Route::post('juntar', [SepararCuentasController::class, 'juntarCuentas']);
+        Route::post('pago-parcial', [SepararCuentasController::class, 'registrarPagoParcial']);
+    });
+    Route::post('subcuentas/{id}/cobrar', [SepararCuentasController::class, 'cobrarSubcuenta']);
+    Route::get('caja/reporte-propinas/{turnoId}', [SepararCuentasController::class, 'getReportePropinasTurno']);
+
     // ==========================================
     // BUCLE 6: ALMACENES, INVENTARIO, COMPRAS & RECETAS
     // ==========================================
@@ -121,5 +169,15 @@ Route::prefix('v1')->group(function () {
     Route::prefix('recetas')->group(function () {
         Route::get('producto/{productoId}', [RecetaController::class, 'getReceta']);
         Route::post('producto/{productoId}', [RecetaController::class, 'guardarReceta']);
+    });
+    // ==========================================
+    // BUCLE 7: MONITOR DE COCINA Y BARRA (KDS)
+    // ==========================================
+    Route::prefix('kds')->group(function () {
+        Route::get('tickets', [KdsController::class, 'getTickets']);
+        Route::patch('items/{id}/estado', [KdsController::class, 'cambiarEstadoItem']);
+        Route::post('tickets/{visitaId}/despachar', [KdsController::class, 'despacharTicket']);
+        Route::get('historial', [KdsController::class, 'getHistorial']);
+        Route::post('tickets/{visitaId}/revertir', [KdsController::class, 'revertirDespacho']);
     });
 });

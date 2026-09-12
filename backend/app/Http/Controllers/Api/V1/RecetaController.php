@@ -78,7 +78,7 @@ class RecetaController extends Controller
             $producto->update(['costo' => round($costoTeorico, 2)]);
 
             return response()->json([
-                'message' => 'Ficha tÃ©cnica / Receta guardada correctamente',
+                'message' => 'Ficha técnica / Receta guardada correctamente',
                 'costo_teorico' => round($costoTeorico, 2),
             ]);
         });

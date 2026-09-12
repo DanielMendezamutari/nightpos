@@ -20,6 +20,8 @@ final class Turno
         private float $totalVentasEfectivo = 0.0,
         private float $totalVentasQr = 0.0,
         private float $totalVentasTarjeta = 0.0,
+        private float $totalFacturado = 0.0,
+        private float $totalRecibos = 0.0,
         private float $totalGastos = 0.0,
         private float $diferencia = 0.0,
         private string $estado = 'ABIERTO',
@@ -40,6 +42,8 @@ final class Turno
     public function totalVentasEfectivo(): float { return $this->totalVentasEfectivo; }
     public function totalVentasQr(): float { return $this->totalVentasQr; }
     public function totalVentasTarjeta(): float { return $this->totalVentasTarjeta; }
+    public function totalFacturado(): float { return $this->totalFacturado; }
+    public function totalRecibos(): float { return $this->totalRecibos; }
     public function totalGastos(): float { return $this->totalGastos; }
     public function diferencia(): float { return $this->diferencia; }
     public function estado(): string { return $this->estado; }

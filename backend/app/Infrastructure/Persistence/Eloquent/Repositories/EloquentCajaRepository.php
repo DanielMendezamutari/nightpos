@@ -131,25 +131,37 @@ class EloquentCajaRepository implements CajaRepositoryInterface
             ->where('tipo', 'INGRESO')
             ->sum('monto');
 
-        $ventasEfectivo = FacturaModel::where('turno_id', $turnoId)
+        $ventasEfectivo = (float)(FacturaModel::where('turno_id', $turnoId)
             ->where('estado', 'VALIDA')
-            ->where('metodo_pago', 'EFECTIVO')
+            ->selectRaw("SUM(CASE WHEN metodo_pago = 'EFECTIVO' THEN monto_total WHEN metodo_pago = 'MIXTO' THEN COALESCE(monto_efectivo, 0) ELSE 0 END) as total")
+            ->value('total') ?? 0);
+
+        $ventasQr = (float)(FacturaModel::where('turno_id', $turnoId)
+            ->where('estado', 'VALIDA')
+            ->selectRaw("SUM(CASE WHEN metodo_pago = 'QR' THEN monto_total WHEN metodo_pago = 'MIXTO' THEN COALESCE(monto_qr, 0) ELSE 0 END) as total")
+            ->value('total') ?? 0);
+
+        $ventasTarjeta = (float)(FacturaModel::where('turno_id', $turnoId)
+            ->where('estado', 'VALIDA')
+            ->selectRaw("SUM(CASE WHEN metodo_pago = 'TARJETA' THEN monto_total WHEN metodo_pago = 'MIXTO' THEN COALESCE(monto_tarjeta, 0) ELSE 0 END) as total")
+            ->value('total') ?? 0);
+
+        $totalFacturado = FacturaModel::where('turno_id', $turnoId)
+            ->where('estado', 'VALIDA')
+            ->where('tipo_comprobante', 'FACTURA')
             ->sum('monto_total');
 
-        $ventasQr = FacturaModel::where('turno_id', $turnoId)
+        $totalRecibos = FacturaModel::where('turno_id', $turnoId)
             ->where('estado', 'VALIDA')
-            ->where('metodo_pago', 'QR')
-            ->sum('monto_total');
-
-        $ventasTarjeta = FacturaModel::where('turno_id', $turnoId)
-            ->where('estado', 'VALIDA')
-            ->where('metodo_pago', 'TARJETA')
+            ->where('tipo_comprobante', 'RECIBO')
             ->sum('monto_total');
 
         $turno->update([
             'total_ventas_efectivo' => round((float)$ventasEfectivo + (float)$ingresosExtra, 2),
             'total_ventas_qr' => round((float)$ventasQr, 2),
             'total_ventas_tarjeta' => round((float)$ventasTarjeta, 2),
+            'total_facturado' => round((float)$totalFacturado, 2),
+            'total_recibos' => round((float)$totalRecibos, 2),
             'total_gastos' => round((float)$gastos, 2),
         ]);
 
@@ -172,6 +184,8 @@ class EloquentCajaRepository implements CajaRepositoryInterface
             totalVentasEfectivo: (float)$model->total_ventas_efectivo,
             totalVentasQr: (float)$model->total_ventas_qr,
             totalVentasTarjeta: (float)$model->total_ventas_tarjeta,
+            totalFacturado: (float)($model->total_facturado ?? 0.0),
+            totalRecibos: (float)($model->total_recibos ?? 0.0),
             totalGastos: (float)$model->total_gastos,
             diferencia: (float)$model->diferencia,
             estado: (string)$model->estado,

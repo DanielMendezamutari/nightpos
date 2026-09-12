@@ -25,6 +25,7 @@ declare module 'vue-router/auto-routes' {
     'comandas': RouteRecordInfo<'comandas', '/comandas', Record<never, never>, Record<never, never>>,
     'facturas': RouteRecordInfo<'facturas', '/facturas', Record<never, never>, Record<never, never>>,
     'inventario': RouteRecordInfo<'inventario', '/inventario', Record<never, never>, Record<never, never>>,
+    'kds': RouteRecordInfo<'kds', '/kds', Record<never, never>, Record<never, never>>,
     'login': RouteRecordInfo<'login', '/login', Record<never, never>, Record<never, never>>,
     'second-page': RouteRecordInfo<'second-page', '/second-page', Record<never, never>, Record<never, never>>,
   }

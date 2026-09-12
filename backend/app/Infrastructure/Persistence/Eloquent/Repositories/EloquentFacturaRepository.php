@@ -16,6 +16,8 @@ class EloquentFacturaRepository implements FacturaRepositoryInterface
             'tenant_id' => $datos['tenant_id'],
             'branch_id' => $datos['branch_id'],
             'visita_id' => $datos['visita_id'] ?? null,
+            'tipo_comprobante' => $datos['tipo_comprobante'] ?? 'FACTURA',
+            'nro_comprobante' => $datos['nro_comprobante'] ?? null,
             'turno_id' => $datos['turno_id'],
             'cajero_id' => $datos['cajero_id'],
             'nro_factura' => $datos['nro_factura'],
@@ -28,6 +30,10 @@ class EloquentFacturaRepository implements FacturaRepositoryInterface
             'metodo_pago' => $datos['metodo_pago'] ?? 'EFECTIVO',
             'monto_total' => $datos['monto_total'],
             'monto_efectivo' => $datos['monto_efectivo'] ?? 0.0,
+            'monto_tarjeta' => $datos['monto_tarjeta'] ?? 0.0,
+            'monto_qr' => $datos['monto_qr'] ?? 0.0,
+            'segundo_metodo_pago' => $datos['segundo_metodo_pago'] ?? null,
+            'nro_tarjeta' => $datos['nro_tarjeta'] ?? null,
             'monto_cambio' => $datos['monto_cambio'] ?? 0.0,
             'estado' => 'VALIDA',
             'codigo_siat' => $datos['codigo_siat'] ?? 'VALIDADA_EN_LINEA',
@@ -69,6 +75,15 @@ class EloquentFacturaRepository implements FacturaRepositoryInterface
         return $this->toDomain($model->fresh(['cajero', 'visita.mesa', 'visita.detalles.producto']));
     }
 
+    public function getSiguienteNroRecibo(string $tenantId, string $branchId): int
+    {
+        $ultimo = FacturaModel::where('tenant_id', $tenantId)
+            ->where('branch_id', $branchId)
+            ->where('tipo_comprobante', 'RECIBO')
+            ->max('nro_factura');
+        return ($ultimo ?? 0) + 1;
+    }
+
     public function getSiguienteNroFactura(string $tenantId, string $branchId): int
     {
         $ultimoNro = FacturaModel::where('tenant_id', $tenantId)
@@ -101,6 +116,8 @@ class EloquentFacturaRepository implements FacturaRepositoryInterface
             visitaId: $model->visita_id ? (int)$model->visita_id : null,
             turnoId: (int)$model->turno_id,
             cajeroId: (string)$model->cajero_id,
+            tipoComprobante: (string)($model->tipo_comprobante ?? 'FACTURA'),
+            nroComprobante: $model->nro_comprobante,
             nroFactura: (int)$model->nro_factura,
             cuf: (string)$model->cuf,
             cufd: $model->cufd,
@@ -110,7 +127,11 @@ class EloquentFacturaRepository implements FacturaRepositoryInterface
             correo: $model->correo,
             metodoPago: (string)$model->metodo_pago,
             montoTotal: (float)$model->monto_total,
-            montoEfectivo: (float)$model->monto_efectivo,
+            montoEfectivo: (float)($model->monto_efectivo ?? 0.0),
+            montoTarjeta: (float)($model->monto_tarjeta ?? 0.0),
+            montoQr: (float)($model->monto_qr ?? 0.0),
+            segundoMetodoPago: $model->segundo_metodo_pago,
+            nroTarjeta: $model->nro_tarjeta,
             montoCambio: (float)$model->monto_cambio,
             estado: (string)$model->estado,
             codigoSiat: $model->codigo_siat,

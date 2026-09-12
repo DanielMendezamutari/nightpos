@@ -78,7 +78,7 @@ const submitAnticipo = async () => {
             <VIcon icon="ri-calendar-event-line" size="26" />
             <div>
               <span class="text-h6 font-weight-black text-uppercase">
-                Anticipo / SeÃ±a de Reserva
+                Anticipo / Seña de Reserva
               </span>
               <div class="text-caption text-white opacity-80">
                 Cliente: {{ cliente?.nombre_completo || cliente?.nombre }}
@@ -108,7 +108,7 @@ const submitAnticipo = async () => {
         </VAlert>
 
         <div class="text-caption mb-3 text-medium-emphasis">
-          El monto ingresado quedarÃ¡ guardado como saldo a favor del cliente y se registrarÃ¡ automÃ¡ticamente como <strong>Ingreso en la Caja Activa</strong>.
+          El monto ingresado quedará guardado como saldo a favor del cliente y se registrará automáticamente como <strong>Ingreso en la Caja Activa</strong>.
         </div>
 
         <VTextField
@@ -128,11 +128,11 @@ const submitAnticipo = async () => {
           rows="3"
           variant="outlined"
           density="comfortable"
-          placeholder="Ej: SeÃ±a para cumpleaÃ±os 20 personas el sÃ¡bado 15/09..."
+          placeholder="Ej: Seña para cumpleaños 20 personas el sábado 15/09..."
         />
       </VCardText>
 
-      <VCardActions class="pa-4 bg-surface-variant d-flex justify-space-between align-center">
+      <VCardActions class="pa-4 bg-surface border-t d-flex justify-space-between align-center">
         <VBtn
           variant="outlined"
           color="secondary"

@@ -46,7 +46,7 @@ const guardar = async () => {
       <VCardTitle class="d-flex align-center justify-space-between bg-primary text-white pa-4">
         <span class="text-h6 font-weight-bold">
           <VIcon icon="ri-equalizer-line" class="me-2" />
-          Ajuste FÃ­sico de Stock
+          Ajuste Físico de Stock
         </span>
         <VBtn icon="ri-close-line" variant="text" color="white" density="comfortable" @click="emit('update:modelValue', false)" />
       </VCardTitle>
@@ -60,7 +60,7 @@ const guardar = async () => {
         <VTextField
           v-model.number="nuevoStock"
           type="number"
-          label="Stock FÃ­sico Real *"
+          label="Stock Físico Real *"
           density="compact"
           variant="outlined"
           class="mb-3"
@@ -82,7 +82,7 @@ const guardar = async () => {
 
         <VTextField
           v-model="motivo"
-          label="JustificaciÃ³n / Motivo *"
+          label="Justificación / Motivo *"
           placeholder="Conteo semanal, rotura de envase..."
           density="compact"
           variant="outlined"

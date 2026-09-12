@@ -67,7 +67,7 @@ const registrarPago = async () => {
         <VSelect
           v-model="metodoPago"
           :items="['EFECTIVO', 'TRANSFERENCIA', 'CHEQUE']"
-          label="MÃ©todo de Pago"
+          label="Método de Pago"
           density="compact"
           variant="outlined"
           class="mb-3"

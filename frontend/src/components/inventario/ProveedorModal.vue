@@ -77,19 +77,19 @@ const guardar = async () => {
             <VTextField v-model="form.nombre" label="Nombre Comercial *" placeholder="Distribuidora..." density="compact" variant="outlined" />
           </VCol>
           <VCol cols="12" md="6">
-            <VTextField v-model="form.razon_social" label="RazÃ³n Social Fiscal" density="compact" variant="outlined" />
+            <VTextField v-model="form.razon_social" label="Razón Social Fiscal" density="compact" variant="outlined" />
           </VCol>
           <VCol cols="12" md="4">
             <VTextField v-model="form.nit" label="NIT / CI" density="compact" variant="outlined" />
           </VCol>
           <VCol cols="12" md="4">
-            <VTextField v-model="form.telefono" label="TelÃ©fono / Celular" density="compact" variant="outlined" />
+            <VTextField v-model="form.telefono" label="Teléfono / Celular" density="compact" variant="outlined" />
           </VCol>
           <VCol cols="12" md="4">
             <VTextField v-model="form.contacto" label="Persona de Contacto" density="compact" variant="outlined" />
           </VCol>
           <VCol cols="12">
-            <VTextField v-model="form.direccion" label="DirecciÃ³n / DepÃ³sito" density="compact" variant="outlined" />
+            <VTextField v-model="form.direccion" label="Dirección / Depósito" density="compact" variant="outlined" />
           </VCol>
           <VCol cols="12" md="4">
             <VTextField v-model="form.banco" label="Banco" placeholder="BNB, Mercantil..." density="compact" variant="outlined" />

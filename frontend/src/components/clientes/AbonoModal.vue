@@ -178,7 +178,7 @@ const submitAbono = async () => {
           autofocus
         />
 
-        <!-- Teclado TÃ¡ctil -->
+        <!-- Teclado Táctil -->
         <div class="d-grid grid-cols-4 gap-2 mb-3">
           <VBtn
             v-for="k in ['7','8','9','C','4','5','6','00','1','2','3','0','.','âŒ«']"
@@ -193,7 +193,7 @@ const submitAbono = async () => {
           </VBtn>
         </div>
 
-        <!-- MÃ©todo de Pago del Abono -->
+        <!-- Método de Pago del Abono -->
         <VRadioGroup v-model="metodoPago" inline density="compact" class="mb-2">
           <VRadio label="Efectivo" value="EFECTIVO" color="success" />
           <VRadio label="Tarjeta POS" value="TARJETA" color="warning" />
@@ -203,14 +203,14 @@ const submitAbono = async () => {
         <!-- Referencia / Observaciones -->
         <VTextField
           v-model="referencia"
-          label="Comprobante / NÂ° DepÃ³sito / Nota"
+          label="Comprobante / N° Depósito / Nota"
           variant="outlined"
           density="compact"
-          placeholder="Ej: DepÃ³sito BCP #998811"
+          placeholder="Ej: Depósito BCP #998811"
         />
       </VCardText>
 
-      <VCardActions class="pa-4 bg-surface-variant d-flex justify-space-between align-center">
+      <VCardActions class="pa-4 bg-surface border-t d-flex justify-space-between align-center">
         <VBtn
           variant="outlined"
           color="secondary"

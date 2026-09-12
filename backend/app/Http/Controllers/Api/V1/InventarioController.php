@@ -54,7 +54,7 @@ class InventarioController extends Controller
     {
         $almacen = AlmacenModel::findOrFail($id);
         $almacen->update(['activo' => false]);
-        return response()->json(['message' => 'AlmacÃ©n desactivado correctamente']);
+        return response()->json(['message' => 'Almacén desactivado correctamente']);
     }
 
     // ==========================================
@@ -101,7 +101,7 @@ class InventarioController extends Controller
         return DB::transaction(function () use ($data) {
             $insumo = InsumoModel::create($data);
 
-            // Si se iniciÃ³ con stock > 0, crear registro en Kardex
+            // Si se inició con stock > 0, crear registro en Kardex
             if (!empty($data['stock_actual']) && $data['stock_actual'] > 0 && !empty($data['almacen_id'])) {
                 KardexMovimientoModel::create([
                     'tenant_id' => $insumo->tenant_id,
@@ -147,7 +147,7 @@ class InventarioController extends Controller
     }
 
     // ==========================================
-    // AJUSTES MANUALES DE STOCK (INVENTARIO FÃSICO / MERMA)
+    // AJUSTES MANUALES DE STOCK (INVENTARIO FÍSICO / MERMA)
     // ==========================================
     public function ajustarStock(Request $request, int $id): JsonResponse
     {

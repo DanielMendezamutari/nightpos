@@ -6,6 +6,7 @@ const cajaStore = useCajaStore()
 
 const searchQuery = ref('')
 const filterEstado = ref('TODAS')
+const filterTipo = ref('TODOS')
 const selectedFactura = ref(null)
 const ticketModalOpen = ref(false)
 
@@ -18,6 +19,10 @@ const filteredFacturas = computed(() => {
 
   if (filterEstado.value !== 'TODAS') {
     list = list.filter(f => f.estado === filterEstado.value)
+  }
+
+  if (filterTipo.value !== 'TODOS') {
+    list = list.filter(f => (f.tipo_comprobante || 'FACTURA') === filterTipo.value)
   }
 
   if (searchQuery.value.trim()) {
@@ -215,12 +220,12 @@ const anularFactura = async (factura) => {
       <VTable density="compact" hover>
         <thead>
           <tr>
-            <th class="font-weight-bold">N° FACTURA</th>
+            <th class="font-weight-bold">COMPROBANTE</th>
             <th class="font-weight-bold">FECHA / HORA</th>
-            <th class="font-weight-bold">RAZÓN SOCIAL</th>
+            <th class="font-weight-bold">CLIENTE / RAZÓN SOCIAL</th>
             <th class="font-weight-bold">NIT / CI</th>
             <th class="font-weight-bold">MÉTODO PAGO</th>
-            <th class="font-weight-bold">ESTADO SIAT</th>
+            <th class="font-weight-bold">ESTADO</th>
             <th class="text-right font-weight-bold">TOTAL BS.</th>
             <th class="text-center font-weight-bold">ACCIONES</th>
           </tr>
@@ -232,7 +237,17 @@ const anularFactura = async (factura) => {
             </td>
           </tr>
           <tr v-for="f in filteredFacturas" :key="f.id">
-            <td class="font-weight-bold text-primary">#{{ f.nro_factura }}</td>
+            <td>
+              <VChip
+                size="x-small"
+                :color="f.tipo_comprobante === 'RECIBO' ? 'info' : 'primary'"
+                variant="tonal"
+                class="font-weight-bold me-1"
+              >
+                {{ f.tipo_comprobante === 'RECIBO' ? 'RECIBO' : 'FACTURA' }}
+              </VChip>
+              <strong class="text-primary">{{ f.nro_comprobante || ('#' + f.nro_factura) }}</strong>
+            </td>
             <td>{{ f.fecha_emision }}</td>
             <td class="font-weight-medium">{{ f.razon_social }}</td>
             <td>{{ f.numero_documento }} ({{ f.tipo_documento }})</td>
@@ -347,7 +362,7 @@ const anularFactura = async (factura) => {
           </div>
         </VCardText>
 
-        <VCardActions class="pa-3 bg-surface-variant d-flex justify-space-between">
+        <VCardActions class="pa-3 bg-surface border-t d-flex justify-space-between">
           <VBtn variant="outlined" @click="ticketModalOpen = false">Cerrar</VBtn>
           <VBtn color="primary" variant="flat" prepend-icon="ri-printer-line" @click="printTicket">
             Imprimir Ticket

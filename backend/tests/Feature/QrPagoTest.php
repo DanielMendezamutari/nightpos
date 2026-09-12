@@ -6,6 +6,7 @@ use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Infrastructure\Persistence\Eloquent\Models\MesaModel;
 use App\Infrastructure\Persistence\Eloquent\Models\PagoQrModel;
+use App\Infrastructure\Persistence\Eloquent\Models\VisitaModel;
 
 class QrPagoTest extends TestCase
 {
@@ -126,5 +127,82 @@ class QrPagoTest extends TestCase
         $pago->refresh();
         $this->assertEquals('PAGADO', $pago->estado);
         $this->assertNotNull($pago->pagado_at);
+    }
+    public function test_puede_generar_qr_para_pedido_sin_mesa_con_prefijo_string()
+    {
+        $visita = VisitaModel::create([
+            'tenant_id' => \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::first()->id,
+            'branch_id' => \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::first()->id,
+            'mesa_id' => null,
+            'mesero_id' => \App\Infrastructure\Persistence\Eloquent\Models\UserModel::first()->id,
+            'cliente_nombre' => 'Enrique Sin Mesa',
+            'tipo_despacho' => 'LLEVAR',
+            'estado' => 'ABIERTA',
+            'personas' => 1,
+            'fecha_apertura' => now(),
+            'total' => 45.00,
+        ]);
+
+        $response = $this->postJson('/api/v1/pagos/qr/generar', [
+            'mesa_id' => "sin_mesa_{$visita->id}",
+            'monto' => 45.00,
+            'glosa' => 'Consumo Para Llevar Sin Mesa',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'monto' => 45.00,
+                    'moneda' => 'BOB',
+                    'estado' => 'PENDIENTE',
+                ],
+            ]);
+
+        $this->assertDatabaseHas('pagos_qr', [
+            'visita_id' => $visita->id,
+            'mesa_id' => null,
+            'monto' => 45.00,
+            'estado' => 'PENDIENTE',
+        ]);
+    }
+
+    public function test_puede_generar_qr_directo_con_visita_id()
+    {
+        $visita = VisitaModel::create([
+            'tenant_id' => \App\Infrastructure\Persistence\Eloquent\Models\TenantModel::first()->id,
+            'branch_id' => \App\Infrastructure\Persistence\Eloquent\Models\BranchModel::first()->id,
+            'mesa_id' => null,
+            'mesero_id' => \App\Infrastructure\Persistence\Eloquent\Models\UserModel::first()->id,
+            'cliente_nombre' => 'Carlos Delivery',
+            'tipo_despacho' => 'DELIVERY',
+            'estado' => 'ABIERTA',
+            'personas' => 1,
+            'fecha_apertura' => now(),
+            'total' => 90.00,
+        ]);
+
+        $response = $this->postJson('/api/v1/pagos/qr/generar', [
+            'visita_id' => $visita->id,
+            'monto' => 90.00,
+            'glosa' => 'Consumo Delivery',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJson([
+                'success' => true,
+                'data' => [
+                    'monto' => 90.00,
+                    'moneda' => 'BOB',
+                    'estado' => 'PENDIENTE',
+                ],
+            ]);
+
+        $this->assertDatabaseHas('pagos_qr', [
+            'visita_id' => $visita->id,
+            'mesa_id' => null,
+            'monto' => 90.00,
+            'estado' => 'PENDIENTE',
+        ]);
     }
 }

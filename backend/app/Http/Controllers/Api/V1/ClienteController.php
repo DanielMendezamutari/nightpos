@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\DB;
 class ClienteController extends Controller
 {
     /**
-     * Listar clientes con filtros tÃ¡ctiles de RestoTech (BÃºsqueda, Deudores, CumpleaÃ±eros)
+     * Listar clientes con filtros táctiles de RestoTech (Búsqueda, Deudores, Cumpleañeros)
      */
     public function index(Request $request): JsonResponse
     {
@@ -224,7 +224,7 @@ class ClienteController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Abono registrado con Ã©xito',
+            'message' => 'Abono registrado con éxito',
             'data' => [
                 'cliente_id' => $cliente->id,
                 'monto_abonado' => $monto,
@@ -282,7 +282,7 @@ class ClienteController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Anticipo registrado con Ã©xito',
+            'message' => 'Anticipo registrado con éxito',
             'data' => $anticipo,
         ], 201);
     }

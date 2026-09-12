@@ -169,7 +169,7 @@ const onComandaEnviada = async () => {
           </VCardText>
 
           <!-- Card Actions -->
-          <VCardActions class="pa-3 bg-surface-variant border-t d-flex justify-space-between">
+          <VCardActions class="pa-3 bg-surface border-t d-flex justify-space-between">
             <VBtn
               size="small"
               color="primary"

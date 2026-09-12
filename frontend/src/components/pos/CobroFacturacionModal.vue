@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useCajaStore } from '@/stores/caja'
+import { useComandaStore } from '@/stores/comanda'
 import QRCode from 'qrcode'
 
 const props = defineProps({
@@ -21,6 +22,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'cobro-exitoso'])
 
 const cajaStore = useCajaStore()
+const comandaStore = useComandaStore()
 
 // --- State (frmPagondoConTecladoNumerico & frmFacturacion1 Replica) ---
 const moneda = ref('BOB') // 'BOB' o 'USD'
@@ -48,9 +50,37 @@ const montoRecibidoStr = ref('')
 // Pago Mixto
 const montoMixtoEfectivo = ref(0)
 const montoMixtoDigital = ref(0)
+const segundoMetodo = ref('TARJETA') // 'TARJETA' | 'QR'
+
+const onMontoMixtoEfectivoChange = (val) => {
+  const ef = parseFloat(val) || 0
+  montoMixtoEfectivo.value = ef
+  montoMixtoDigital.value = Math.max(0, Math.round((totalCobroBob.value - ef) * 100) / 100)
+}
+
+
+// --- Propinas Mesero (FrmPropinas RestoTech) ---
+const propinaPorcentaje = ref(0)
+const propinaMonto = ref(0)
+
+const seleccionarPropina = (pct) => {
+  propinaPorcentaje.value = pct
+  if (pct === 0) {
+    propinaMonto.value = 0
+  } else {
+    propinaMonto.value = Math.round((totalCobroBob.value * pct / 100) * 100) / 100
+  }
+}
+
+const onMontoMixtoDigitalChange = (val) => {
+  const dig = parseFloat(val) || 0
+  montoMixtoDigital.value = dig
+  montoMixtoEfectivo.value = Math.max(0, Math.round((totalCobroBob.value - dig) * 100) / 100)
+}
 
 // Facturacion SIAT (frmFacturacion1)
-const tipoDocumento = ref('NIT') // CI, NIT, CEX, PASAPORTE
+const tipoComprobante = ref('FACTURA') // 'FACTURA' o 'RECIBO'
+  const tipoDocumento = ref('NIT') // CI, NIT, CEX, PASAPORTE
 const numeroDocumento = ref('0')
 const razonSocial = ref('SIN NOMBRE')
 const correo = ref('')
@@ -61,12 +91,18 @@ const processing = ref(false)
 const errorMessage = ref('')
 const facturaEmitida = ref(null)
 
+// Visita activa resuelta (mesa física o pedido sin mesa)
+const activeVisita = computed(() => {
+  return props.visita || props.mesa?.visitaActiva || null
+})
+
 // Total a cobrar en Bolivianos
 const totalCobroBob = computed(() => {
-  if (!props.visita) return 0
-  if (parseFloat(props.visita.total) > 0) return parseFloat(props.visita.total)
-  if (props.visita.detalles?.length) {
-    return props.visita.detalles.reduce((acc, d) => acc + (parseFloat(d.subtotal) || 0), 0)
+  const v = activeVisita.value
+  if (!v) return 0
+  if (parseFloat(v.total) > 0) return parseFloat(v.total)
+  if (v.detalles?.length) {
+    return v.detalles.reduce((acc, d) => acc + (parseFloat(d.subtotal) || 0), 0)
   }
   return 0
 })
@@ -127,7 +163,11 @@ const isValid = computed(() => {
 
   if (metodoPago.value === 'MIXTO') {
     const totalMixto = (parseFloat(montoMixtoEfectivo.value) || 0) + (parseFloat(montoMixtoDigital.value) || 0)
-    return totalMixto >= totalCobroBob.value
+    if (totalMixto < totalCobroBob.value) return false
+    if (segundoMetodo.value === 'TARJETA') {
+      return tarjetaIni.value.length === 4 && tarjetaFin.value.length === 4
+    }
+    return true
   }
 
   return true
@@ -146,7 +186,11 @@ watch(() => props.modelValue, (val) => {
     razonSocial.value = 'SIN NOMBRE'
     correo.value = ''
     imprimirFisico.value = true
+    if (activeVisita.value?.cliente_nombre && activeVisita.value.cliente_nombre !== 'Cliente General') {
+      razonSocial.value = activeVisita.value.cliente_nombre
+    }
     montoRecibidoStr.value = totalCobroBob.value > 0 ? totalCobroBob.value.toFixed(2) : '0'
+    segundoMetodo.value = 'TARJETA'
     montoMixtoEfectivo.value = Math.round(totalCobroBob.value / 2)
     montoMixtoDigital.value = totalCobroBob.value - montoMixtoEfectivo.value
     errorMessage.value = ''
@@ -235,7 +279,7 @@ const generarQr = async () => {
     startQrPolling(res.data.codigo_transaccion)
   } else {
     qrStatus.value = 'INACTIVO'
-    errorMessage.value = res.message || 'Error al generar cÃ³digo QR'
+    errorMessage.value = res.message || 'Error al generar código QR'
   }
 }
 
@@ -318,7 +362,7 @@ const closeModal = () => {
   emit('update:modelValue', false)
 }
 
-// --- IMPRESIÃ“N DIRECTA AISLADA MEDIANTE IFRAME OCULTO (100% LIMPIO 80MM) ---
+// --- IMPRESIÓN DIRECTA AISLADA MEDIANTE IFRAME OCULTO (100% LIMPIO 80MM) ---
 const imprimirTicketTermicoIframe = (factura) => {
   if (!imprimirFisico.value || !factura) return
 
@@ -382,17 +426,22 @@ const imprimirTicketTermicoIframe = (factura) => {
         <div>NIT: 1028456023 | Telf: 67369293</div>
         <div>Santa Cruz - Bolivia</div>
         <div class="divider"></div>
-        <div class="bold" style="font-size:12px;">FACTURA NÂ° ${factura.nro_factura}</div>
-        <div class="cuf">CUF: ${factura.cuf || ''}</div>
+        ${factura.tipo_comprobante === 'RECIBO'
+          ? `<div class="bold" style="font-size:13px; text-transform:uppercase;">RECIBO DE CAJA / NOTA DE VENTA</div>
+             <div class="bold" style="font-size:11px;">N° ${factura.nro_comprobante || 'REC-' + factura.nro_factura}</div>
+             <div style="font-size:9px; margin-top:2px;">*** COMPROBANTE DE CONSUMO INTERNO ***</div>`
+          : `<div class="bold" style="font-size:12px;">FACTURA N° ${factura.nro_factura}</div>
+             <div class="cuf">CUF: ${factura.cuf || ''}</div>`
+        }
       </div>
 
       <div class="divider"></div>
 
       <div>
         <div><strong>Fecha:</strong> ${factura.fecha_emision || ''}</div>
-        <div><strong>SeÃ±or(es):</strong> ${factura.razon_social || 'SIN NOMBRE'}</div>
+        <div><strong>Señor(es):</strong> ${factura.razon_social || 'SIN NOMBRE'}</div>
         <div><strong>NIT/CI:</strong> ${factura.numero_documento || '0'}</div>
-        <div><strong>MÃ©todo:</strong> ${factura.metodo_pago || 'EFECTIVO'}</div>
+        <div><strong>Método:</strong> ${factura.metodo_pago || 'EFECTIVO'}</div>
         <div><strong>Mesa:</strong> ${factura.mesa_numero || ''}</div>
       </div>
 
@@ -423,13 +472,13 @@ const imprimirTicketTermicoIframe = (factura) => {
 
       <div class="text-center">
         <div style="border:1px solid #000; padding:4px; margin:4px auto; width:80%; font-size:9px; font-weight:bold;">
-          [ CÃ“DIGO QR VALIDACIÃ“N SIAT ]
+          [ CÓDIGO QR VALIDACIÓN SIAT ]
         </div>
         <div class="legal">
-          "ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÃS, EL USO ILÃCITO SERÃ SANCIONADO PENALMENTE DE ACUERDO A LEY"
+          "ESTA FACTURA CONTRIBUYE AL DESARROLLO DEL PAÍS, EL USO ILÍCITO SERÁ SANCIONADO PENALMENTE DE ACUERDO A LEY"
         </div>
         <div class="legal">
-          Ley NÂ° 453: El proveedor deberÃ¡ suministrar el servicio en las condiciones ofertadas.
+          Ley N° 453: El proveedor deberá suministrar el servicio en las condiciones ofertadas.
         </div>
         <div class="footer">
           Desarrollado por Ribersoft | Soporte: 67369293
@@ -454,7 +503,7 @@ const imprimirTicketTermicoIframe = (factura) => {
 const submitCobro = async () => {
   if (!props.mesa?.id) return
   if (!cajaStore.isTurnoAbierto) {
-    errorMessage.value = 'Debe tener un turno de caja abierto para cobrar. Abra la caja en el menÃº o control de caja.'
+    errorMessage.value = 'Debe tener un turno de caja abierto para cobrar. Abra la caja en el menú o control de caja.'
     return
   }
 
@@ -473,6 +522,9 @@ const submitCobro = async () => {
     correo: correo.value || null,
     metodo_pago: metodoPago.value,
     monto_recibido: montoRecibidoFinal,
+    tipo_comprobante: tipoComprobante.value,
+    propina_monto: parseFloat(propinaMonto.value) || 0,
+    propina_porcentaje: parseFloat(propinaPorcentaje.value) || 0,
     datos_adicionales: {
       moneda: moneda.value,
       tipo_cambio: tipoCambio.value,
@@ -484,7 +536,12 @@ const submitCobro = async () => {
     },
   }
 
-  const res = await cajaStore.cobrarYFacturar(props.mesa.id, payload)
+  let res
+  if (props.visita?.subcuenta_id) {
+    res = await comandaStore.cobrarSubcuenta(props.visita.subcuenta_id, payload)
+  } else {
+    res = await cajaStore.cobrarYFacturar(props.mesa.id, payload)
+  }
 
   processing.value = false
 
@@ -503,7 +560,39 @@ const submitCobro = async () => {
   }
 }
 
+// RestoTech Keyboard Shortcuts (FuncKeysModule)
+const handleGlobalKeyDown = (e) => {
+  if (!props.modelValue) return
+
+  if (e.key === 'F1') {
+    e.preventDefault()
+    metodoPago.value = 'EFECTIVO'
+  } else if (e.key === 'F4') {
+    e.preventDefault()
+    metodoPago.value = metodoPago.value === 'TARJETA' ? 'EFECTIVO' : 'TARJETA'
+  } else if (e.key === 'F8') {
+    e.preventDefault()
+    tipoComprobante.value = 'FACTURA'
+  } else if (e.key === 'F9') {
+    e.preventDefault()
+    tipoComprobante.value = 'RECIBO'
+  } else if (e.key === 'F12') {
+    e.preventDefault()
+    if (isValid.value && !processing.value) {
+      procesarCobro()
+    }
+  } else if (e.key === 'Escape') {
+    e.preventDefault()
+    closeModal()
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleGlobalKeyDown)
+})
+
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleGlobalKeyDown)
   stopQrPolling()
 })
 </script>
@@ -518,17 +607,17 @@ onBeforeUnmount(() => {
       scrollable
     >
       <VCard class="cobro-modal-card">
-        <!-- Header con estÃ©tica POS Tactil RestoTech -->
+        <!-- Header con estética POS Tactil RestoTech -->
         <VCardItem class="bg-primary text-white py-3 px-4">
           <div class="d-flex align-center justify-space-between w-100">
             <div class="d-flex align-center gap-2">
               <VIcon icon="ri-cash-fill" size="30" />
               <div>
                 <h3 class="text-h6 text-white font-weight-black mb-0 text-uppercase letter-spacing-1">
-                  COBRO & FACTURACIÃ“N TÃCTIL (RIBERSOFT POS)
+                  COBRO & FACTURACIÓN TÁCTIL (RIBERSOFT POS)
                 </h3>
                 <span class="text-caption text-white opacity-90">
-                  {{ mesa?.nombre || 'Mesa ' + (mesa?.numero || '') }} | Mozo: {{ visita?.usuario_nombre || 'Cajero' }} | Comensales: {{ visita?.comensales || 1 }}
+                  {{ mesa?.nombre || 'Mesa ' + (mesa?.numero || '') }} | Mozo: {{ activeVisita?.usuario_nombre || activeVisita?.mesero?.name || 'Cajero' }} | Comensales: {{ activeVisita?.personas || activeVisita?.comensales || 1 }}
                 </span>
               </div>
             </div>
@@ -552,7 +641,7 @@ onBeforeUnmount(() => {
                   class="font-weight-bold"
                   @click="moneda = 'USD'"
                 >
-                  $US (DÃ³lar)
+                  $US (Dólar)
                 </VBtn>
               </div>
 
@@ -580,7 +669,7 @@ onBeforeUnmount(() => {
           </VAlert>
 
           <VRow>
-            <!-- COLUMNA IZQUIERDA: PANTALLA TÃCTIL DE PAGO (_frmPagondoConTecladoNumerico) -->
+            <!-- COLUMNA IZQUIERDA: PANTALLA TÁCTIL DE PAGO (_frmPagondoConTecladoNumerico) -->
             <VCol cols="12" md="7">
               <!-- Big Amount Display -->
               <VCard variant="tonal" color="primary" class="mb-3 text-center py-2 px-3 border">
@@ -602,7 +691,7 @@ onBeforeUnmount(() => {
                 </div>
               </VCard>
 
-              <!-- Selector de MÃ©todos de Pago TÃ¡ctil -->
+              <!-- Selector de Métodos de Pago Táctil -->
               <div class="d-grid grid-cols-4 gap-2 mb-3">
                 <VBtn
                   :variant="metodoPago === 'EFECTIVO' ? 'flat' : 'outlined'"
@@ -649,9 +738,9 @@ onBeforeUnmount(() => {
                 </VBtn>
               </div>
 
-              <!-- 1. VISTA EFECTIVO (TECLADO TÃCTIL Y BILLETES DE BOLIVIA) -->
+              <!-- 1. VISTA EFECTIVO (TECLADO TÁCTIL Y BILLETES DE BOLIVIA) -->
               <div v-if="metodoPago === 'EFECTIVO'" class="cash-section">
-                <!-- Billetes RÃ¡pidos de Bolivia -->
+                <!-- Billetes Rápidos de Bolivia -->
                 <div class="d-flex flex-wrap gap-2 mb-2">
                   <VBtn
                     size="small"
@@ -709,7 +798,7 @@ onBeforeUnmount(() => {
                 <div class="touch-keypad mb-2">
                   <div class="d-grid grid-cols-4 gap-2">
                     <VBtn
-                      v-for="k in ['7','8','9','C','4','5','6','00','1','2','3','0','.','âŒ«']"
+                      v-for="k in ['7','8','9','C','4','5','6','00','1','2','3','0','.','⌫']"
                       :key="k"
                       variant="tonal"
                       size="large"
@@ -727,17 +816,17 @@ onBeforeUnmount(() => {
               <div v-else-if="metodoPago === 'TARJETA'" class="card-section pa-3 border rounded bg-surface">
                 <div class="text-subtitle-1 font-weight-bold mb-2 d-flex align-center gap-2 text-warning">
                   <VIcon icon="ri-bank-card-fill" />
-                  <span>Cobro con Tarjeta de DÃ©bito / CrÃ©dito</span>
+                  <span>Cobro con Tarjeta de Débito / Crédito</span>
                 </div>
                 <div class="text-caption mb-3 text-medium-emphasis">
-                  Introduzca los primeros 4 y Ãºltimos 4 dÃ­gitos del voucher emitido por el POS fÃ­sico:
+                  Introduzca los primeros 4 y últimos 4 dígitos del voucher emitido por el POS físico:
                 </div>
 
                 <VRow>
                   <VCol cols="6">
                     <VTextField
                       v-model="tarjetaIni"
-                      label="Primeros 4 DÃ­gitos"
+                      label="Primeros 4 Dígitos"
                       maxlength="4"
                       variant="outlined"
                       density="comfortable"
@@ -748,7 +837,7 @@ onBeforeUnmount(() => {
                   <VCol cols="6">
                     <VTextField
                       v-model="tarjetaFin"
-                      label="Ãšltimos 4 DÃ­gitos"
+                      label="Ãšltimos 4 Dígitos"
                       maxlength="4"
                       variant="outlined"
                       density="comfortable"
@@ -760,20 +849,20 @@ onBeforeUnmount(() => {
 
                 <div class="d-flex gap-4 mt-2">
                   <VRadioGroup v-model="tarjetaTipo" inline density="compact">
-                    <VRadio label="Tarjeta de DÃ©bito" value="DEBITO" color="warning" />
-                    <VRadio label="Tarjeta de CrÃ©dito" value="CREDITO" color="warning" />
+                    <VRadio label="Tarjeta de Débito" value="DEBITO" color="warning" />
+                    <VRadio label="Tarjeta de Crédito" value="CREDITO" color="warning" />
                   </VRadioGroup>
                 </div>
               </div>
 
-              <!-- 3. VISTA QR DINÃMICO SIMPLE BOLIVIA CON CONFIRMACIÃ“N BANCARIA -->
+              <!-- 3. VISTA QR DINÁMICO SIMPLE BOLIVIA CON CONFIRMACIÓN BANCARIA -->
               <div v-else-if="metodoPago === 'QR'" class="qr-section pa-3 border rounded bg-surface text-center">
                 <div class="text-subtitle-1 font-weight-black mb-1 text-info d-flex align-center justify-center gap-1">
                   <VIcon icon="ri-qr-code-line" size="22" />
-                  <span>PAGO CON QR DINÃMICO (SIMPLE QR BOLIVIA)</span>
+                  <span>PAGO CON QR DINÁMICO (SIMPLE QR BOLIVIA)</span>
                 </div>
                 <div class="text-caption mb-2 text-medium-emphasis">
-                  Compatible con cualquier banco de Bolivia (BCP, BNB, Ganadero, UniÃ³n, FIE, Mercantil, etc.)
+                  Compatible con cualquier banco de Bolivia (BCP, BNB, Ganadero, Unión, FIE, Mercantil, etc.)
                 </div>
 
                 <div class="d-flex flex-column align-center justify-center py-2">
@@ -796,12 +885,12 @@ onBeforeUnmount(() => {
 
                   <div v-if="qrStatus === 'ESPERANDO'" class="d-flex align-center gap-2 text-info text-caption font-weight-bold mb-3">
                     <VProgressCircular indeterminate size="16" width="2" color="info" />
-                    <span>ESPERANDO NOTIFICACIÃ“N EN TIEMPO REAL DEL BANCO...</span>
+                    <span>ESPERANDO NOTIFICACIÓN EN TIEMPO REAL DEL BANCO...</span>
                   </div>
 
                   <div v-else-if="qrStatus === 'PAGADO'" class="text-success font-weight-black d-flex align-center gap-1 mb-2">
                     <VIcon icon="ri-checkbox-circle-fill" size="24" color="success" />
-                    <span>Â¡PAGO ACREDITADO! Banco: {{ qrBancoConfirmado }} (Ref: {{ qrRefBancaria }})</span>
+                    <span>¡PAGO ACREDITADO! Banco: {{ qrBancoConfirmado }} (Ref: {{ qrRefBancaria }})</span>
                   </div>
 
                   <div class="d-flex gap-2">
@@ -813,7 +902,7 @@ onBeforeUnmount(() => {
                       :loading="processing"
                       @click="simularPagoBancario"
                     >
-                      SIMULAR CONFIRMACIÃ“N BANCARIA (TEST)
+                      SIMULAR CONFIRMACIÓN BANCARIA (TEST)
                     </VBtn>
                     <VBtn
                       size="small"
@@ -828,45 +917,169 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <!-- 4. VISTA PAGO MIXTO / COMBINADO -->
+                            <!-- 4. VISTA PAGO MIXTO / COMBINADO (RÉPLICA RESTOTECH CON SELECCIÓN EXPLÍCITA) -->
               <div v-else-if="metodoPago === 'MIXTO'" class="mixto-section pa-3 border rounded bg-surface">
-                <div class="text-subtitle-1 font-weight-bold mb-2 text-secondary">
-                  DivisiÃ³n de Pago Mixto (Total: Bs. {{ totalCobroBob.toFixed(2) }})
+                <div class="d-flex justify-space-between align-center mb-3">
+                  <span class="text-subtitle-1 font-weight-bold text-secondary">
+                    División de Pago Mixto (Total: Bs. {{ totalCobroBob.toFixed(2) }})
+                  </span>
+                  <VChip
+                    :color="((parseFloat(montoMixtoEfectivo) || 0) + (parseFloat(montoMixtoDigital) || 0)) >= totalCobroBob ? 'success' : 'warning'"
+                    size="small"
+                    variant="tonal"
+                  >
+                    Suma: Bs. {{ ((parseFloat(montoMixtoEfectivo) || 0) + (parseFloat(montoMixtoDigital) || 0)).toFixed(2) }}
+                  </VChip>
                 </div>
+
+                <!-- 1. Distribución de montos -->
                 <VRow>
                   <VCol cols="6">
                     <VTextField
-                      v-model="montoMixtoEfectivo"
-                      label="Parte en Efectivo (Bs.)"
+                      :model-value="montoMixtoEfectivo"
+                      @update:model-value="onMontoMixtoEfectivoChange"
+                      label="1. Parte Efectivo (Bs.)"
                       type="number"
-                      step="1"
+                      step="0.5"
                       variant="outlined"
                       density="comfortable"
                       prefix="Bs."
+                      prepend-inner-icon="ri-money-dollar-circle-line"
                     />
                   </VCol>
                   <VCol cols="6">
                     <VTextField
-                      v-model="montoMixtoDigital"
-                      label="Parte Tarjeta / QR (Bs.)"
+                      :model-value="montoMixtoDigital"
+                      @update:model-value="onMontoMixtoDigitalChange"
+                      :label="'2. Parte ' + (segundoMetodo === 'QR' ? 'QR' : 'Tarjeta') + ' (Bs.)'"
                       type="number"
-                      step="1"
+                      step="0.5"
                       variant="outlined"
                       density="comfortable"
                       prefix="Bs."
+                      :prepend-inner-icon="segundoMetodo === 'QR' ? 'ri-qr-code-line' : 'ri-bank-card-line'"
                     />
                   </VCol>
                 </VRow>
+
+                <!-- 2. Selector del Segundo Método de Pago -->
+                <div class="mt-2 mb-3">
+                  <div class="text-caption font-weight-bold text-medium-emphasis mb-1">
+                    SELECCIONAR EL SEGUNDO MÉTODO DE PAGO:
+                  </div>
+                  <div class="d-flex gap-2">
+                    <VBtn
+                      :variant="segundoMetodo === 'TARJETA' ? 'flat' : 'outlined'"
+                      :color="segundoMetodo === 'TARJETA' ? 'warning' : 'default'"
+                      class="flex-grow-1 font-weight-bold"
+                      size="small"
+                      @click="segundoMetodo = 'TARJETA'"
+                    >
+                      <VIcon icon="ri-bank-card-line" class="me-1" />
+                      💳 Tarjeta POS (F3)
+                    </VBtn>
+                    <VBtn
+                      :variant="segundoMetodo === 'QR' ? 'flat' : 'outlined'"
+                      :color="segundoMetodo === 'QR' ? 'info' : 'default'"
+                      class="flex-grow-1 font-weight-bold"
+                      size="small"
+                      @click="segundoMetodo = 'QR'"
+                    >
+                      <VIcon icon="ri-qr-code-line" class="me-1" />
+                      📱 QR Simple (F4)
+                    </VBtn>
+                  </div>
+                </div>
+
+                <!-- 3. Formulario correspondiente al 2do método -->
+                <div v-if="segundoMetodo === 'TARJETA'" class="pa-2 border rounded bg-background">
+                  <div class="text-caption font-weight-bold mb-1 text-warning">
+                    Datos del Voucher POS de Tarjeta (Bs. {{ (parseFloat(montoMixtoDigital) || 0).toFixed(2) }})
+                  </div>
+                  <VRow dense>
+                    <VCol cols="6">
+                      <VSelect
+                        v-model="tarjetaTipo"
+                        :items="['DEBITO', 'CREDITO']"
+                        label="Tipo Tarjeta"
+                        density="compact"
+                        variant="outlined"
+                        hide-details
+                      />
+                    </VCol>
+                    <VCol cols="6">
+                      <div class="d-flex gap-1 align-center">
+                        <VTextField
+                          v-model="tarjetaIni"
+                          label="1ros 4"
+                          placeholder="4568"
+                          maxlength="4"
+                          density="compact"
+                          variant="outlined"
+                          hide-details
+                        />
+                        <span>-****-</span>
+                        <VTextField
+                          v-model="tarjetaFin"
+                          label="Últ 4"
+                          placeholder="1234"
+                          maxlength="4"
+                          density="compact"
+                          variant="outlined"
+                          hide-details
+                        />
+                      </div>
+                    </VCol>
+                  </VRow>
+                </div>
+
+                <div v-else-if="segundoMetodo === 'QR'" class="pa-2 border rounded bg-background text-center">
+                  <div class="text-caption font-weight-bold mb-1 text-info">
+                    Cobro QR Simple Bancario (Bs. {{ (parseFloat(montoMixtoDigital) || 0).toFixed(2) }})
+                  </div>
+                  <div class="d-flex justify-center align-center gap-2">
+                    <VChip size="small" color="info" variant="tonal">
+                      Ref: QR-NIGHTPOS-MIXTO
+                    </VChip>
+                    <VChip size="small" color="success" variant="flat">
+                      Confirmación Automática Activa ✅
+                    </VChip>
+                  </div>
+                </div>
               </div>
             </VCol>
 
-            <!-- COLUMNA DERECHA: DATOS FISCALES SIAT BOLIVIA (_frmFacturacion1) -->
+            <!-- COLUMNA DERECHA: DATOS FISCALES / RECIBO (_frmFacturacion1) -->
             <VCol cols="12" md="5">
               <VCard variant="outlined" class="pa-3 h-100 bg-surface">
+                <!-- Selector de Comprobante: Factura SIAT vs Recibo Interno -->
+                <div class="d-flex gap-2 mb-3">
+                  <VBtn
+                    :variant="tipoComprobante === 'FACTURA' ? 'flat' : 'outlined'"
+                    :color="tipoComprobante === 'FACTURA' ? 'primary' : 'secondary'"
+                    size="small"
+                    class="flex-grow-1 font-weight-bold"
+                    @click="tipoComprobante = 'FACTURA'"
+                  >
+                    <VIcon icon="ri-file-shield-line" class="me-1" />
+                    Factura SIAT (F8)
+                  </VBtn>
+                  <VBtn
+                    :variant="tipoComprobante === 'RECIBO' ? 'flat' : 'outlined'"
+                    :color="tipoComprobante === 'RECIBO' ? 'primary' : 'secondary'"
+                    size="small"
+                    class="flex-grow-1 font-weight-bold"
+                    @click="tipoComprobante = 'RECIBO'"
+                  >
+                    <VIcon icon="ri-receipt-line" class="me-1" />
+                    Recibo / Nota (F9)
+                  </VBtn>
+                </div>
+
                 <div class="d-flex align-center justify-space-between mb-2">
                   <div class="text-subtitle-2 font-weight-black d-flex align-center gap-1 text-primary">
-                    <VIcon icon="ri-file-paper-2-fill" size="18" />
-                    <span>DATOS FACTURA SIAT</span>
+                    <VIcon :icon="tipoComprobante === 'FACTURA' ? 'ri-file-paper-2-fill' : 'ri-receipt-fill'" size="18" />
+                    <span>{{ tipoComprobante === 'FACTURA' ? 'DATOS FACTURA SIAT' : 'DATOS DE RECIBO / CLIENTE' }}</span>
                   </div>
                   <VBtn
                     size="x-small"
@@ -900,7 +1113,7 @@ onBeforeUnmount(() => {
                 <!-- Nro Documento / NIT -->
                 <VTextField
                   v-model="numeroDocumento"
-                  label="NÂ° NIT / CI del Cliente"
+                  label="N° NIT / CI del Cliente"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -911,7 +1124,7 @@ onBeforeUnmount(() => {
                 <!-- Razon Social -->
                 <VTextField
                   v-model="razonSocial"
-                  label="RazÃ³n Social / Nombre"
+                  label="Razón Social / Nombre"
                   variant="outlined"
                   density="compact"
                   class="mb-2"
@@ -919,10 +1132,10 @@ onBeforeUnmount(() => {
                   placeholder="SIN NOMBRE o Nombre del cliente"
                 />
 
-                <!-- Correo con Botones RÃ¡pidos (@gmail.com, @hotmail.com) -->
+                <!-- Correo con Botones Rápidos (@gmail.com, @hotmail.com) -->
                 <VTextField
                   v-model="correo"
-                  label="Correo ElectrÃ³nico (Para envÃ­o de factura SIAT)"
+                  label="Correo Electrónico (Para envío de factura SIAT)"
                   variant="outlined"
                   density="compact"
                   type="email"
@@ -951,11 +1164,11 @@ onBeforeUnmount(() => {
                   </VBtn>
                 </div>
 
-                <!-- Checkbox Imprimir FÃ­sico (_chbImprimirFisico) -->
-                <div class="border rounded pa-2 mb-2 bg-surface-variant">
+                <!-- Checkbox Imprimir Físico (_chbImprimirFisico) -->
+                <div class="border rounded pa-2 mb-2 bg-var-theme-background">
                   <VCheckbox
                     v-model="imprimirFisico"
-                    label="Imprimir Ticket TÃ©rmico 80mm Directo"
+                    label="Imprimir Ticket Térmico 80mm Directo"
                     color="primary"
                     density="compact"
                     hide-details
@@ -966,11 +1179,11 @@ onBeforeUnmount(() => {
                 <!-- Resumen de Consumo -->
                 <div class="items-summary mt-1">
                   <div class="text-caption font-weight-bold text-medium-emphasis mb-1">
-                    Productos a Facturar ({{ visita?.detalles?.length || 0 }}):
+                    Productos a Facturar ({{ activeVisita?.detalles?.length || 0 }}):
                   </div>
                   <div class="items-scroll" style="max-height: 120px; overflow-y: auto;">
                     <div
-                      v-for="item in (visita?.detalles || [])"
+                      v-for="item in (activeVisita?.detalles || [])"
                       :key="item.id"
                       class="d-flex justify-space-between text-caption py-1 border-b"
                     >
@@ -988,8 +1201,8 @@ onBeforeUnmount(() => {
           </VRow>
         </VCardText>
 
-        <!-- Botones de AcciÃ³n TÃ¡ctiles (F12 Cobro Directo e Inmediato) -->
-        <VCardActions class="pa-4 bg-surface-variant d-flex justify-space-between align-center flex-wrap gap-2">
+        <!-- Botones de Acción Táctiles (F12 Cobro Directo e Inmediato) -->
+        <VCardActions class="pa-4 bg-surface border-t d-flex justify-space-between align-center flex-wrap gap-2">
           <VBtn
             variant="outlined"
             color="secondary"

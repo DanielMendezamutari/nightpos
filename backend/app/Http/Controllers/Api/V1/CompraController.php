@@ -116,7 +116,7 @@ class CompraController extends Controller
                 ]);
             }
 
-            // Si la compra es a crÃ©dito, sumar al saldo de deuda del proveedor
+            // Si la compra es a crédito, sumar al saldo de deuda del proveedor
             if ($data['metodo_pago'] === 'CREDITO') {
                 $proveedor = ProveedorModel::findOrFail($data['proveedor_id']);
                 $proveedor->increment('saldo_deuda', $montoFinal);

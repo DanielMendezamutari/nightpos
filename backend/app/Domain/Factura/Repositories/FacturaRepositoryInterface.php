@@ -13,4 +13,5 @@ interface FacturaRepositoryInterface
     public function findFacturaById(int $id): ?Factura;
     public function anularFactura(int $id, string $motivo): Factura;
     public function getSiguienteNroFactura(string $tenantId, string $branchId): int;
+    public function getSiguienteNroRecibo(string $tenantId, string $branchId): int;
 }

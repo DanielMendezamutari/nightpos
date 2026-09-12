@@ -36,12 +36,18 @@ watch(() => props.modelValue, (val) => {
 const handleEnviar = async () => {
   if (!props.mesa) return
 
-  const res = await comandaStore.enviarComanda(props.mesa.id)
+  const visitaId = props.visita?.id || props.mesa?.visitaActiva?.id || (typeof props.mesa.id === 'string' && props.mesa.id.startsWith('sin_mesa_') ? parseInt(props.mesa.id.replace('sin_mesa_', '')) : null)
+
+  const res = await comandaStore.enviarComanda(props.mesa.id, visitaId)
   if (res.success) {
     emit('comandaEnviada')
     emit('update:modelValue', false)
-    await salonStore.fetchSalones()
-    await salonStore.fetchMesas(props.mesa.salon_id)
+    if (!props.mesa.esSinMesa) {
+      await salonStore.fetchSalones()
+      if (props.mesa.salon_id) {
+        await salonStore.fetchMesas(props.mesa.salon_id)
+      }
+    }
   } else {
     alert(res.message || 'Error al enviar comanda')
   }
@@ -66,7 +72,7 @@ const toggleObservaciones = (productoId) => {
           <VIcon icon="ri-restaurant-2-line" />
           <span>TOMA DE PEDIDOS — {{ mesa?.nombre }}</span>
           <VChip size="small" color="white" variant="tonal" class="ms-2 font-weight-bold">
-            MESA ACTIVA
+            {{ mesa?.esSinMesa ? `SIN MESA (${mesa?.codigo || 'LLEVAR'})` : 'MESA ACTIVA' }}
           </VChip>
         </VToolbarTitle>
 
