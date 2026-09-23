@@ -39,7 +39,7 @@ return new class extends Migration
                 $table->json('detalles_json')->nullable();
                 $table->timestamps();
 
-                $table->index(['tenant_id', 'branch_id', 'tipo_operacion']);
+                $table->index(['tenant_id', 'branch_id', 'tipo_operacion'], 'idx_mesa_ops_tenant_branch_tipo');
             });
         }
     }
