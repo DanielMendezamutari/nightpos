@@ -1,4 +1,4 @@
-﻿# Archives & Template sources
+# Archives & Template sources
 *.zip
 admin-full-version/
 admin-starter-kit/
@@ -18,7 +18,7 @@ backend/storage/logs/*
 
 # Frontend dependencies & build outputs
 frontend/node_modules/
-frontend/dist/
+# frontend/dist/ is tracked for hosting deployment
 frontend/.temp/
 frontend/.cache/
 

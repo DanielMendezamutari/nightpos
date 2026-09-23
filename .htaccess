@@ -1,0 +1,28 @@
+# NightPOS — raíz del dominio (nightpos.ribersoft.com)
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Authorization header para JWT Bearer
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Si es archivo o carpeta real, servirlo directamente
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Enrutar API limpia hacia Laravel backend/public
+    RewriteRule ^api/(.*)$ backend/public/index.php [L,QSA]
+
+    # Enrutar almacenamiento público de Laravel
+    RewriteRule ^storage/(.*)$ backend/public/storage/$1 [L]
+
+    # Redireccionar el resto de rutas a Vue Router (SPA history mode)
+    RewriteCond %{REQUEST_URI} !^/api/
+    RewriteCond %{REQUEST_URI} !^/backend/
+    RewriteCond %{REQUEST_URI} !^/storage/
+    RewriteRule ^ index.html [L]
+</IfModule>
