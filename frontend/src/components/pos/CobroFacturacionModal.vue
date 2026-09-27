@@ -2,6 +2,7 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useCajaStore } from '@/stores/caja'
 import { useComandaStore } from '@/stores/comanda'
+import { $api } from '@/utils/api'
 import QRCode from 'qrcode'
 
 const props = defineProps({
@@ -523,6 +524,7 @@ const submitCobro = async () => {
     metodo_pago: metodoPago.value,
     monto_recibido: montoRecibidoFinal,
     tipo_comprobante: tipoComprobante.value,
+    imprimir_directo: imprimirFisico.value,
     propina_monto: parseFloat(propinaMonto.value) || 0,
     propina_porcentaje: parseFloat(propinaPorcentaje.value) || 0,
     datos_adicionales: {
@@ -549,8 +551,10 @@ const submitCobro = async () => {
     facturaEmitida.value = res.data.factura
     stopQrPolling()
 
-    // 1. Disparar impresion termica aislada y limpia de 80mm
-    imprimirTicketTermicoIframe(res.data.factura)
+    // 1. Si el backend no ejecutó la impresión directa (ej. servidor cloud o sin spooler local), usar el fallback de iframe
+    if (imprimirFisico.value && (!res.data?.impresion_directa || !res.data.impresion_directa.success)) {
+      imprimirTicketTermicoIframe(res.data.factura)
+    }
 
     // 2. Cerrar modal y notificar al salon
     emit('update:modelValue', false)

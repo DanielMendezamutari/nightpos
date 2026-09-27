@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\V1\GastoController;
 use App\Http\Controllers\Api\V1\SepararCuentasController;
 use App\Http\Controllers\Api\V1\MesaOperacionesController;
 use App\Http\Controllers\Api\V1\ReporteController;
+use App\Http\Controllers\Api\V1\ImpresionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -210,6 +211,15 @@ Route::prefix('v1')->group(function () {
             Route::get('cuenta/{mesaId}', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'verCuenta']);
             Route::post('imprimir-precuenta/{mesaId}', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'solicitarPrecuenta']);
         });
+    });
+
+    // ==========================================
+    // MÓDULO 013: IMPRESIÓN DIRECTA TÉRMICA RESTOTECH
+    // ==========================================
+    Route::prefix('impresion')->group(function () {
+        Route::post('ticket/{facturaId}', [ImpresionController::class, 'imprimirTicket']);
+        Route::get('impresoras', [ImpresionController::class, 'listarImpresoras']);
+        Route::post('test', [ImpresionController::class, 'test']);
     });
 
 });

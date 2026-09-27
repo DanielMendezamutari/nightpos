@@ -20,13 +20,15 @@ use App\Infrastructure\Persistence\Eloquent\Models\TurnoArqueoCiegoModel;
 use App\Infrastructure\Persistence\Eloquent\Models\GastoModel;
 use App\Infrastructure\Persistence\Eloquent\Models\ClienteMovimientoModel;
 use App\Infrastructure\Persistence\Eloquent\Models\AnticipoModel;
+use App\Services\Printing\WindowsDirectPrinterService;
 
 class CajaFacturaController extends Controller
 {
     public function __construct(
         private readonly CajaRepositoryInterface $cajaRepository,
         private readonly FacturaRepositoryInterface $facturaRepository,
-        private readonly SiatBoliviaService $siatService
+        private readonly SiatBoliviaService $siatService,
+        private readonly WindowsDirectPrinterService $printerService
     ) {}
 
     public function getTurnoActivo(Request $request): JsonResponse
@@ -442,6 +444,39 @@ class CajaFacturaController extends Controller
 
         $mesaCodigo = $mesa ? ($mesa->codigo ?? $mesa->numero ?? $mesa->nombre) : ($visita->tipo_despacho . ' (' . ($visita->cliente_nombre ?? 'Cliente') . ')');
 
+        $facturaArray = [
+            'id' => $factura->id(),
+            'tipo_comprobante' => $factura->tipoComprobante(),
+            'nro_comprobante' => $factura->nroComprobante(),
+            'nro_factura' => $factura->nroFactura(),
+            'cuf' => $factura->cuf(),
+            'cufd' => $factura->cufd(),
+            'tipo_documento' => $factura->tipoDocumento(),
+            'numero_documento' => $factura->numeroDocumento(),
+            'razon_social' => $factura->razonSocial(),
+            'metodo_pago' => $factura->metodoPago(),
+            'segundo_metodo_pago' => $factura->segundoMetodoPago(),
+            'nro_tarjeta' => $factura->nroTarjeta(),
+            'monto_efectivo' => $factura->montoEfectivo(),
+            'monto_tarjeta' => $factura->montoTarjeta(),
+            'monto_qr' => $factura->montoQr(),
+            'monto_total' => $factura->montoTotal(),
+            'monto_recibido' => $montoRecibido,
+            'cambio' => $montoCambio,
+            'fecha_emision' => $factura->fechaEmision(),
+            'cajero' => $factura->cajeroNombre(),
+            'mesa_numero' => $mesa ? ($mesa->numero ?? $mesa->codigo) : $visita->tipo_despacho,
+            'qr_url' => $qrUrl,
+            'detalles' => $factura->detalles(),
+        ];
+
+        // Impresión Directa estilo RestoTech (enviada al spooler de Windows hacia impresora CAJA)
+        $autoPrint = $request->boolean('imprimir_directo', true);
+        $impresionDirecta = null;
+        if ($autoPrint && PHP_OS_FAMILY === 'Windows') {
+            $impresionDirecta = $this->printerService->imprimirFactura($facturaArray);
+        }
+
         $msg = ($tipoComprobante === 'FACTURA')
             ? "Cuenta {$mesaCodigo} cobrada y Factura N° {$siguienteNro} emitida con exito"
             : "Cuenta {$mesaCodigo} cobrada con Recibo N° {$nroComprobante} (Sin Factura) con exito";
@@ -450,31 +485,8 @@ class CajaFacturaController extends Controller
             'success' => true,
             'message' => $msg,
             'data' => [
-                'factura' => [
-                    'id' => $factura->id(),
-                    'tipo_comprobante' => $factura->tipoComprobante(),
-                    'nro_comprobante' => $factura->nroComprobante(),
-                    'nro_factura' => $factura->nroFactura(),
-                    'cuf' => $factura->cuf(),
-                    'cufd' => $factura->cufd(),
-                    'tipo_documento' => $factura->tipoDocumento(),
-                    'numero_documento' => $factura->numeroDocumento(),
-                    'razon_social' => $factura->razonSocial(),
-                    'metodo_pago' => $factura->metodoPago(),
-                    'segundo_metodo_pago' => $factura->segundoMetodoPago(),
-                    'nro_tarjeta' => $factura->nroTarjeta(),
-                    'monto_efectivo' => $factura->montoEfectivo(),
-                    'monto_tarjeta' => $factura->montoTarjeta(),
-                    'monto_qr' => $factura->montoQr(),
-                    'monto_total' => $factura->montoTotal(),
-                    'monto_recibido' => $montoRecibido,
-                    'cambio' => $montoCambio,
-                    'fecha_emision' => $factura->fechaEmision(),
-                    'cajero' => $factura->cajeroNombre(),
-                    'mesa_numero' => $mesa ? ($mesa->numero ?? $mesa->codigo) : $visita->tipo_despacho,
-                    'qr_url' => $qrUrl,
-                    'detalles' => $factura->detalles(),
-                ],
+                'factura' => $facturaArray,
+                'impresion_directa' => $impresionDirecta,
                 'turno' => [
                     'total_ventas_efectivo' => $turnoActualizado->totalVentasEfectivo(),
                     'total_ventas_qr' => $turnoActualizado->totalVentasQr(),
