@@ -268,9 +268,11 @@ class CajaFacturaController extends Controller
             ], 422);
         }
 
-        $isSinMesa = str_starts_with((string)$mesaId, 'sin_mesa_') || $request->has('visita_id');
+        $isSinMesa = str_starts_with((string)$mesaId, 'sin_mesa_') || $request->filled('visita_id');
         if ($isSinMesa) {
-            $visitaId = $request->input('visita_id') ?? (int)str_replace('sin_mesa_', '', (string)$mesaId);
+            $visitaId = $request->filled('visita_id')
+                ? (int)$request->input('visita_id')
+                : (int)str_replace('sin_mesa_', '', (string)$mesaId);
             $visita = VisitaModel::with('detalles.producto')->findOrFail($visitaId);
             $mesa = null;
         } else {

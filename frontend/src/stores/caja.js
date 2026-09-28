@@ -107,16 +107,20 @@ export const useCajaStore = defineStore('caja', {
       try {
         const isSinMesa = typeof mesaId === 'string' && mesaId.startsWith('sin_mesa_')
         const parsedVisitaId = isSinMesa ? parseInt(mesaId.replace('sin_mesa_', '')) : (payload.visita_id || null)
-        const url = parsedVisitaId
+        const url = isSinMesa && parsedVisitaId
           ? `/api/v1/visitas/${parsedVisitaId}/cobrar-facturar`
           : `/api/v1/mesas/${mesaId}/cobrar-facturar`
 
+        const requestBody = { ...payload }
+        if (parsedVisitaId) {
+          requestBody.visita_id = parsedVisitaId
+        } else {
+          delete requestBody.visita_id
+        }
+
         const res = await $api(url, {
           method: 'POST',
-          body: {
-            ...payload,
-            visita_id: parsedVisitaId,
-          },
+          body: requestBody,
         })
         await this.fetchTurnoActivo()
         return { success: true, data: res.data }
