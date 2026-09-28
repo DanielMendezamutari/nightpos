@@ -142,10 +142,10 @@ const imprimirReporte = () => {
         <div>
           <h2 class="text-h5 font-weight-bold d-flex align-center gap-2 mb-1">
             <VIcon icon="ri-bar-chart-grouped-line" color="primary" size="28" />
-            Centro de Reportes RestoTech
+            Centro de Reportes y Analítica Ribersoft
           </h2>
           <span class="text-caption text-medium-emphasis">
-            Visualización y auditoría idéntica a RestoTech Desktop por Ribersoft
+            Auditoría y control operacional para restaurantes y boliches por Ribersoft
           </span>
         </div>
 
@@ -180,7 +180,7 @@ const imprimirReporte = () => {
       </VCardText>
     </VCard>
 
-    <!-- RestoTech Reports Window (Faithful Recreation of Image 5) -->
+    <!-- Ribersoft Reports Window -->
     <div class="restotech-window-frame">
       <!-- Window Title Bar -->
       <div class="restotech-window-header">
@@ -188,7 +188,7 @@ const imprimirReporte = () => {
           <div class="restotech-header-icon">
             <VIcon icon="ri-restaurant-2-line" size="18" color="white" />
           </div>
-          <span class="restotech-window-title">Resto Tech - Reportes del Sistema</span>
+          <span class="restotech-window-title">RiberResto POS - Reportes Gerenciales</span>
         </div>
         <div class="window-controls">
           <span class="ctrl-btn">&#9472;</span>
@@ -333,14 +333,14 @@ const imprimirReporte = () => {
             {{ reporteTitulo }}
           </VCardTitle>
           <VCardSubtitle class="text-white opacity-80">
-            Período: {{ fechaDesde }} al {{ fechaHasta }} | RestoTech Ribersoft
+            Período: {{ fechaDesde }} al {{ fechaHasta }} | RiberResto POS
           </VCardSubtitle>
         </VCardItem>
 
         <VCardText class="pa-4">
           <div v-if="reporteLoading" class="text-center pa-8">
             <VProgressCircular indeterminate color="primary" size="48" class="mb-3" />
-            <div class="text-caption">Generando reporte RestoTech...</div>
+            <div class="text-caption">Generando reporte del sistema...</div>
           </div>
 
           <div v-else>

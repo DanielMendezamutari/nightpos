@@ -331,6 +331,13 @@ class MovilGarzonController extends Controller
             $visita->imprimio_cuenta = true;
             $visita->save();
 
+            // Disparar impresión directa a impresora física CAJA si está en Windows
+            try {
+                app(\App\Http\Controllers\Api\V1\ImpresionController::class)->imprimirPrecuenta(request(), $mesaId);
+            } catch (\Throwable $e) {
+                // Silencioso para no romper la respuesta del garzón si la impresora física está apagada
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Pre-cuenta solicitada e impresa en salón exitosamente',
@@ -346,5 +353,184 @@ class MovilGarzonController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         }
+    }
+
+    /**
+     * =========================================================================
+     * ENDPOINTS REVERSADOS PARA COMPATIBILIDAD CON APK (base.apk / cu.lex.android.bi)
+     * =========================================================================
+     */
+
+    /**
+     * Reversión de GET /users/login/{query}
+     */
+    public function loginLegacy(string $query): JsonResponse
+    {
+        $tenant = TenantModel::where('slug', 'casa-demo')->first() ?? TenantModel::first();
+        if (!$tenant) {
+            return response()->json(['loginSuccessful' => false, 'existFreeTables' => false], 404);
+        }
+
+        $users = UserModel::where('tenant_id', $tenant->id)->where('is_active', true)->get();
+        $matchingUser = null;
+
+        foreach ($users as $user) {
+            if ($user->pin_hash && Hash::check($query, $user->pin_hash)) {
+                $matchingUser = $user;
+                break;
+            }
+        }
+
+        if (!$matchingUser) {
+            return response()->json(['loginSuccessful' => false, 'existFreeTables' => false], 401);
+        }
+
+        $token = \PHPOpenSourceSaver\JWTAuth\Facades\JWTAuth::fromUser($matchingUser);
+        $tieneMesasLibres = MesaModel::whereDoesntHave('visitaActiva')->exists();
+
+        return response()->json([
+            'loginSuccessful' => true,
+            'existFreeTables' => $tieneMesasLibres,
+            'waiterId' => (string) $matchingUser->id,
+            'waiterName' => $matchingUser->name,
+            'token' => $token,
+        ]);
+    }
+
+    /**
+     * Reversión de POST /table/allTable
+     */
+    public function mesasLegacy(Request $request): JsonResponse
+    {
+        $mesas = MesaModel::with('visitaActiva')->orderBy('codigo')->get();
+
+        $data = $mesas->map(function ($m) {
+            $isBusy = $m->visitaActiva !== null;
+            return [
+                'id' => $m->id,
+                'name' => $m->nombre ?? "Mesa {$m->codigo}",
+                'state' => $isBusy ? 'TABLES_BUSY' : 'TABLES_FREE',
+            ];
+        });
+
+        return response()->json($data);
+    }
+
+    /**
+     * Reversión de GET /Assistants/All
+     */
+    public function asistentesLegacy(): JsonResponse
+    {
+        $asistentes = [
+            ['mId' => 1, 'mName' => 'Sin Sal', 'mFullName' => 'Sin Sal'],
+            ['mId' => 2, 'mName' => 'Sin Cebolla', 'mFullName' => 'Sin Cebolla'],
+            ['mId' => 3, 'mName' => 'Picante Extra', 'mFullName' => 'Picante Extra'],
+            ['mId' => 4, 'mName' => 'Término Medio', 'mFullName' => 'Carne Término Medio'],
+            ['mId' => 5, 'mName' => 'Bien Cocido', 'mFullName' => 'Carne Bien Cocida'],
+            ['mId' => 6, 'mName' => 'Con Hielo', 'mFullName' => 'Con Hielo'],
+            ['mId' => 7, 'mName' => 'Sin Hielo', 'mFullName' => 'Sin Hielo'],
+            ['mId' => 8, 'mName' => 'Para Llevar', 'mFullName' => 'Empaque Para Llevar'],
+        ];
+
+        return response()->json($asistentes);
+    }
+
+    /**
+     * Reversión de POST /orders/SendOrder
+     */
+    public function sendOrderLegacy(Request $request): JsonResponse
+    {
+        $tableId = (int) $request->input('tableId');
+        $cartItems = $request->input('cartItemList', []);
+        $waiterId = $request->input('waiterId');
+
+        $mesa = MesaModel::with('visitaActiva')->find($tableId);
+        if (!$mesa) {
+            return response()->json(['success' => false, 'message' => 'Mesa no encontrada'], 404);
+        }
+
+        // Si la mesa no tiene visita activa, abrirla
+        if (!$mesa->visitaActiva) {
+            $this->mesaRepository->abrirMesa(
+                mesaId: $tableId,
+                meseroId: (string) ($waiterId ?? 1),
+                personas: 2,
+                clienteNombre: null,
+                notas: 'Comanda Móvil'
+            );
+        }
+
+        $items = [];
+        foreach ($cartItems as $item) {
+            $prodId = $item['productId'] ?? ($item['mProduct']['mId'] ?? null);
+            $count = (float) ($item['count'] ?? ($item['mCount'] ?? 1));
+            $obsParts = [];
+            if (!empty($item['assistants']) || !empty($item['mAssistants'])) {
+                $obsParts[] = $item['assistants'] ?? $item['mAssistants'];
+            }
+            if (!empty($item['comment']) || !empty($item['mComment'])) {
+                $obsParts[] = $item['comment'] ?? $item['mComment'];
+            }
+
+            $items[] = [
+                'producto_id' => (int) $prodId,
+                'cantidad' => $count,
+                'observaciones' => implode(' | ', $obsParts),
+            ];
+        }
+
+        if (empty($items)) {
+            return response()->json(['success' => false, 'message' => 'Carrito vacío'], 422);
+        }
+
+        $resultado = $this->pedidoRepository->agregarItemsMesa($tableId, $items);
+
+        // Descontar insumos
+        foreach ($items as $item) {
+            \App\Http\Controllers\Api\V1\RecetaController::descontarInsumosPorVenta(
+                (int) $item['producto_id'],
+                (float) $item['cantidad'],
+                "Comanda Móvil Legacy Mesa #{$tableId}"
+            );
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comanda procesada correctamente',
+            'data' => $resultado,
+        ]);
+    }
+
+    /**
+     * Reversión de POST /orders/PrintOrder
+     */
+    public function printOrderLegacy(Request $request): JsonResponse
+    {
+        $tableId = (int) $request->input('tableId');
+        return $this->solicitarPrecuenta($tableId);
+    }
+
+    /**
+     * Reversión de POST /orders/OrderByTable y /orders/VerOrder
+     */
+    public function orderByTableLegacy(Request $request): JsonResponse
+    {
+        $tableId = (int) $request->input('tableId');
+        $mesa = MesaModel::with('visitaActiva.detalles.producto')->find($tableId);
+
+        if (!$mesa || !$mesa->visitaActiva) {
+            return response()->json([]);
+        }
+
+        $orders = [];
+        foreach ($mesa->visitaActiva->detalles as $det) {
+            $orders[] = [
+                'productId' => $det->producto_id,
+                'productName' => $det->producto ? $det->producto->nombre : ($det->descripcion ?? 'Producto'),
+                'count' => (int) $det->cantidad,
+            ];
+        }
+
+        return response()->json($orders);
     }
 }

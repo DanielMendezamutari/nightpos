@@ -10,6 +10,7 @@ use App\Infrastructure\Persistence\Eloquent\Models\BranchModel;
 use App\Infrastructure\Persistence\Eloquent\Models\MesaModel;
 use App\Infrastructure\Persistence\Eloquent\Models\TenantModel;
 use App\Infrastructure\Persistence\Eloquent\Models\VisitaModel;
+use App\Services\Printing\WindowsDirectPrinterService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -19,6 +20,7 @@ class SalonMesaController extends Controller
     public function __construct(
         private readonly SalonRepositoryInterface $salonRepository,
         private readonly MesaRepositoryInterface $mesaRepository,
+        private readonly WindowsDirectPrinterService $printerService,
     ) {}
 
     public function getSalones(Request $request): JsonResponse
@@ -188,9 +190,44 @@ class SalonMesaController extends Controller
         try {
             $this->mesaRepository->solicitarPrecuenta($mesaId);
 
+            $impresion = null;
+            if (PHP_OS_FAMILY === 'Windows') {
+                $mesa = MesaModel::with(['visitaActiva.detalles.producto', 'visitaActiva.mesero', 'visitaActiva.cliente'])->find($mesaId);
+                if ($mesa && $mesa->visitaActiva && $mesa->visitaActiva->detalles->isNotEmpty()) {
+                    $visita = $mesa->visitaActiva;
+                    $items = [];
+                    $total = 0.0;
+                    foreach ($visita->detalles as $det) {
+                        $sub = (float)$det->subtotal;
+                        $total += $sub;
+                        $items[] = [
+                            'cantidad' => $det->cantidad,
+                            'producto_nombre' => $det->producto ? $det->producto->nombre : ($det->descripcion ?? 'Producto'),
+                            'subtotal' => $sub,
+                        ];
+                    }
+
+                    $clienteNombre = $visita->cliente_nombre ?: ($visita->cliente ? trim(($visita->cliente->nombre ?? '') . ' ' . ($visita->cliente->apellidos ?? '')) : '');
+
+                    $cuentaData = [
+                        'mesa_numero' => $mesa->codigo ?? ('MESA ' . ($mesa->numero ?? $mesa->id)),
+                        'mesero' => $visita->mesero ? ($visita->mesero->name ?? $visita->mesero->nombre) : 'Garzon',
+                        'cliente' => $clienteNombre,
+                        'fecha' => now()->format('Y-m-d H:i:s'),
+                        'monto_total' => (float)$visita->total > 0 ? (float)$visita->total : $total,
+                        'detalles' => $items,
+                    ];
+
+                    $impresion = $this->printerService->imprimirPrecuenta($cuentaData);
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Pre-cuenta solicitada e impresa',
+                'data' => [
+                    'impresion' => $impresion,
+                ],
             ]);
         } catch (\Throwable $e) {
             return response()->json([

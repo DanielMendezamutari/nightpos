@@ -56,14 +56,57 @@ class ImpresionApiTest extends TestCase
 
         $texto = $formatter->formatTicket($factura);
 
-        $this->assertStringContainsString('RIBERRESTO POS', $texto);
-        $this->assertStringContainsString('RECIBO DE CAJA', $texto);
-        $this->assertStringContainsString('REC-000042', $texto);
-        $this->assertStringContainsString('CARLOS GUTIERREZ', $texto);
-        $this->assertStringContainsString('MESA 5', $texto);
-        $this->assertStringContainsString('Cerveza Huari', $texto);
-        $this->assertStringContainsString('75.00', $texto);
-        $this->assertStringContainsString('25.00', $texto);
+        $this->assertTrue(str_contains($texto, 'RIBERESTO POS'));
+        $this->assertTrue(str_contains($texto, 'RECIBO DE CAJA'));
+        $this->assertTrue(str_contains($texto, 'REC-000042'));
+        $this->assertTrue(str_contains($texto, 'CARLOS GUTIERREZ'));
+        $this->assertTrue(str_contains($texto, 'MESA 5'));
+        $this->assertTrue(str_contains($texto, 'Cerveza Huari'));
+        $this->assertTrue(str_contains($texto, '75.00'));
+        $this->assertTrue(str_contains($texto, '25.00'));
+    }
+
+    public function test_ticket_formatter_generates_formatted_precuenta_restotech(): void
+    {
+        $formatter = new TicketFormatterService();
+
+        $cuenta = [
+            'mesa_numero' => 'MESA 2',
+            'mesero' => 'Juan Perez',
+            'cliente' => 'Familia Mendez',
+            'fecha' => '2026-09-28 00:30:00',
+            'monto_total' => 150.00,
+            'detalles' => [
+                [
+                    'cantidad' => 1,
+                    'producto_nombre' => 'Pique Macho Ribersoft',
+                    'precio_unitario' => 95.00,
+                    'subtotal' => 95.00,
+                ],
+                [
+                    'cantidad' => 1,
+                    'producto_nombre' => 'Silpancho Cochabambino',
+                    'precio_unitario' => 55.00,
+                    'subtotal' => 55.00,
+                ],
+            ],
+        ];
+
+        $rawPrecuenta = $formatter->formatPrecuenta($cuenta);
+
+        $this->assertTrue(str_contains($rawPrecuenta, 'RIBERESTO POS'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'CUENTA'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'En Mesa'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'MESA 2'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'Juan Perez'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'DESCRIPCION'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'CANT.'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'TOTAL'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'Pique Macho Ribersoft'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'Silpancho Cochabambino'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'TOTAL A PAGAR:'));
+        $this->assertTrue(str_contains($rawPrecuenta, '150.00'));
+        $this->assertTrue(str_contains($rawPrecuenta, 'Desarrollado por Ribersoft: 67369293'));
     }
 
     public function test_listar_impresoras_endpoint(): void
@@ -80,6 +123,51 @@ class ImpresionApiTest extends TestCase
         $res = $this->postJson('/api/v1/impresion/ticket/99999');
         $res->assertStatus(404);
         $this->assertFalse($res->json('success'));
+    }
+
+    public function test_imprimir_precuenta_endpoint(): void
+    {
+        $mesa = MesaModel::with('salon')->first();
+        $cajero = UserModel::first();
+
+        $visita = VisitaModel::create([
+            'tenant_id' => $mesa->salon->tenant_id,
+            'branch_id' => $mesa->salon->branch_id,
+            'mesa_id' => $mesa->id,
+            'mesero_id' => $cajero->id,
+            'cliente_nombre' => 'Familia Mendez',
+            'estado' => 'ABIERTA',
+            'pax' => 2,
+            'total' => 150.00,
+            'fecha_apertura' => now(),
+        ]);
+
+        $mesa->update(['estado' => 'OCUPADA']);
+
+        $producto = ProductoModel::first();
+        VisitaDetalleModel::create([
+            'visita_id' => $visita->id,
+            'producto_id' => $producto->id,
+            'producto_nombre' => $producto->nombre,
+            'cantidad' => 2,
+            'precio_unitario' => 75.00,
+            'subtotal' => 150.00,
+            'estado' => 'SERVIDO',
+            'created_at' => now(),
+        ]);
+
+        $mockPrinter = $this->createMock(WindowsDirectPrinterService::class);
+        $mockPrinter->method('imprimirPrecuenta')->willReturn([
+            'success' => true,
+            'message' => 'Simulacion de precuenta en CAJA',
+            'printer' => 'CAJA',
+        ]);
+        $this->app->instance(WindowsDirectPrinterService::class, $mockPrinter);
+
+        $res = $this->postJson("/api/v1/impresion/precuenta/{$mesa->id}");
+        $res->assertStatus(200);
+        $this->assertTrue($res->json('success'));
+        $this->assertArrayHasKey('impresion', $res->json('data'));
     }
 
     public function test_cobro_mesa_incluye_campo_impresion_directa(): void

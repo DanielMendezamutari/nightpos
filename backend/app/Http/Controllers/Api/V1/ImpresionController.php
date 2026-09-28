@@ -6,6 +6,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
 use App\Infrastructure\Persistence\Eloquent\Models\FacturaModel;
+use App\Infrastructure\Persistence\Eloquent\Models\MesaModel;
+use App\Infrastructure\Persistence\Eloquent\Models\VisitaModel;
 use App\Services\Printing\WindowsDirectPrinterService;
 use App\Services\Printing\TicketFormatterService;
 use Illuminate\Http\JsonResponse;
@@ -19,7 +21,7 @@ class ImpresionController extends Controller
     ) {}
 
     /**
-     * Imprime una factura o recibo existente directamente a la impresora térmica.
+     * Imprime una factura o recibo existente directamente a la impresora térmica en formato RAW 80mm.
      */
     public function imprimirTicket(Request $request, int $facturaId): JsonResponse
     {
@@ -33,7 +35,7 @@ class ImpresionController extends Controller
         }
 
         // Armar estructura de factura para el formateador
-        $mesaNumero = 'SIN MESA';
+        $mesaNumero = 'BARRA';
         if ($factura->visita && $factura->visita->mesa) {
             $mesaNumero = $factura->visita->mesa->codigo ?? $factura->visita->mesa->numero ?? 'MESA';
         } elseif ($factura->visita) {
@@ -79,6 +81,85 @@ class ImpresionController extends Controller
     }
 
     /**
+     * Imprime la PRECUENTA de una mesa activa idéntica a RestoTech (printCuentaTotalFactura).
+     */
+    public function imprimirPrecuenta(Request $request, string|int $mesaId): JsonResponse
+    {
+        $isSinMesa = str_starts_with((string)$mesaId, 'sin_mesa_') || $request->filled('visita_id');
+
+        if ($isSinMesa) {
+            $visitaId = $request->filled('visita_id')
+                ? (int)$request->input('visita_id')
+                : (int)str_replace('sin_mesa_', '', (string)$mesaId);
+            $visita = VisitaModel::with(['detalles.producto', 'mesero', 'cliente'])->find($visitaId);
+            $mesaNombre = 'SIN MESA / LLEVAR';
+        } else {
+            $mesa = MesaModel::with(['visitaActiva.detalles.producto', 'visitaActiva.mesero', 'visitaActiva.cliente'])->find((int)$mesaId);
+            if (!$mesa) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Mesa ID {$mesaId} no encontrada",
+                ], 404);
+            }
+            $visita = $mesa->visitaActiva;
+            $mesaNombre = $mesa->codigo ?? ('MESA ' . ($mesa->numero ?? $mesa->id));
+        }
+
+        if (!$visita || $visita->detalles->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'La mesa no tiene consumos registrados para generar precuenta',
+            ], 422);
+        }
+
+        $items = [];
+        $totalCalculado = 0.0;
+        foreach ($visita->detalles as $det) {
+            $subtotal = (float)$det->subtotal;
+            $totalCalculado += $subtotal;
+            $items[] = [
+                'cantidad' => $det->cantidad,
+                'producto_nombre' => $det->producto ? $det->producto->nombre : ($det->descripcion ?? 'Producto'),
+                'precio_unitario' => $det->precio_unitario,
+                'subtotal' => $subtotal,
+            ];
+        }
+
+        $meseroNombre = 'Garzon';
+        if ($visita->mesero) {
+            $meseroNombre = $visita->mesero->name ?? $visita->mesero->nombre ?? 'Garzon';
+        }
+
+        $clienteNombre = $visita->cliente_nombre ?: ($visita->cliente ? trim(($visita->cliente->nombre ?? '') . ' ' . ($visita->cliente->apellidos ?? '')) : '');
+
+        $cuentaData = [
+            'mesa_numero' => $mesaNombre,
+            'mesero' => $meseroNombre,
+            'cliente' => $clienteNombre,
+            'fecha' => now()->format('Y-m-d H:i:s'),
+            'monto_total' => (float)$visita->total > 0 ? (float)$visita->total : $totalCalculado,
+            'detalles' => $items,
+        ];
+
+        $printerName = $request->input('impresora') ?: env('POS_PRINTER_NAME', 'CAJA');
+        $printResult = $this->printerService->imprimirPrecuenta($cuentaData, $printerName);
+
+        return response()->json([
+            'success' => $printResult['success'],
+            'message' => $printResult['success']
+                ? "Precuenta enviada a impresora {$printerName} con exito"
+                : "Fallo al imprimir precuenta: " . ($printResult['message'] ?? 'Error desconocido'),
+            'data' => [
+                'mesa' => $mesaNombre,
+                'mesero' => $meseroNombre,
+                'total' => $cuentaData['monto_total'],
+                'items_count' => count($items),
+                'impresion' => $printResult,
+            ],
+        ], $printResult['success'] ? 200 : 500);
+    }
+
+    /**
      * Lista las impresoras instaladas en el sistema.
      */
     public function listarImpresoras(): JsonResponse
@@ -93,25 +174,25 @@ class ImpresionController extends Controller
     }
 
     /**
-     * Imprime un ticket de prueba y diagnóstico rápido.
+     * Imprime un ticket de prueba y diagnóstico rápido en modo RAW 80mm.
      */
     public function test(Request $request): JsonResponse
     {
         $printerName = $request->input('impresora') ?: env('POS_PRINTER_NAME', 'CAJA');
 
-        $testText = "========================================\r\n"
-                  . "             RIBERRESTO POS             \r\n"
-                  . "       PRUEBA DE IMPRESION DIRECTA      \r\n"
-                  . "----------------------------------------\r\n"
-                  . "Impresora: {$printerName}\r\n"
-                  . "Fecha: " . date('Y-m-d H:i:s') . "\r\n"
-                  . "Estado: COMUNICACION DIRECTA OK\r\n"
-                  . "----------------------------------------\r\n"
-                  . "Impresion termica 80mm configurada!\r\n"
-                  . "Desarrollado por Ribersoft\r\n"
-                  . "========================================\r\n\r\n\r\n";
+        $cuentaTest = [
+            'mesa_numero' => 'TEST MESA 1',
+            'mesero' => 'Cajero Principal',
+            'cliente' => 'Test Cliente',
+            'fecha' => date('Y-m-d H:i:s'),
+            'monto_total' => 150.00,
+            'detalles' => [
+                ['cantidad' => 1, 'producto_nombre' => 'Pique Macho Ribersoft', 'subtotal' => 95.00],
+                ['cantidad' => 1, 'producto_nombre' => 'Silpancho Cochabambino', 'subtotal' => 55.00],
+            ],
+        ];
 
-        $result = $this->printerService->imprimirTexto($testText, $printerName);
+        $result = $this->printerService->imprimirPrecuenta($cuentaTest, $printerName);
 
         return response()->json($result, $result['success'] ? 200 : 500);
     }

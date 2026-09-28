@@ -283,4 +283,57 @@ class MovilGarzonApiTest extends TestCase
             'imprimio_cuenta' => true,
         ]);
     }
+
+    public function test_endpoints_legacy_reversados_desde_apk(): void
+    {
+        // 1. GET /users/login/{query}
+        $resLogin = $this->getJson('/api/v1/users/login/5678');
+        $resLogin->assertStatus(200)
+            ->assertJson([
+                'loginSuccessful' => true,
+                'existFreeTables' => true,
+                'waiterId' => (string) $this->garzon1->id,
+            ]);
+
+        // 2. POST /table/allTable
+        $resMesas = $this->postJson('/api/v1/table/allTable');
+        $resMesas->assertStatus(200);
+        $this->assertIsArray($resMesas->json());
+
+        // 3. GET /Assistants/All
+        $resAssistants = $this->getJson('/api/v1/Assistants/All');
+        $resAssistants->assertStatus(200);
+        $this->assertCount(8, $resAssistants->json());
+
+        // 4. POST /orders/SendOrder
+        $resSend = $this->postJson('/api/v1/orders/SendOrder', [
+            'tableId' => $this->mesa1->id,
+            'waiterId' => (string) $this->garzon1->id,
+            'cartItemList' => [
+                [
+                    'productId' => $this->producto->id,
+                    'count' => 1,
+                    'comment' => 'Bien helada',
+                    'assistants' => 'Con Hielo',
+                ],
+            ],
+        ]);
+        $resSend->assertStatus(200)
+            ->assertJson(['success' => true]);
+
+        // 5. POST /orders/OrderByTable
+        $resOrder = $this->postJson('/api/v1/orders/OrderByTable', [
+            'tableId' => $this->mesa1->id,
+        ]);
+        $resOrder->assertStatus(200);
+        $this->assertCount(1, $resOrder->json());
+
+        // 6. POST /orders/PrintOrder
+        $resPrint = $this->postJson('/api/v1/orders/PrintOrder', [
+            'tableId' => $this->mesa1->id,
+            'waiterId' => (string) $this->garzon1->id,
+        ]);
+        $resPrint->assertStatus(200)
+            ->assertJson(['success' => true]);
+    }
 }

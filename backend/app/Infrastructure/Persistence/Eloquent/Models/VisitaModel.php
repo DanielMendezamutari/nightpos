@@ -50,6 +50,11 @@ class VisitaModel extends Model
         return $this->belongsTo(UserModel::class, 'mesero_id');
     }
 
+    public function cliente(): BelongsTo
+    {
+        return $this->belongsTo(ClienteModel::class, 'cliente_id');
+    }
+
     public function detalles(): HasMany
     {
         return $this->hasMany(VisitaDetalleModel::class, 'visita_id');

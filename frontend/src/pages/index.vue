@@ -197,9 +197,29 @@ const submitChangeTable = async () => {
 }
 
 // Request bill / precuenta
+const precuentaLoading = ref(false)
+const precuentaMensaje = ref('')
+
 const handleSolicitarPrecuenta = async () => {
   if (!targetMesa.value) return
-  await salonStore.solicitarPrecuenta(targetMesa.value.id)
+  precuentaLoading.value = true
+  precuentaMensaje.value = ''
+  try {
+    const res = await salonStore.solicitarPrecuenta(targetMesa.value.id)
+    if (res.success) {
+      const mesaNombre = targetMesa.value.codigo || ('Mesa ' + (targetMesa.value.numero || targetMesa.value.id))
+      precuentaMensaje.value = `Precuenta de ${mesaNombre} enviada directamente a la impresora CAJA`
+      setTimeout(() => {
+        precuentaMensaje.value = ''
+      }, 5000)
+    } else {
+      alert(res.message || 'Error al imprimir precuenta')
+    }
+  } catch (err) {
+    alert('Error al enviar precuenta: ' + (err.message || 'Fallo de comunicacion'))
+  } finally {
+    precuentaLoading.value = false
+  }
 }
 
 // Open Cobro / Facturacion Modal
@@ -677,15 +697,28 @@ const freeTablesForMove = computed(() => {
           </div>
 
           <!-- Acciones Táctiles de Mesa (RestoTech Faithful) -->
+          <VAlert
+            v-if="precuentaMensaje"
+            type="success"
+            variant="tonal"
+            density="compact"
+            class="mb-3 w-100"
+            closable
+            @click:close="precuentaMensaje = ''"
+          >
+            {{ precuentaMensaje }}
+          </VAlert>
+
           <div class="d-flex gap-2 flex-wrap">
             <VBtn
               color="warning"
-              variant="tonal"
+              variant="elevated"
               prepend-icon="ri-printer-line"
-              class="flex-grow-1"
+              class="flex-grow-1 font-weight-bold"
+              :loading="precuentaLoading"
               @click="handleSolicitarPrecuenta"
             >
-              Pre-cuenta
+              Imprimir Pre-cuenta (F9)
             </VBtn>
 
             <VBtn

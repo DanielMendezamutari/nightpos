@@ -68,6 +68,11 @@ Route::prefix('v1')->group(function () {
         Route::get('observaciones-cocina', [ComandaController::class, 'getObservacionesCocina']);
     });
 
+    Route::prefix('comandas')->group(function () {
+        Route::get('categorias', [ComandaController::class, 'getCategorias']);
+        Route::get('productos', [ComandaController::class, 'getProductos']);
+    });
+
     Route::delete('visita-detalles/{detalleId}', [ComandaController::class, 'eliminarItem']);
 
     Route::prefix('caja')->group(function () {
@@ -210,14 +215,28 @@ Route::prefix('v1')->group(function () {
             Route::post('comanda', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'enviarComanda']);
             Route::get('cuenta/{mesaId}', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'verCuenta']);
             Route::post('imprimir-precuenta/{mesaId}', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'solicitarPrecuenta']);
+            Route::get('asistentes', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'asistentesLegacy']);
         });
     });
+
+    // ==========================================
+    // MÓDULO 015: RUTAS LEGACY REVERSADAS DESDE BASE.APK (cu.lex.android.bi)
+    // ==========================================
+    Route::get('users/login/{query}', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'loginLegacy']);
+    Route::match(['get', 'post'], 'table/allTable', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'mesasLegacy']);
+    Route::match(['get', 'post'], 'products/GetProducts', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'getMenu']);
+    Route::get('Assistants/All', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'asistentesLegacy']);
+    Route::post('orders/SendOrder', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'sendOrderLegacy']);
+    Route::post('orders/PrintOrder', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'printOrderLegacy']);
+    Route::match(['get', 'post'], 'orders/OrderByTable', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'orderByTableLegacy']);
+    Route::match(['get', 'post'], 'orders/VerOrder', [\App\Http\Controllers\Api\V1\MovilGarzonController::class, 'orderByTableLegacy']);
 
     // ==========================================
     // MÓDULO 013: IMPRESIÓN DIRECTA TÉRMICA RESTOTECH
     // ==========================================
     Route::prefix('impresion')->group(function () {
         Route::post('ticket/{facturaId}', [ImpresionController::class, 'imprimirTicket']);
+        Route::post('precuenta/{mesaId}', [ImpresionController::class, 'imprimirPrecuenta']);
         Route::get('impresoras', [ImpresionController::class, 'listarImpresoras']);
         Route::post('test', [ImpresionController::class, 'test']);
     });

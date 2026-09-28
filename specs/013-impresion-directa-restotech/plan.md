@@ -1,33 +1,58 @@
-# Plan de Arquitectura e Implementación: Módulo 013 — Impresión Directa estilo RestoTech
+# Plan de Arquitectura e Implementación: Módulo 013 — Impresión RAW y Precuenta RestoTech
 
-**Módulo**: `013-impresion-directa-restotech`  
-**Foco**: Backend Printer Service (Windows Spooler) + Kiosk Printing Frontend + Endpoints de Impresión
+**Objetivo**: Migrar el canal de impresión de texto GDI a **RAW ESC/POS Spooler (`winspool.drv`)** para ocupar el ancho completo de 80mm e implementar la **Precuenta** en backend y frontend.
 
 ---
 
-## 1. Componentes a Desarrollar
+## 1. Arquitectura Técnica
 
-### Backend (Laravel 12 / PHP 8.2 en Windows XAMPP):
-1. **`App\Services\Printing\TicketFormatterService`**:
-   - Formatea el ticket en texto plano de 40 columnas exactamente ajustado a impresoras térmicas de 80mm.
-   - Manejo de acentos, caracteres especiales, corte de papel y líneas de división limpias.
-2. **`App\Services\Printing\WindowsDirectPrinterService`**:
-   - Detecta si el sistema operativo es Windows.
-   - Detecta la impresora configurada (`CAJA` o la predeterminada de Windows).
-   - Envía el ticket formateado directamente al spooler de la impresora mediante PowerShell `Out-Printer -Name "CAJA"` o escritura directa en puerto/spool.
-3. **Controlador `App\Http\Controllers\Api\V1\ImpresionController`**:
-   - `POST /api/v1/impresion/ticket/{facturaId}`: Recibe el ID de factura o recibo y lo envía a imprimir.
-   - `GET /api/v1/impresion/impresoras`: Lista las impresoras disponibles en el sistema y el estado de `CAJA`.
-   - `POST /api/v1/impresion/test`: Imprime un ticket de prueba breve para calibración.
-4. **Integración en `CajaFacturaController::cobrarYFacturar`**:
-   - Disparo automático opcional de la impresión tras guardar la factura en la base de datos.
-   - El resultado del cobro devuelve `impresion_directa: true/false`.
+### 1.1 Impresión RAW vía Spooler de Windows (`winspool.drv`)
+- En lugar de invocar `Out-Printer` (que fuerza renderizado GDI con márgenes de Windows), invocamos un helper en C# o PowerShell que llama a las APIs nativas de Windows:
+  - `OpenPrinterA`
+  - `StartDocPrinterA` con `pDataType = "RAW"`
+  - `StartPagePrinter`
+  - `WritePrinter`
+  - `EndPagePrinter`
+  - `EndDocPrinter`
+  - `ClosePrinter`
+- Esto ya está probado y disponible en `agent/src/winRawPrint.ps1` o mediante un ejecutable/script directo invocado desde `WindowsDirectPrinterService`.
+- Al enviar datos en modo RAW:
+  - Los comandos ESC/POS como corte de papel (`\x1D\x56\x01` o `\x1D\x56\x42\x00`), inicialización (`\x1B\x40`), negrita (`\x1B\x45\x01`) y tamaño de fuente son interpretados por el firmware de la impresora EPSON TM-T.
+  - La línea usa los 42 caracteres completos de la fuente Font A sin cortes de palabras.
 
-### Frontend (Vue 3 / Vite):
-1. **Actualizar `CobroFacturacionModal.vue`**:
-   - Al completar el cobro, invocar la orden de impresión directa al backend (`impresionService.imprimirTicket(factura.id)`).
-   - Si el backend confirma la impresión directa (`printed_via: 'backend_spooler'`), mostrar notificación toast "Ticket impreso en CAJA".
-   - Si el backend está en un servidor remoto o no tiene impresora local disponible, ejecutar el fallback del iframe/kiosk printing.
-2. **Actualizar `iniciar_pos_kiosk.bat`**:
-   - Permitir abrir tanto `http://localhost:5173` (desarrollo Vite) como `http://localhost/nightpos` (XAMPP / Apache) o la URL configurada con el flag `--kiosk-printing`.
-   - Crear acceso directo en el escritorio para que el cajero siempre inicie el POS en modo silencioso.
+### 1.2 Formateador de Tickets RestoTech (`TicketFormatterService`)
+1. **Cobro / Factura / Recibo (`formatTicket`)**:
+   - Cabecera de comercio.
+   - `RECIBO DE CAJA / NOTA DE VENTA`
+   - Metadatos (Nro, Fecha, Cliente, NIT/CI, Mesa, Cajero, Método).
+   - Separador `------------------------------------------` (42 caracteres).
+   - Tabla: `CANT.  DESCRIPCION                 SUBTOTAL`
+   - Lista de productos con formato alineado.
+   - Totales y formas de pago.
+   - Pie y corte de papel ESC/POS.
+2. **Precuenta (`formatPrecuenta`)**:
+   - Basado exactamente en `ImprimiendoComandas.cs` -> `printCuentaTotalFactura`.
+   - `RIBERESTO POS`
+   - `CUENTA`
+   - `En Mesa`
+   - `Fecha: YYYY-MM-DD HH:mm:ss`
+   - `Mesa: X  |  Mesero: Nombre`
+   - Separador `------------------------------------------`
+   - `DESCRIPCION             CANT.        TOTAL`
+   - Separador `------------------------------------------`
+   - Ítems de la visita activa.
+   - Separador `------------------------------------------`
+   - `TOTAL:                     Bs.      XX.XX`
+   - `Gracias por su preferencia!`
+   - `Sistema Restotech by Ribersoft`
+   - 4 líneas en blanco + Corte de papel ESC/POS.
+
+### 1.3 Endpoints Backend
+- `POST /api/v1/impresion/precuenta/{mesaId}`: Obtiene los consumos de la mesa activa, genera el ticket de precuenta y lo envía a la impresora `CAJA`.
+- `POST /api/v1/impresion/ticket/{facturaId}`: Envía el ticket de cobro a `CAJA` en modo RAW.
+
+### 1.4 Frontend Integration
+- En `ComandaModal.vue` y `index.vue`:
+  - Botón "Precuenta (F9)" al lado de "Cobrar (F12)".
+  - Al presionar, realiza `cajaStore.imprimirPrecuenta(mesaId)`.
+  - Muestra toast / feedback inmediato sin recargas ni diálogos.

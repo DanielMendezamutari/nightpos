@@ -15,18 +15,27 @@ class WindowsDirectPrinterService
     ) {}
 
     /**
-     * Imprime una factura o recibo formateado directamente a la impresora de Windows.
+     * Imprime una factura o recibo formateado en ESC/POS RAW directo a la impresora de Windows.
      */
-    public function imprimirFactura(array $factura, ?string $printerName = null): array
+    public function imprimirFactura(array $factura, ?string $printerName = null, bool $abrirCajon = false): array
     {
-        $texto = $this->formatter->formatTicket($factura);
-        return $this->imprimirTexto($texto, $printerName);
+        $rawBytes = $this->formatter->formatTicket($factura, $abrirCajon);
+        return $this->imprimirRaw($rawBytes, $printerName);
     }
 
     /**
-     * Envía texto plano al spooler de Windows hacia la impresora indicada.
+     * Imprime una precuenta formateada en ESC/POS RAW idéntica a RestoTech.
      */
-    public function imprimirTexto(string $texto, ?string $printerName = null): array
+    public function imprimirPrecuenta(array $cuenta, ?string $printerName = null): array
+    {
+        $rawBytes = $this->formatter->formatPrecuenta($cuenta);
+        return $this->imprimirRaw($rawBytes, $printerName);
+    }
+
+    /**
+     * Envía bytes RAW directamente al Spooler de Windows (winspool.drv) sin márgenes GDI.
+     */
+    public function imprimirRaw(string $rawBytes, ?string $printerName = null): array
     {
         if (PHP_OS_FAMILY !== 'Windows') {
             return [
@@ -38,20 +47,23 @@ class WindowsDirectPrinterService
 
         $printer = $printerName ?: env('POS_PRINTER_NAME', self::DEFAULT_PRINTER);
 
-        // Guardar ticket en archivo temporal
-        $tempDir = sys_get_temp_dir();
-        $tempFile = $tempDir . DIRECTORY_SEPARATOR . 'ticket_' . uniqid() . '.txt';
+        // Guardar bytes en archivo temporal binario
+        $tempDir = storage_path('app');
+        if (!is_dir($tempDir)) {
+            @mkdir($tempDir, 0777, true);
+        }
+        $tempFile = $tempDir . DIRECTORY_SEPARATOR . 'job_' . uniqid() . '.bin';
 
         try {
-            // Guardamos con codificación UTF-8
-            file_put_contents($tempFile, $texto);
+            file_put_contents($tempFile, $rawBytes);
 
-            // Escapar rutas para PowerShell
+            $scriptPath = __DIR__ . DIRECTORY_SEPARATOR . 'raw_print.ps1';
+            $escapedScript = addslashes($scriptPath);
             $escapedFile = addslashes($tempFile);
             $escapedPrinter = addslashes($printer);
 
-            // Comando PowerShell para enviar directamente al spooler de la impresora
-            $cmd = "powershell -NoProfile -ExecutionPolicy Bypass -Command \"Get-Content -LiteralPath '{$escapedFile}' -Encoding UTF8 | Out-Printer -Name '{$escapedPrinter}'\"";
+            // Comando PowerShell para enviar vía winspool.drv RAW
+            $cmd = "powershell -NoProfile -ExecutionPolicy Bypass -File \"{$escapedScript}\" -PrinterName \"{$escapedPrinter}\" -FilePath \"{$escapedFile}\"";
 
             $output = [];
             $returnCode = 0;
@@ -63,17 +75,18 @@ class WindowsDirectPrinterService
             }
 
             if ($returnCode === 0) {
-                Log::info("Ticket impreso directamente en impresora {$printer}");
+                Log::info("Ticket RAW impreso directamente en {$printer}: " . implode(' ', $output));
                 return [
                     'success' => true,
                     'message' => "Ticket enviado directamente a la impresora {$printer}",
                     'printer' => $printer,
-                    'method' => 'windows_spooler',
+                    'method' => 'windows_raw_spooler',
+                    'bytes' => strlen($rawBytes),
                 ];
             }
 
             $errorMsg = implode("\n", $output) ?: "Error al enviar a la impresora {$printer} (código {$returnCode})";
-            Log::warning("Fallo al imprimir en {$printer}: " . $errorMsg);
+            Log::warning("Fallo al imprimir RAW en {$printer}: " . $errorMsg);
 
             return [
                 'success' => false,
@@ -113,7 +126,6 @@ class WindowsDirectPrinterService
             return [];
         }
 
-        // Si sólo hay una, PowerShell a veces devuelve un objeto simple en lugar de un array
         if (isset($printers['Name'])) {
             return [$printers];
         }
